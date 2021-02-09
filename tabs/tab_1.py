@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
 
-import dash
-import dash_core_components as dcc
 import dash_html_components as html
 from dash_html_components import H5, Pre, Code
-import dash_table
 from dash_table import DataTable
-from dash.dependencies import Input, Output
-import pandas as pd
 
-import colour
-from colour.colorimetry import sds_and_multi_sds_to_multi_sds
 
 params = [
     'Wavelength', 'R Sensitivity', 'G Sensitivity', 'B Sensitivity'

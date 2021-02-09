@@ -18,7 +18,7 @@ from tabs import tab_2
 
 import colour
 from colour.characterisation import idt_matrix
-from colour import ILLUMINANT_SDS
+from colour import SDS_ILLUMINANTS
 from colour.colorimetry import sds_and_multi_sds_to_multi_sds
 from colour.io import read_sds_from_csv_file
 

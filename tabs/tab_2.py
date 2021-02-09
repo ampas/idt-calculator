@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
 
-import dash
-import dash_core_components as dcc
 import dash_html_components as html
-import dash_table
 from dash_table import DataTable
-from dash.dependencies import Input, Output
 from dash_core_components import Dropdown
 from dash_html_components import H5
 import pandas as pd
 
 import colour
-from colour import ILLUMINANT_SDS
 
 ILLUMINANTS_OPTIONS = [{
     'label': key,
     'value': key
-} for key in sorted(ILLUMINANT_SDS.keys())]
+} for key in sorted(colour.SDS_ILLUMINANTS.keys())]
 
 params = [
     'Wavelength', 'R Sensitivity', 'G Sensitivity', 'B Sensitivity'
