@@ -122,8 +122,11 @@ def requirements(ctx):
     """
 
     message_box('Exporting "requirements.txt" file...')
-    ctx.run('poetry run pip freeze | '
-            'egrep -v "github.com/colour-science" '
+    ctx.run('poetry run pip list --format=freeze | '
+            'egrep -v "colour==" | '
+            'sed -e "s|colour-science==.*|'
+            'git+git://github.com/colour-science/colour@develop#'
+            'egg=colour|g" '
             '> requirements.txt')
 
 
