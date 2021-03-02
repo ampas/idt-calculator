@@ -119,7 +119,7 @@ CTL_MODULE_TEMPLATE = """
 // https://tbd
 // Generated on {2}
 
-import "utilities"
+import "utilities";
 
 const float B[][] = {{ {0} }};
 
