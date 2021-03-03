@@ -7,6 +7,7 @@ Common
 import colour
 import colour_datasets
 import re
+from datetime import datetime
 
 __author__ = 'Colour Developers'
 __copyright__ = 'Copyright (C) 2018-2021 - Colour Developers'
@@ -19,8 +20,8 @@ __all__ = [
     'COLOUR_ENVIRONMENT', 'DATASET_RAW_TO_ACES',
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS',
-    'ILLUMINANT_OPTIONS', 'NUKE_COLORMATRIX_NODE_TEMPLATE',
-    'nuke_format_matrix', 'slugify'
+    'ILLUMINANT_OPTIONS', 'NUKE_COLORMATRIX_NODE_TEMPLATE', 'CTL_MODULE_TEMPLATE',
+    'nuke_format_matrix', 'ctl_format_matrix', 'ctl_format_vector', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -112,6 +113,48 @@ ColorMatrix {{
 NUKE_COLORMATRIX_NODE_TEMPLATE : unicode
 """
 
+# TODO Get b value from colour-science
+CTL_MODULE_TEMPLATE = """
+// ACES IDT generated using Academy IDT Calculator - {1}
+// https://tbd
+// Generated on {2}
+
+import "utilities";
+
+const float B[][] = {{ {0} }};
+
+const float b[] = {{ 1.0, 1.0, 1.0 }};
+const float min_b = min(b[0], min(b[1], b[2]));
+const float e_max = 1.000000;
+const float k = 1.000000;
+
+void main (
+	input varying float rIn,
+	input varying float gIn,
+	input varying float bIn,
+	input varying float aIn,
+	output varying float rOut,
+	output varying float gOut,
+	output varying float bOut,
+	output varying float aOut )
+{{
+	float Rraw = clip((b[0] * rIn) / (min_b * e_max));
+	float Graw = clip((b[1] * gIn) / (min_b * e_max));
+	float Braw = clip((b[2] * bIn) / (min_b * e_max));
+
+	rOut = k * (B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw);
+	gOut = k * (B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw);
+	bOut = k * (B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw);
+	aOut = 1.0;
+
+}}
+""" [1:]
+"""
+Color Transform Language (CTL) Module template.
+
+CTL_MODULE_TEMPLATE : unicode
+"""
+
 
 def nuke_format_matrix(M, decimals=10):
     """
@@ -143,6 +186,66 @@ def nuke_format_matrix(M, decimals=10):
     tcl += '     {{{0}}}'.format(pretty(M[2]))
 
     return tcl
+
+
+def ctl_format_matrix(M, decimals=10):
+    """
+    Formats given matrix for as *CTL* module.
+
+    Parameters
+    ----------
+    M : array_like
+        Matrix to format.
+    decimals : int, optional
+        Decimals to use when formatting the matrix.
+
+    Returns
+    -------
+    unicode
+        *CTL* formatted matrix.
+    """
+
+    def pretty(x):
+        """
+        Prettify given number.
+        """
+
+        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+
+    ctl = '{{{0}}}\n'.format(pretty(M[0]))
+    ctl += '{{{0}}}\n'.format(pretty(M[1]))
+    ctl += '{{{0}}}'.format(pretty(M[2]))
+
+    return ctl
+
+def ctl_format_vector(V, decimals=10):
+    """
+    Formats given vector for as *CTL* module.
+
+    Parameters
+    ----------
+    V : array_like
+        Vector to format.
+    decimals : int, optional
+        Decimals to use when formatting the vector.
+
+    Returns
+    -------
+    unicode
+        *CTL* formatted matrix.
+    """
+    
+    def pretty(x):
+        """
+        Prettify given number.
+        """
+        
+        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+    
+    ctl = '{{{0}}}'.format(pretty(V))
+    
+    return ctl
+
 
 
 def slugify(a):

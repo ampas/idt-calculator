@@ -7,6 +7,7 @@ Input Device Transform (IDT) Calculator
 import colour
 import urllib.parse
 import sys
+from datetime import datetime
 from colour import (CubicSplineInterpolator, LinearInterpolator,
                     PchipInterpolator, SDS_ILLUMINANTS, SpectralDistribution,
                     SpragueInterpolator)
@@ -24,9 +25,9 @@ from dash_table.Format import Format, Scheme
 
 from app import APP, SERVER_URL, __version__
 from apps.common import (
-    CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT,
+    CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT, CTL_MODULE_TEMPLATE,
     ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES,
-    NUKE_COLORMATRIX_NODE_TEMPLATE, TRAINING_DATA_KODAK190PATCHES,
+    NUKE_COLORMATRIX_NODE_TEMPLATE, TRAINING_DATA_KODAK190PATCHES, ctl_format_matrix,
     nuke_format_matrix, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
@@ -268,6 +269,10 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 {
                                     'label': 'repr',
                                     'value': 'repr'
+                                },
+                                                                {
+                                    'label': 'ctl',
+                                    'value': 'ctl'
                                 },
                                 {
                                     'label': 'Nuke',
@@ -671,6 +676,12 @@ def compute_idt_matrix(
             M = str(M)
         elif formatter == 'repr':
             M = repr(M)
+        elif formatter == 'ctl':
+            M = CTL_MODULE_TEMPLATE.format(
+                ctl_format_matrix(M, decimals),
+                slugify('{0} {1} IDT'.format(camera_name, illuminant_name)),
+                datetime.now().strftime("%b %d, %Y %H:%M:%S")
+                )
         else:
             M = NUKE_COLORMATRIX_NODE_TEMPLATE.format(
                 nuke_format_matrix(M, decimals),
