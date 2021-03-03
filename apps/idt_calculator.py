@@ -563,9 +563,9 @@ def compute_idt_matrix(n_clicks, camera_name, sensitivities_data,
         Name of the optimisation space used to select the correspond
         optimisation factory.
     sensitivities_interpolator : unicode
-        Name of the camera senstitivities interpolator.
+        Name of the camera sensitivities interpolator.
     illuminant_interpolator : unicode
-        Name of the illumimant interpolator.
+        Name of the illuminant interpolator.
     formatter : unicode
         Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
     decimals : int
