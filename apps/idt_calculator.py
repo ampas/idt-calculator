@@ -118,6 +118,8 @@ _STYLE_DATATABLE = {
     'cell_colour': 'rgb(220, 220, 220)',
 }
 
+_IDT_MATRIX_CACHE = {}
+
 _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
     InputGroup(
         [
@@ -518,8 +520,12 @@ def toggle_advanced_options(n_clicks, is_open):
 @APP.callback(
     Output(
         component_id='idt-matrix-{0}'.format(APP_UID),
-        component_property='children'),
-    [Input('compute-idt-matrix-button-{0}'.format(APP_UID), 'n_clicks')], [
+        component_property='children'), [
+            Input('compute-idt-matrix-button-{0}'.format(APP_UID), 'n_clicks'),
+            Input('formatter-{0}'.format(APP_UID), 'value'),
+            Input('decimals-{0}'.format(APP_UID), 'value'),
+        ],
+    [
         State('camera-sensitivities-{0}'.format(APP_UID), 'value'),
         State('camera-sensitivities-datatable-{0}'.format(APP_UID), 'data'),
         State('illuminant-{0}'.format(APP_UID), 'value'),
@@ -529,16 +535,23 @@ def toggle_advanced_options(n_clicks, is_open):
         State('optimisation-space-{0}'.format(APP_UID), 'value'),
         State('camera-sensitivities-interpolator-{0}'.format(APP_UID),
               'value'),
-        State('illuminant-interpolator-{0}'.format(APP_UID), 'value'),
-        State('formatter-{0}'.format(APP_UID), 'value'),
-        State('decimals-{0}'.format(APP_UID), 'value')
+        State('illuminant-interpolator-{0}'.format(APP_UID), 'value')
     ],
     prevent_initial_call=True)
-def compute_idt_matrix(n_clicks, camera_name, sensitivities_data,
-                       illuminant_name, illuminant_data, training_data,
-                       chromatic_adaptation_transform, optimisation_space,
-                       sensitivities_interpolator, illuminant_interpolator,
-                       formatter, decimals):
+def compute_idt_matrix(
+        n_clicks,
+        formatter,
+        decimals,
+        camera_name,
+        sensitivities_data,
+        illuminant_name,
+        illuminant_data,
+        training_data,
+        chromatic_adaptation_transform,
+        optimisation_space,
+        sensitivities_interpolator,
+        illuminant_interpolator,
+):
     """
     Computes the *Input Device Transform* (IDT) matrix.
 
@@ -547,6 +560,10 @@ def compute_idt_matrix(n_clicks, camera_name, sensitivities_data,
     n_clicks : int
         Integer that represents that number of times the button has been
         clicked.
+    formatter : unicode
+        Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
+    decimals : int
+        Decimals to use when formatting the IDT matrix.
     camera_name : unicode
         Name of the camera.
     sensitivities_data : list
@@ -566,10 +583,6 @@ def compute_idt_matrix(n_clicks, camera_name, sensitivities_data,
         Name of the camera sensitivities interpolator.
     illuminant_interpolator : unicode
         Name of the illuminant interpolator.
-    formatter : unicode
-        Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
-    decimals : int
-        Decimals to use when formatting the IDT matrix.
 
     Returns
     -------
@@ -577,46 +590,79 @@ def compute_idt_matrix(n_clicks, camera_name, sensitivities_data,
         IDT matrix.
     """
 
-    parsed_sensitivities_data = {}
-    for data in sensitivities_data:
-        red, green, blue = data.get('R'), data.get('G'), data.get('B')
-        if None in (red, green, blue):
-            return 'Please define all the camera sensitivities values!'
-
-        wavelength = data['wavelength']
-        if wavelength == '...':
-            return 'Please define all the camera sensitivities wavelengths!'
-
-        parsed_sensitivities_data[wavelength] = (
-            colour.utilities.as_float_array([red, green, blue]))
-    sensitivities = RGB_CameraSensitivities(
-        parsed_sensitivities_data,
-        interpolator=_INTERPOLATORS[sensitivities_interpolator])
-
-    parsed_illuminant_data = {}
-    for data in illuminant_data:
-        value = data.get('value')
-        if value is None:
-            return 'Please define all the illuminant values!'
-
-        wavelength = data['wavelength']
-        if wavelength == '...':
-            return 'Please define all the illuminant wavelengths!'
-
-        parsed_illuminant_data[wavelength] = (colour.utilities.as_float(value))
-    illuminant = SpectralDistribution(
-        parsed_illuminant_data,
-        interpolator=_INTERPOLATORS[illuminant_interpolator])
-
-    training_data = _TRAINING_DATASETS[training_data]
-    optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
-
-    M = colour.matrix_idt(
-        sensitivities=sensitivities,
-        illuminant=illuminant,
-        training_data=training_data,
-        optimisation_factory=optimisation_factory,
+    key = (
+        camera_name,
+        hash(
+            tuple([
+                tuple([
+                    data.get('wavelength'),
+                    data.get('R'),
+                    data.get('G'),
+                    data.get('B'),
+                ]) for data in sensitivities_data
+            ])),
+        illuminant_name,
+        hash(
+            tuple([
+                tuple([
+                    data.get('wavelength'),
+                    data.get('value'),
+                ]) for data in illuminant_data
+            ])),
+        training_data,
+        chromatic_adaptation_transform,
+        optimisation_space,
+        sensitivities_interpolator,
+        illuminant_interpolator,
     )
+
+    M = _IDT_MATRIX_CACHE.get(key)
+
+    if M is None:
+        parsed_sensitivities_data = {}
+        for data in sensitivities_data:
+            red, green, blue = data.get('R'), data.get('G'), data.get('B')
+            if None in (red, green, blue):
+                return 'Please define all the camera sensitivities values!'
+
+            wavelength = data['wavelength']
+            if wavelength == '...':
+                return (
+                    'Please define all the camera sensitivities wavelengths!')
+
+            parsed_sensitivities_data[wavelength] = (
+                colour.utilities.as_float_array([red, green, blue]))
+        sensitivities = RGB_CameraSensitivities(
+            parsed_sensitivities_data,
+            interpolator=_INTERPOLATORS[sensitivities_interpolator])
+
+        parsed_illuminant_data = {}
+        for data in illuminant_data:
+            value = data.get('value')
+            if value is None:
+                return 'Please define all the illuminant values!'
+
+            wavelength = data['wavelength']
+            if wavelength == '...':
+                return 'Please define all the illuminant wavelengths!'
+
+            parsed_illuminant_data[wavelength] = (
+                colour.utilities.as_float(value))
+        illuminant = SpectralDistribution(
+            parsed_illuminant_data,
+            interpolator=_INTERPOLATORS[illuminant_interpolator])
+
+        training_data = _TRAINING_DATASETS[training_data]
+        optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
+
+        M = colour.matrix_idt(
+            sensitivities=sensitivities,
+            illuminant=illuminant,
+            training_data=training_data,
+            optimisation_factory=optimisation_factory,
+        )
+
+        _IDT_MATRIX_CACHE[key] = M
 
     with colour.utilities.numpy_print_options(
             formatter={'float': ('{{: 0.{0}f}}'.format(decimals)).format},
