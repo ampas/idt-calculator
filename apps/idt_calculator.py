@@ -679,9 +679,11 @@ def compute_idt_matrix(
         elif formatter == 'ctl':
             M = CTL_MODULE_TEMPLATE.format(
                 ctl_format_matrix(M, decimals),
-                slugify('{0} {1} IDT'.format(camera_name, illuminant_name)),
-                datetime.now().strftime("%b %d, %Y %H:%M:%S")
-                )
+                camera_name, 
+                illuminant_name,
+                datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+                '{0} - {1}'.format(APP_NAME, __version__),
+                APP_PATH)
         else:
             M = NUKE_COLORMATRIX_NODE_TEMPLATE.format(
                 nuke_format_matrix(M, decimals),

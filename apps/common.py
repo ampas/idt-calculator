@@ -115,9 +115,11 @@ NUKE_COLORMATRIX_NODE_TEMPLATE : unicode
 
 # TODO Get b value from colour-science
 CTL_MODULE_TEMPLATE = """
-// ACES IDT generated using Academy IDT Calculator - {1}
-// https://tbd
-// Generated on {2}
+// Generated using {4}
+// {5}
+// Camera : {1}
+// Scene adopted white : {2}
+// Generated on {3}
 
 import "utilities";
 
