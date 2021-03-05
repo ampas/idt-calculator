@@ -24,11 +24,12 @@ from dash_table import DataTable
 from dash_table.Format import Format, Scheme
 
 from app import APP, SERVER_URL, __version__
-from apps.common import (
-    CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT, CTL_MODULE_TEMPLATE,
-    ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES,
-    NUKE_COLORMATRIX_NODE_TEMPLATE, TRAINING_DATA_KODAK190PATCHES, ctl_format_matrix,
-    nuke_format_matrix, slugify)
+from apps.common import (CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS,
+                         COLOUR_ENVIRONMENT, ILLUMINANT_OPTIONS,
+                         MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
+                         TEMPLATE_CTL_MODULE, TEMPLATE_NUKE_COLORMATRIX_NODE,
+                         TRAINING_DATA_KODAK190PATCHES, ctl_format_matrix,
+                         ctl_format_vector, nuke_format_matrix, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
 __copyright__ = ('Copyright (C) 2020-2021 '
@@ -270,7 +271,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     'label': 'repr',
                                     'value': 'repr'
                                 },
-                                                                {
+                                {
                                     'label': 'ctl',
                                     'value': 'ctl'
                                 },
@@ -308,9 +309,10 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                 className='mb-2'),
             Pre([
                 Code(
-                    id='idt-matrix-{0}'.format(APP_UID),
+                    id='idt-calculator-output-{0}'.format(APP_UID),
                     className='code shell')
-            ]),
+            ],
+                className='mt-2'),
         ]),
     ]),
 ]
@@ -524,7 +526,7 @@ def toggle_advanced_options(n_clicks, is_open):
 
 @APP.callback(
     Output(
-        component_id='idt-matrix-{0}'.format(APP_UID),
+        component_id='idt-calculator-output-{0}'.format(APP_UID),
         component_property='children'), [
             Input('compute-idt-matrix-button-{0}'.format(APP_UID), 'n_clicks'),
             Input('formatter-{0}'.format(APP_UID), 'value'),
@@ -621,7 +623,7 @@ def compute_idt_matrix(
         illuminant_interpolator,
     )
 
-    M = _IDT_MATRIX_CACHE.get(key)
+    M, XYZ, RGB, RGB_w = _IDT_MATRIX_CACHE.get(key, [None] * 4)
 
     if M is None:
         parsed_sensitivities_data = {}
@@ -660,32 +662,37 @@ def compute_idt_matrix(
         training_data = _TRAINING_DATASETS[training_data]
         optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
 
-        M = colour.matrix_idt(
+        M, XYZ, RGB, RGB_w = colour.matrix_idt(
             sensitivities=sensitivities,
             illuminant=illuminant,
             training_data=training_data,
             optimisation_factory=optimisation_factory,
+            chromatic_adaptation_transform=chromatic_adaptation_transform,
+            additional_data=True,
         )
 
-        _IDT_MATRIX_CACHE[key] = M
+        _IDT_MATRIX_CACHE[key] = M, XYZ, RGB, RGB_w
 
     with colour.utilities.numpy_print_options(
             formatter={'float': ('{{: 0.{0}f}}'.format(decimals)).format},
             threshold=sys.maxsize):
         if formatter == 'str':
-            M = str(M)
+            output = TEMPLATE_DEFAULT_OUTPUT.format(str(M), str(RGB_w))
         elif formatter == 'repr':
-            M = repr(M)
+            output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
         elif formatter == 'ctl':
-            M = CTL_MODULE_TEMPLATE.format(
-                ctl_format_matrix(M, decimals),
-                camera_name, 
-                illuminant_name,
-                datetime.now().strftime("%b %d, %Y %H:%M:%S"),
-                '{0} - {1}'.format(APP_NAME, __version__),
-                APP_PATH)
+            output = TEMPLATE_CTL_MODULE.format(
+                matrix=ctl_format_matrix(M, decimals),
+                multipliers=ctl_format_vector(RGB_w, decimals),
+                camera=camera_name,
+                illuminant=illuminant_name,
+                date=datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+                application='{0} - {1}'.format(APP_NAME, __version__),
+                path=APP_PATH)
         else:
-            M = NUKE_COLORMATRIX_NODE_TEMPLATE.format(
-                nuke_format_matrix(M, decimals),
-                slugify('{0} {1} IDT'.format(camera_name, illuminant_name)))
-        return M
+            output = TEMPLATE_NUKE_COLORMATRIX_NODE.format(
+                matrix=nuke_format_matrix(M, decimals),
+                name=slugify('{0} {1} IDT'.format(camera_name,
+                                                  illuminant_name)))
+
+        return output
