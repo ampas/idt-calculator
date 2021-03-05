@@ -113,6 +113,13 @@ _INTERPOLATORS = {
     'Sprague (1880)': SpragueInterpolator,
 }
 
+_FORMATTER_OPTIONS = [{
+    'label': label,
+    'value': value
+} for label, value in [('Str', 'str'), ('Repr', 'repr'), ('CTL',
+                                                          'ctl'), ('Nuke',
+                                                                   'nuke')]]
+
 _STYLE_DATATABLE = {
     'header_background_colour': 'rgb(30, 30, 30)',
     'header_colour': 'rgb(220, 220, 220)',
@@ -262,24 +269,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         InputGroupAddon('Formatter', addon_type='prepend'),
                         Select(
                             id='formatter-{0}'.format(APP_UID),
-                            options=[
-                                {
-                                    'label': 'str',
-                                    'value': 'str'
-                                },
-                                {
-                                    'label': 'repr',
-                                    'value': 'repr'
-                                },
-                                {
-                                    'label': 'ctl',
-                                    'value': 'ctl'
-                                },
-                                {
-                                    'label': 'Nuke',
-                                    'value': 'Nuke'
-                                },
-                            ],
+                            options=_FORMATTER_OPTIONS,
                             value='str',
                         ),
                     ],
@@ -692,7 +682,7 @@ def compute_idt_matrix(
                 date=now,
                 application='{0} - {1}'.format(APP_NAME, __version__),
                 url=APP_PATH)
-        elif formatter == 'Nuke':
+        elif formatter == 'nuke':
             output = TEMPLATE_NUKE_GROUP.format(
                 matrix=format_matrix_nuke(M, decimals),
                 multipliers=format_vector_nuke(RGB_w),

@@ -193,9 +193,11 @@ TEMPLATE_CTL_MODULE = """
 
 import "utilities";
 
-const float B[][] = {{ {matrix} }};
+const float B[3][3] = {{
+    {matrix}
+}};
 
-const float b[] = {{ {multipliers} }};
+const float b[3] = {{ {multipliers} }};
 const float min_b = min(b[0], min(b[1], b[2]));
 const float e_max = 1.000000;
 const float k = 1.000000;
@@ -226,7 +228,7 @@ TEMPLATE_CTL_MODULE : unicode
 """
 
 
-def format_matrix_nuke(M, decimals=10):
+def format_matrix_nuke(M, decimals=10, padding=6):
     """
     Formats given matrix for usage in *The Foundry Nuke*, i.e. *TCL* code for
     a *ColorMatrix* node.
@@ -237,6 +239,8 @@ def format_matrix_nuke(M, decimals=10):
         Matrix to format.
     decimals : int, optional
         Decimals to use when formatting the matrix.
+    padding : int, optional
+        Padding to use when formatting the matrix.
 
     Returns
     -------
@@ -249,11 +253,13 @@ def format_matrix_nuke(M, decimals=10):
         Prettify given number.
         """
 
-        return ' '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+        return ' '.join(map(f'{{: 0.{decimals}f}}'.format, x))
 
-    tcl = '{{{0}}}\n'.format(pretty(M[0]))
-    tcl += '     {{{0}}}\n'.format(pretty(M[1]))
-    tcl += '     {{{0}}}'.format(pretty(M[2]))
+    pad = ' ' * padding
+
+    tcl = f'{{{pretty(M[0])}}}\n'
+    tcl += f'{pad}{{{pretty(M[1])}}}\n'
+    tcl += f'{pad}{{{pretty(M[2])}}}'
 
     return tcl
 
@@ -276,10 +282,10 @@ def format_vector_nuke(V, decimals=10):
         *The Foundry Nuke* formatted vector.
     """
 
-    return ' '.join(map('{{: 0.{0}f}}'.format(decimals).format, V))
+    return ' '.join(map(f'{{: 0.{decimals}f}}'.format, V))
 
 
-def format_matrix_ctl(M, decimals=10):
+def format_matrix_ctl(M, decimals=10, padding=4):
     """
     Formats given matrix for as *CTL* module.
 
@@ -289,6 +295,8 @@ def format_matrix_ctl(M, decimals=10):
         Matrix to format.
     decimals : int, optional
         Decimals to use when formatting the matrix.
+    padding : int, optional
+        Padding to use when formatting the matrix.
 
     Returns
     -------
@@ -301,11 +309,13 @@ def format_matrix_ctl(M, decimals=10):
         Prettify given number.
         """
 
-        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+        return ', '.join(map(f'{{: 0.{decimals}f}}'.format, x))
 
-    ctl = '{{{0}}}\n'.format(pretty(M[0]))
-    ctl += '                      {{{0}}}\n'.format(pretty(M[1]))
-    ctl += '                      {{{0}}}'.format(pretty(M[2]))
+    pad = ' ' * padding
+
+    ctl = f'{{{pretty(M[0])}}}\n'
+    ctl += f'{pad}{{{pretty(M[1])}}}\n'
+    ctl += f'{pad}{{{pretty(M[2])}}}'
 
     return ctl
 
@@ -327,16 +337,7 @@ def format_vector_ctl(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    def pretty(x):
-        """
-        Prettify given number.
-        """
-
-        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
-
-    ctl = '{{{0}}}'.format(pretty(V))
-
-    return ctl
+    return ', '.join(map(f'{{: 0.{decimals}f}}'.format, V))
 
 
 def slugify(a):
