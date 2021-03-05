@@ -129,7 +129,6 @@ ColorMatrix {{
 TEMPLATE_NUKE_COLORMATRIX_NODE : unicode
 """
 
-# TODO Get b value from colour-science
 TEMPLATE_CTL_MODULE = """
 // Generated using {application}
 // {path}
