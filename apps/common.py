@@ -189,6 +189,8 @@ TEMPLATE_CTL_MODULE = """
 // Url : {url}
 // Camera : {camera}
 // Scene adopted white : {illuminant}
+// Input : Linear Camera RGB
+// Output : ACES 2065-1
 // Generated on : {date}
 
 import "utilities";
@@ -199,8 +201,7 @@ const float B[3][3] = {{
 
 const float b[3] = {{ {multipliers} }};
 const float min_b = min(b[0], min(b[1], b[2]));
-const float e_max = 1.000000;
-const float k = 1.000000;
+const float k = {k_factor};
 
 void main (
     input varying float rIn,
@@ -212,13 +213,16 @@ void main (
     output varying float bOut,
     output varying float aOut )
 {{
-    float Rraw = clip((b[0] * rIn) / (min_b * e_max));
-    float Graw = clip((b[1] * gIn) / (min_b * e_max));
-    float Braw = clip((b[2] * bIn) / (min_b * e_max));
 
-    rOut = k * (B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw);
-    gOut = k * (B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw);
-    bOut = k * (B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw);
+    // Apply exposure and white balance factors
+    float Rraw = clip((b[0] * rIn * k) / min_b);
+    float Graw = clip((b[1] * gIn * k) / min_b);
+    float Braw = clip((b[2] * bIn * k) / min_b);
+
+    // Apply IDT matrix
+    rOut = B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw;
+    gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
+    bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
     aOut = 1.0;
 }}""" [1:]
 """

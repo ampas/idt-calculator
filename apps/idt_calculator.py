@@ -539,6 +539,7 @@ def toggle_advanced_options(n_clicks, is_open):
             State(_uid('camera-sensitivities-datatable'), 'data'),
             State(_uid('illuminant'), 'value'),
             State(_uid('illuminant-datatable'), 'data'),
+            State(_uid('exp-factor'), 'value'),
             State(_uid('training-data'), 'value'),
             State(_uid('chromatic-adaptation-transform'), 'value'),
             State(_uid('optimisation-space'), 'value'),
@@ -554,6 +555,7 @@ def compute_idt_matrix(
         sensitivities_data,
         illuminant_name,
         illuminant_data,
+        exposure_factor,
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -580,6 +582,8 @@ def compute_idt_matrix(
         Name of the illuminant.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
+    exposure_factor : float
+        Exposure adjustment factor (k-factor) to normalize 18% grey
     training_data : unicode
         Name of the training data.
     chromatic_adaptation_transform : unicode
@@ -617,6 +621,7 @@ def compute_idt_matrix(
                     data.get('value'),
                 ]) for data in illuminant_data
             ])),
+        exposure_factor,
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -688,6 +693,7 @@ def compute_idt_matrix(
             output = TEMPLATE_CTL_MODULE.format(
                 matrix=format_matrix_ctl(M, decimals),
                 multipliers=format_vector_ctl(RGB_w, decimals),
+                k_factor=exposure_factor,
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
