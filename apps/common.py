@@ -19,9 +19,9 @@ __all__ = [
     'COLOUR_ENVIRONMENT', 'DATASET_RAW_TO_ACES',
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
-    'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_COLORMATRIX_NODE',
-    'TEMPLATE_CTL_MODULE', 'nuke_format_matrix', 'ctl_format_matrix',
-    'ctl_format_vector', 'slugify'
+    'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
+    'format_matrix_nuke', 'format_vector_nuke', 'format_matrix_ctl',
+    'format_vector_ctl', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -112,36 +112,92 @@ Default formatting template.
 TEMPLATE_DEFAULT_OUTPUT : unicode
 """
 
-TEMPLATE_NUKE_COLORMATRIX_NODE = """
-ColorMatrix {{
- inputs 0
- matrix {{
-     {matrix}
-   }}
- name "{name}"
- selected true
+TEMPLATE_NUKE_GROUP = """
+Group {{
+ name {group}_Input_Device_Transform
+ tile_color 0xffbf00ff
  xpos 0
  ypos 0
-}}""" [1:]
+ addUserKnob {{20 idt_Tab l "Input Device Transform"}}
+ addUserKnob {{7 e_max_Floating_Point_Slider l "Encoding Maximum"}}
+ e_max_Floating_Point_Slider 1
+ addUserKnob {{7 k_Floating_Point_Slider l "Exposure Gain"}}
+ k_Floating_Point_Slider 1
+ addUserKnob {{26 ""}}
+ addUserKnob {{41 idt_matrix l "IDT Matrix" T B_ColorMatrix.matrix}}
+ addUserKnob {{41 b_RGB_Color_Knob l "White Balance Multipliers" \
+T White_Balance_Expression.b_RGB_Color_Knob}}
+ addUserKnob {{20 about_Tab l About}}
+ addUserKnob {{26 description_Text l "" +STARTLINE T "\
+Input Device Transform (IDT)\
+\n\nComputed with {application}\
+\nUrl : {url}\
+\nCamera : {camera}\
+\nScene adopted white : {illuminant}\
+\nGenerated on : {date}"}}
+}}
+ Input {{
+  inputs 0
+  name Input
+  xpos 0
+ }}
+ Expression {{
+  temp_name0 e_max
+  temp_expr0 parent.e_max_Floating_Point_Slider
+  temp_name1 min_b
+  temp_expr1 "min(b_RGB_Color_Knob.r, b_RGB_Color_Knob.g, b_RGB_Color_Knob.b)"
+  expr0 "clamp((b_RGB_Color_Knob.r * r) / (min_b * e_max))"
+  expr1 "clamp((b_RGB_Color_Knob.g * g) / (min_b * e_max))"
+  expr2 "clamp((b_RGB_Color_Knob.b * b) / (min_b * e_max))"
+  name White_Balance_Expression
+  xpos 0
+  ypos 24
+  addUserKnob {{20 white_balance_Tab l "White Balance"}}
+  addUserKnob {{18 b_RGB_Color_Knob l b}}
+  b_RGB_Color_Knob {{ {multipliers} }}
+  addUserKnob {{6 b_RGB_Color_Knob_panelDropped l "panel dropped state" -STARTLINE +HIDDEN}}
+ }}
+ ColorMatrix {{
+  matrix {{
+      {matrix}
+    }}
+  name B_ColorMatrix
+  xpos 0
+  ypos 50
+ }}
+ Multiply {{
+  value {{{{parent.k_Floating_Point_Slider}}}}
+  name k_Multiply
+  xpos 0
+  ypos 75
+ }}
+ Output {{
+  name Output
+  xpos 0
+  ypos 100
+ }}
+end_group
+""" [1:]
 """
-*The Foundry Nuke* *ColorMatrix* node template.
+*The Foundry Nuke* *Input Device Transform* group template.
 
-TEMPLATE_NUKE_COLORMATRIX_NODE : unicode
+TEMPLATE_NUKE_GROUP : unicode
 """
 
-# TODO Get b value from colour-science
 TEMPLATE_CTL_MODULE = """
-// Generated using {application}
-// {path}
+// Computed with {application}
+// Url : {url}
 // Camera : {camera}
 // Scene adopted white : {illuminant}
-// Generated on {date}
+// Generated on : {date}
 
 import "utilities";
 
-const float B[][] = {{ {matrix} }};
+const float B[3][3] = {{
+    {matrix}
+}};
 
-const float b[] = {{ {multipliers} }};
+const float b[3] = {{ {multipliers} }};
 const float min_b = min(b[0], min(b[1], b[2]));
 const float e_max = 1.000000;
 const float k = 1.000000;
@@ -172,7 +228,7 @@ TEMPLATE_CTL_MODULE : unicode
 """
 
 
-def nuke_format_matrix(M, decimals=10):
+def format_matrix_nuke(M, decimals=10, padding=6):
     """
     Formats given matrix for usage in *The Foundry Nuke*, i.e. *TCL* code for
     a *ColorMatrix* node.
@@ -183,6 +239,8 @@ def nuke_format_matrix(M, decimals=10):
         Matrix to format.
     decimals : int, optional
         Decimals to use when formatting the matrix.
+    padding : int, optional
+        Padding to use when formatting the matrix.
 
     Returns
     -------
@@ -195,16 +253,39 @@ def nuke_format_matrix(M, decimals=10):
         Prettify given number.
         """
 
-        return ' '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+        return ' '.join(map(f'{{: 0.{decimals}f}}'.format, x))
 
-    tcl = '{{{0}}}\n'.format(pretty(M[0]))
-    tcl += '     {{{0}}}\n'.format(pretty(M[1]))
-    tcl += '     {{{0}}}'.format(pretty(M[2]))
+    pad = ' ' * padding
+
+    tcl = f'{{{pretty(M[0])}}}\n'
+    tcl += f'{pad}{{{pretty(M[1])}}}\n'
+    tcl += f'{pad}{{{pretty(M[2])}}}'
 
     return tcl
 
 
-def ctl_format_matrix(M, decimals=10):
+def format_vector_nuke(V, decimals=10):
+    """
+    Formats given vector for usage in *The Foundry Nuke*, e.g. *TCL* code for
+    a *Multiply* node.
+
+    Parameters
+    ----------
+    V : array_like
+        Vector to format.
+    decimals : int, optional
+        Decimals to use when formatting the vector.
+
+    Returns
+    -------
+    unicode
+        *The Foundry Nuke* formatted vector.
+    """
+
+    return ' '.join(map(f'{{: 0.{decimals}f}}'.format, V))
+
+
+def format_matrix_ctl(M, decimals=10, padding=4):
     """
     Formats given matrix for as *CTL* module.
 
@@ -214,6 +295,8 @@ def ctl_format_matrix(M, decimals=10):
         Matrix to format.
     decimals : int, optional
         Decimals to use when formatting the matrix.
+    padding : int, optional
+        Padding to use when formatting the matrix.
 
     Returns
     -------
@@ -226,16 +309,18 @@ def ctl_format_matrix(M, decimals=10):
         Prettify given number.
         """
 
-        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
+        return ', '.join(map(f'{{: 0.{decimals}f}}'.format, x))
 
-    ctl = '{{{0}}}\n'.format(pretty(M[0]))
-    ctl += '                      {{{0}}}\n'.format(pretty(M[1]))
-    ctl += '                      {{{0}}}'.format(pretty(M[2]))
+    pad = ' ' * padding
+
+    ctl = f'{{{pretty(M[0])}}}\n'
+    ctl += f'{pad}{{{pretty(M[1])}}}\n'
+    ctl += f'{pad}{{{pretty(M[2])}}}'
 
     return ctl
 
 
-def ctl_format_vector(V, decimals=10):
+def format_vector_ctl(V, decimals=10):
     """
     Formats given vector for as *CTL* module.
 
@@ -252,16 +337,7 @@ def ctl_format_vector(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    def pretty(x):
-        """
-        Prettify given number.
-        """
-
-        return ', '.join(map('{{: 0.{0}f}}'.format(decimals).format, x))
-
-    ctl = '{{{0}}}'.format(pretty(V))
-
-    return ctl
+    return ', '.join(map(f'{{: 0.{decimals}f}}'.format, V))
 
 
 def slugify(a):

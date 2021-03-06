@@ -24,12 +24,12 @@ from dash_table import DataTable
 from dash_table.Format import Format, Scheme
 
 from app import APP, SERVER_URL, __version__
-from apps.common import (CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS,
-                         COLOUR_ENVIRONMENT, ILLUMINANT_OPTIONS,
-                         MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
-                         TEMPLATE_CTL_MODULE, TEMPLATE_NUKE_COLORMATRIX_NODE,
-                         TRAINING_DATA_KODAK190PATCHES, ctl_format_matrix,
-                         ctl_format_vector, nuke_format_matrix, slugify)
+from apps.common import (
+    CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT,
+    ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
+    TEMPLATE_CTL_MODULE, TEMPLATE_NUKE_GROUP, TRAINING_DATA_KODAK190PATCHES,
+    format_matrix_ctl, format_vector_nuke, format_vector_ctl,
+    format_matrix_nuke, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
 __copyright__ = ('Copyright (C) 2020-2021 '
@@ -112,6 +112,13 @@ _INTERPOLATORS = {
     'PCHIP': PchipInterpolator,
     'Sprague (1880)': SpragueInterpolator,
 }
+
+_FORMATTER_OPTIONS = [{
+    'label': label,
+    'value': value
+} for label, value in [('Str', 'str'), ('Repr', 'repr'), ('CTL',
+                                                          'ctl'), ('Nuke',
+                                                                   'nuke')]]
 
 _STYLE_DATATABLE = {
     'header_background_colour': 'rgb(30, 30, 30)',
@@ -262,24 +269,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         InputGroupAddon('Formatter', addon_type='prepend'),
                         Select(
                             id='formatter-{0}'.format(APP_UID),
-                            options=[
-                                {
-                                    'label': 'str',
-                                    'value': 'str'
-                                },
-                                {
-                                    'label': 'repr',
-                                    'value': 'repr'
-                                },
-                                {
-                                    'label': 'ctl',
-                                    'value': 'ctl'
-                                },
-                                {
-                                    'label': 'Nuke',
-                                    'value': 'Nuke'
-                                },
-                            ],
+                            options=_FORMATTER_OPTIONS,
                             value='str',
                         ),
                     ],
@@ -676,23 +666,31 @@ def compute_idt_matrix(
     with colour.utilities.numpy_print_options(
             formatter={'float': ('{{: 0.{0}f}}'.format(decimals)).format},
             threshold=sys.maxsize):
+
+        now = datetime.now().strftime("%b %d, %Y %H:%M:%S")
+
         if formatter == 'str':
             output = TEMPLATE_DEFAULT_OUTPUT.format(str(M), str(RGB_w))
         elif formatter == 'repr':
             output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
         elif formatter == 'ctl':
             output = TEMPLATE_CTL_MODULE.format(
-                matrix=ctl_format_matrix(M, decimals),
-                multipliers=ctl_format_vector(RGB_w, decimals),
+                matrix=format_matrix_ctl(M, decimals),
+                multipliers=format_vector_ctl(RGB_w, decimals),
                 camera=camera_name,
                 illuminant=illuminant_name,
-                date=datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+                date=now,
                 application='{0} - {1}'.format(APP_NAME, __version__),
-                path=APP_PATH)
-        else:
-            output = TEMPLATE_NUKE_COLORMATRIX_NODE.format(
-                matrix=nuke_format_matrix(M, decimals),
-                name=slugify('{0} {1} IDT'.format(camera_name,
-                                                  illuminant_name)))
+                url=APP_PATH)
+        elif formatter == 'nuke':
+            output = TEMPLATE_NUKE_GROUP.format(
+                matrix=format_matrix_nuke(M, decimals),
+                multipliers=format_vector_nuke(RGB_w),
+                camera=camera_name,
+                illuminant=illuminant_name,
+                date=now,
+                application='{0} - {1}'.format(APP_NAME, __version__),
+                url=APP_PATH,
+                group=slugify('_'.join([camera_name, illuminant_name])))
 
         return output
