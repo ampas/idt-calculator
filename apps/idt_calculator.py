@@ -278,7 +278,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     'Exposure Factor', addon_type='prepend'),
                                 Field(
                                     id='exposure-factor-{0}'.format(APP_UID),
-                                    type='text',
+                                    type='number',
                                     value=1,
                                 ),
                             ],
