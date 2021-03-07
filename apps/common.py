@@ -204,14 +204,14 @@ const float min_b = min(b[0], min(b[1], b[2]));
 const float k = {k_factor};
 
 void main (
-    input varying float rIn,
-    input varying float gIn,
-    input varying float bIn,
-    input varying float aIn,
     output varying float rOut,
     output varying float gOut,
     output varying float bOut,
-    output varying float aOut )
+    output varying float aOut,
+    input varying float rIn,
+    input varying float gIn,
+    input varying float bIn,
+    input varying float aIn = 1.0)
 {{
 
     // Apply exposure and white balance factors
@@ -223,7 +223,7 @@ void main (
     rOut = B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw;
     gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
     bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
-    aOut = 1.0;
+    aOut = aIn;
 }}""" [1:]
 """
 Color Transform Language (CTL) Module template.
