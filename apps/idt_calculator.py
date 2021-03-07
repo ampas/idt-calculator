@@ -19,6 +19,8 @@ from dash_core_components import Link, Markdown
 from dash_bootstrap_components import (Button, Card, CardBody, CardHeader, Col,
                                        Collapse, Container, InputGroup,
                                        InputGroupAddon, Row, Select, Tab, Tabs)
+# "Input" is already imported above, to avoid clash, we alias it as "Field".
+from dash_bootstrap_components import Input as Field
 from dash_html_components import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
 from dash_table import DataTable
 from dash_table.Format import Format, Scheme
@@ -28,7 +30,7 @@ from apps.common import (
     CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT,
     ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE, TEMPLATE_NUKE_GROUP, TRAINING_DATA_KODAK190PATCHES,
-    format_matrix_ctl, format_vector_nuke, format_vector_ctl,
+    format_float, format_matrix_ctl, format_vector_nuke, format_vector_ctl,
     format_matrix_nuke, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
@@ -268,6 +270,17 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                         APP_UID),
                                     options=_INTERPOLATION_OPTIONS,
                                     value=_INTERPOLATION_OPTIONS[1]['value']),
+                            ],
+                            className='mb-1'),
+                        InputGroup(
+                            [
+                                InputGroupAddon(
+                                    'Exposure Factor', addon_type='prepend'),
+                                Field(
+                                    id='exposure-factor-{0}'.format(APP_UID),
+                                    type='number',
+                                    value=1,
+                                ),
                             ],
                             className='mb-1'),
                     ],
@@ -534,6 +547,7 @@ def toggle_advanced_options(n_clicks, is_open):
             Input(_uid('compute-idt-matrix-button'), 'n_clicks'),
             Input(_uid('formatter'), 'value'),
             Input(_uid('decimals'), 'value'),
+            Input(_uid('exposure-factor'), 'value'),
         ], [
             State(_uid('camera-sensitivities'), 'value'),
             State(_uid('camera-sensitivities-datatable'), 'data'),
@@ -550,6 +564,7 @@ def compute_idt_matrix(
         n_clicks,
         formatter,
         decimals,
+        exposure_factor,
         camera_name,
         sensitivities_data,
         illuminant_name,
@@ -572,6 +587,8 @@ def compute_idt_matrix(
         Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
     decimals : int
         Decimals to use when formatting the IDT matrix.
+    exposure_factor : numeric
+        Exposure adjustment factor :math:`k` to normalize 18% grey.
     camera_name : unicode
         Name of the camera.
     sensitivities_data : list
@@ -617,6 +634,7 @@ def compute_idt_matrix(
                     data.get('value'),
                 ]) for data in illuminant_data
             ])),
+        exposure_factor,
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -688,10 +706,11 @@ def compute_idt_matrix(
             output = TEMPLATE_CTL_MODULE.format(
                 matrix=format_matrix_ctl(M, decimals),
                 multipliers=format_vector_ctl(RGB_w, decimals),
+                k_factor=format_float(exposure_factor, decimals),
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application='{0} - {1}'.format(APP_NAME, __version__),
+                application=f'{APP_NAME} - {__version__}',
                 url=APP_PATH)
         elif formatter == 'nuke':
             output = TEMPLATE_NUKE_GROUP.format(
@@ -700,7 +719,7 @@ def compute_idt_matrix(
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application='{0} - {1}'.format(APP_NAME, __version__),
+                application=f'{APP_NAME} - {__version__}',
                 url=APP_PATH,
                 group=slugify('_'.join([camera_name, illuminant_name])))
 

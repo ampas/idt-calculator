@@ -20,8 +20,8 @@ __all__ = [
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
     'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
-    'format_matrix_nuke', 'format_vector_nuke', 'format_matrix_ctl',
-    'format_vector_ctl', 'slugify'
+    'format_float', 'format_matrix_nuke', 'format_vector_nuke',
+    'format_matrix_ctl', 'format_vector_ctl', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -189,9 +189,11 @@ TEMPLATE_CTL_MODULE = """
 // Url : {url}
 // Camera : {camera}
 // Scene adopted white : {illuminant}
+// Input : Linear Camera RGB
+// Output : ACES 2065-1
 // Generated on : {date}
 
-import "utilities";
+import "ACESlib.Utilities";
 
 const float B[3][3] = {{
     {matrix}
@@ -199,33 +201,55 @@ const float B[3][3] = {{
 
 const float b[3] = {{ {multipliers} }};
 const float min_b = min(b[0], min(b[1], b[2]));
-const float e_max = 1.000000;
-const float k = 1.000000;
+const float k = {k_factor};
 
 void main (
-    input varying float rIn,
-    input varying float gIn,
-    input varying float bIn,
-    input varying float aIn,
     output varying float rOut,
     output varying float gOut,
     output varying float bOut,
-    output varying float aOut )
+    output varying float aOut,
+    input varying float rIn,
+    input varying float gIn,
+    input varying float bIn,
+    input varying float aIn = 1.0)
 {{
-    float Rraw = clip((b[0] * rIn) / (min_b * e_max));
-    float Graw = clip((b[1] * gIn) / (min_b * e_max));
-    float Braw = clip((b[2] * bIn) / (min_b * e_max));
 
-    rOut = k * (B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw);
-    gOut = k * (B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw);
-    bOut = k * (B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw);
-    aOut = 1.0;
+    // Apply exposure and white balance factors
+    float Rraw = clip((b[0] * rIn * k) / min_b);
+    float Graw = clip((b[1] * gIn * k) / min_b);
+    float Braw = clip((b[2] * bIn * k) / min_b);
+
+    // Apply IDT matrix
+    rOut = B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw;
+    gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
+    bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
+    aOut = aIn;
 }}""" [1:]
 """
 Color Transform Language (CTL) Module template.
 
 TEMPLATE_CTL_MODULE : unicode
 """
+
+
+def format_float(a, decimals=10):
+    """
+    Formats given float number at given decimal places.
+
+    Parameters
+    ----------
+    a : numeric
+        Float number to format.
+    decimals : int, optional
+        Decimal places.
+
+    Returns
+    -------
+    unicode
+        Formatted float number
+    """
+
+    return f'{{: 0.{decimals}f}}'.format(a)
 
 
 def format_matrix_nuke(M, decimals=10, padding=6):
@@ -253,7 +277,7 @@ def format_matrix_nuke(M, decimals=10, padding=6):
         Prettify given number.
         """
 
-        return ' '.join(map(f'{{: 0.{decimals}f}}'.format, x))
+        return ' '.join(map(lambda x: format_float(x, decimals), x))
 
     pad = ' ' * padding
 
@@ -282,7 +306,7 @@ def format_vector_nuke(V, decimals=10):
         *The Foundry Nuke* formatted vector.
     """
 
-    return ' '.join(map(f'{{: 0.{decimals}f}}'.format, V))
+    return ' '.join(map(lambda x: format_float(x, decimals), V))
 
 
 def format_matrix_ctl(M, decimals=10, padding=4):
@@ -309,13 +333,13 @@ def format_matrix_ctl(M, decimals=10, padding=4):
         Prettify given number.
         """
 
-        return ', '.join(map(f'{{: 0.{decimals}f}}'.format, x))
+        return ', '.join(map(lambda x: format_float(x, decimals), x))
 
     pad = ' ' * padding
 
-    ctl = f'{{{pretty(M[0])}}}\n'
-    ctl += f'{pad}{{{pretty(M[1])}}}\n'
-    ctl += f'{pad}{{{pretty(M[2])}}}'
+    ctl = f'{{{pretty(M[0])} }},\n'
+    ctl += f'{pad}{{{pretty(M[1])} }},\n'
+    ctl += f'{pad}{{{pretty(M[2])} }}'
 
     return ctl
 
@@ -337,7 +361,7 @@ def format_vector_ctl(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    return ', '.join(map(f'{{: 0.{decimals}f}}'.format, V))
+    return ', '.join(map(lambda x: format_float(x, decimals), V))
 
 
 def slugify(a):
