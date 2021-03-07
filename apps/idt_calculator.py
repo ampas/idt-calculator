@@ -716,6 +716,7 @@ def compute_idt_matrix(
             output = TEMPLATE_NUKE_GROUP.format(
                 matrix=format_matrix_nuke(M, decimals),
                 multipliers=format_vector_nuke(RGB_w),
+                k_factor=format_float(exposure_factor, decimals),
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,

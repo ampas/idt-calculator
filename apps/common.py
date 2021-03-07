@@ -119,14 +119,12 @@ Group {{
  xpos 0
  ypos 0
  addUserKnob {{20 idt_Tab l "Input Device Transform"}}
- addUserKnob {{7 e_max_Floating_Point_Slider l "Encoding Maximum"}}
- e_max_Floating_Point_Slider 1
- addUserKnob {{7 k_Floating_Point_Slider l "Exposure Gain"}}
- k_Floating_Point_Slider 1
+ addUserKnob {{7 k_Floating_Point_Slider l "Exposure Factor"}}
+ k_Floating_Point_Slider {k_factor}
  addUserKnob {{26 ""}}
  addUserKnob {{41 idt_matrix l "IDT Matrix" T B_ColorMatrix.matrix}}
  addUserKnob {{41 b_RGB_Color_Knob l "White Balance Multipliers" \
-T White_Balance_Expression.b_RGB_Color_Knob}}
+T Exposure_White_Balance_Expression.b_RGB_Color_Knob}}
  addUserKnob {{20 about_Tab l About}}
  addUserKnob {{26 description_Text l "" +STARTLINE T "\
 Input Device Transform (IDT)\
@@ -134,6 +132,8 @@ Input Device Transform (IDT)\
 \nUrl : {url}\
 \nCamera : {camera}\
 \nScene adopted white : {illuminant}\
+\nInput : Linear Camera RGB\
+\nOutput : ACES 2065-1\
 \nGenerated on : {date}"}}
 }}
  Input {{
@@ -142,16 +142,16 @@ Input Device Transform (IDT)\
   xpos 0
  }}
  Expression {{
-  temp_name0 e_max
-  temp_expr0 parent.e_max_Floating_Point_Slider
+  temp_name0 k
+  temp_expr0 parent.k_Floating_Point_Slider
   temp_name1 min_b
   temp_expr1 "min(b_RGB_Color_Knob.r, b_RGB_Color_Knob.g, b_RGB_Color_Knob.b)"
-  expr0 "clamp((b_RGB_Color_Knob.r * r) / (min_b * e_max))"
-  expr1 "clamp((b_RGB_Color_Knob.g * g) / (min_b * e_max))"
-  expr2 "clamp((b_RGB_Color_Knob.b * b) / (min_b * e_max))"
-  name White_Balance_Expression
+  expr0 "clamp((b_RGB_Color_Knob.r * r * k) / min_b)"
+  expr1 "clamp((b_RGB_Color_Knob.g * g * k) / min_b)"
+  expr2 "clamp((b_RGB_Color_Knob.b * b * k) / min_b)"
+  name Exposure_White_Balance_Expression
   xpos 0
-  ypos 24
+  ypos 25
   addUserKnob {{20 white_balance_Tab l "White Balance"}}
   addUserKnob {{18 b_RGB_Color_Knob l b}}
   b_RGB_Color_Knob {{ {multipliers} }}
@@ -165,16 +165,10 @@ Input Device Transform (IDT)\
   xpos 0
   ypos 50
  }}
- Multiply {{
-  value {{{{parent.k_Floating_Point_Slider}}}}
-  name k_Multiply
-  xpos 0
-  ypos 75
- }}
  Output {{
   name Output
   xpos 0
-  ypos 100
+  ypos 75
  }}
 end_group
 """ [1:]
