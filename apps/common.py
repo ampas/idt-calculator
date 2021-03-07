@@ -337,9 +337,9 @@ def format_matrix_ctl(M, decimals=10, padding=4):
 
     pad = ' ' * padding
 
-    ctl = f'{{{pretty(M[0])}}}\n'
-    ctl += f'{pad}{{{pretty(M[1])}}}\n'
-    ctl += f'{pad}{{{pretty(M[2])}}}'
+    ctl = f'{{{pretty(M[0])} }},\n'
+    ctl += f'{pad}{{{pretty(M[1])} }},\n'
+    ctl += f'{pad}{{{pretty(M[2])} }}'
 
     return ctl
 
