@@ -19,7 +19,7 @@ from dash_core_components import Link, Markdown
 from dash_bootstrap_components import (Button, Card, CardBody, CardHeader, Col,
                                        Collapse, Container, InputGroup,
                                        InputGroupAddon, Row, Select, Tab, Tabs)
-from dash_html_components import A, Code, Footer, H3, Li, Main, Pre, Ul
+from dash_html_components import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
 from dash_table import DataTable
 from dash_table.Format import Format, Scheme
 
@@ -306,9 +306,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                 'Compute IDT Matrix',
                 id=_uid('compute-idt-matrix-button'),
                 className='mb-2'),
+            Button(
+                'Copy to Clipboard',
+                id=_uid('copy-to-clipboard-button'),
+                className='ml-2 mb-2'),
             Pre([
                 Code(id=_uid('idt-calculator-output'), className='code shell')
             ],
+                id=_uid('idt-calculator-pre'),
                 className='mt-2'),
         ]),
     ]),
@@ -330,6 +335,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
            className='list-inline-item'),
     ],
        className='list-inline mt-3'),
+    Div(id=_uid('dev-null'), style={'display': 'none'})
 ]
 
 LAYOUT = Container([
@@ -699,3 +705,20 @@ def compute_idt_matrix(
                 group=slugify('_'.join([camera_name, illuminant_name])))
 
         return output
+
+
+APP.clientside_callback(
+    f"""
+    function(n_clicks) {{
+        var idtCalculatorOutput = document.getElementById(\
+"{_uid('idt-calculator-output')}");
+        var content = idtCalculatorOutput.textContent;
+        navigator.clipboard.writeText(content).then(function() {{
+        }}, function() {{
+        }});
+        return content;
+    }}
+    """,
+    [Output(component_id=_uid('dev-null'), component_property='children')],
+    [Input(_uid('copy-to-clipboard-button'), 'n_clicks')],
+)
