@@ -19,6 +19,8 @@ from dash_core_components import Link, Markdown
 from dash_bootstrap_components import (Button, Card, CardBody, CardHeader, Col,
                                        Collapse, Container, InputGroup,
                                        InputGroupAddon, Row, Select, Tab, Tabs)
+# "Input" is already imported above, to avoid clash, we alias it as "Field".
+from dash_bootstrap_components import Input as Field
 from dash_html_components import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
 from dash_table import DataTable
 from dash_table.Format import Format, Scheme
@@ -268,6 +270,17 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                         APP_UID),
                                     options=_INTERPOLATION_OPTIONS,
                                     value=_INTERPOLATION_OPTIONS[1]['value']),
+                            ],
+                            className='mb-1'),
+                        InputGroup(
+                            [
+                                InputGroupAddon(
+                                    'Exposure Factor', addon_type='prepend'),
+                                Field(
+                                    id='exposure-factor-{0}'.format(APP_UID),
+                                    type='text',
+                                    value=1,
+                                ),
                             ],
                             className='mb-1'),
                     ],
@@ -534,12 +547,12 @@ def toggle_advanced_options(n_clicks, is_open):
             Input(_uid('compute-idt-matrix-button'), 'n_clicks'),
             Input(_uid('formatter'), 'value'),
             Input(_uid('decimals'), 'value'),
+            Input(_uid('exposure-factor'), 'value'),
         ], [
             State(_uid('camera-sensitivities'), 'value'),
             State(_uid('camera-sensitivities-datatable'), 'data'),
             State(_uid('illuminant'), 'value'),
             State(_uid('illuminant-datatable'), 'data'),
-            State(_uid('exp-factor'), 'value'),
             State(_uid('training-data'), 'value'),
             State(_uid('chromatic-adaptation-transform'), 'value'),
             State(_uid('optimisation-space'), 'value'),
@@ -551,11 +564,11 @@ def compute_idt_matrix(
         n_clicks,
         formatter,
         decimals,
+        exposure_factor,
         camera_name,
         sensitivities_data,
         illuminant_name,
         illuminant_data,
-        exposure_factor,
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -574,6 +587,8 @@ def compute_idt_matrix(
         Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
     decimals : int
         Decimals to use when formatting the IDT matrix.
+    exposure_factor : numeric
+        Exposure adjustment factor :math:`k` to normalize 18% grey.
     camera_name : unicode
         Name of the camera.
     sensitivities_data : list
@@ -582,8 +597,6 @@ def compute_idt_matrix(
         Name of the illuminant.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
-    exposure_factor : float
-        Exposure adjustment factor (k-factor) to normalize 18% grey
     training_data : unicode
         Name of the training data.
     chromatic_adaptation_transform : unicode
