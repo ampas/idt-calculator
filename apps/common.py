@@ -20,8 +20,8 @@ __all__ = [
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
     'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
-    'format_matrix_nuke', 'format_vector_nuke', 'format_matrix_ctl',
-    'format_vector_ctl', 'slugify'
+    'format_float', 'format_matrix_nuke', 'format_vector_nuke',
+    'format_matrix_ctl', 'format_vector_ctl', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -232,6 +232,26 @@ TEMPLATE_CTL_MODULE : unicode
 """
 
 
+def format_float(a, decimals=10):
+    """
+    Formats given float number at given decimal places.
+
+    Parameters
+    ----------
+    a : numeric
+        Float number to format.
+    decimals : int, optional
+        Decimal places.
+
+    Returns
+    -------
+    unicode
+        Formatted float number
+    """
+
+    return f'{{: 0.{decimals}f}}'.format(a)
+
+
 def format_matrix_nuke(M, decimals=10, padding=6):
     """
     Formats given matrix for usage in *The Foundry Nuke*, i.e. *TCL* code for
@@ -257,7 +277,7 @@ def format_matrix_nuke(M, decimals=10, padding=6):
         Prettify given number.
         """
 
-        return ' '.join(map(f'{{: 0.{decimals}f}}'.format, x))
+        return ' '.join(map(lambda x: format_float(x, decimals), x))
 
     pad = ' ' * padding
 
@@ -286,7 +306,7 @@ def format_vector_nuke(V, decimals=10):
         *The Foundry Nuke* formatted vector.
     """
 
-    return ' '.join(map(f'{{: 0.{decimals}f}}'.format, V))
+    return ' '.join(map(lambda x: format_float(x, decimals), V))
 
 
 def format_matrix_ctl(M, decimals=10, padding=4):
@@ -313,7 +333,7 @@ def format_matrix_ctl(M, decimals=10, padding=4):
         Prettify given number.
         """
 
-        return ', '.join(map(f'{{: 0.{decimals}f}}'.format, x))
+        return ', '.join(map(lambda x: format_float(x, decimals), x))
 
     pad = ' ' * padding
 
@@ -341,7 +361,7 @@ def format_vector_ctl(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    return ', '.join(map(f'{{: 0.{decimals}f}}'.format, V))
+    return ', '.join(map(lambda x: format_float(x, decimals), V))
 
 
 def slugify(a):

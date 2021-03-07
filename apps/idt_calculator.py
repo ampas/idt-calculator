@@ -30,7 +30,7 @@ from apps.common import (
     CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT,
     ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE, TEMPLATE_NUKE_GROUP, TRAINING_DATA_KODAK190PATCHES,
-    format_matrix_ctl, format_vector_nuke, format_vector_ctl,
+    format_float, format_matrix_ctl, format_vector_nuke, format_vector_ctl,
     format_matrix_nuke, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
@@ -706,11 +706,11 @@ def compute_idt_matrix(
             output = TEMPLATE_CTL_MODULE.format(
                 matrix=format_matrix_ctl(M, decimals),
                 multipliers=format_vector_ctl(RGB_w, decimals),
-                k_factor=exposure_factor,
+                k_factor=format_float(exposure_factor, decimals),
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application='{0} - {1}'.format(APP_NAME, __version__),
+                application=f'{APP_NAME} - {__version__}',
                 url=APP_PATH)
         elif formatter == 'nuke':
             output = TEMPLATE_NUKE_GROUP.format(
@@ -719,7 +719,7 @@ def compute_idt_matrix(
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application='{0} - {1}'.format(APP_NAME, __version__),
+                application=f'{APP_NAME} - {__version__}',
                 url=APP_PATH,
                 group=slugify('_'.join([camera_name, illuminant_name])))
 
