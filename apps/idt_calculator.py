@@ -129,12 +129,21 @@ _STYLE_DATATABLE = {
 
 _IDT_MATRIX_CACHE = {}
 
+
+def _uid(id_):
+    """
+    Generates a unique id for given id by appending the application *UID*.
+    """
+
+    return f'{id_}-{APP_UID}'
+
+
 _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
     InputGroup(
         [
             InputGroupAddon('Camera Sensitivities', addon_type='prepend'),
             Select(
-                id='camera-sensitivities-{0}'.format(APP_UID),
+                id=_uid('camera-sensitivities'),
                 options=CAMERA_SENSITIVITIES_OPTIONS,
                 value=CAMERA_SENSITIVITIES_OPTIONS[0]['value']),
         ],
@@ -143,7 +152,7 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
         Col(
             [
                 DataTable(
-                    id='camera-sensitivities-datatable-{0}'.format(APP_UID),
+                    id=_uid('camera-sensitivities-datatable'),
                     editable=True,
                     style_as_list_view=True,
                     style_header={
@@ -166,7 +175,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         [
             InputGroupAddon('Illuminant', addon_type='prepend'),
             Select(
-                id='illuminant-{0}'.format(APP_UID),
+                id=_uid('illuminant'),
                 options=ILLUMINANT_OPTIONS,
                 value=ILLUMINANT_OPTIONS[0]['value']),
         ],
@@ -175,7 +184,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         Col(
             [
                 DataTable(
-                    id='illuminant-datatable-{0}'.format(APP_UID),
+                    id=_uid('illuminant-datatable'),
                     editable=True,
                     style_as_list_view=True,
                     style_header={
@@ -200,7 +209,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
             CardBody([
                 Button(
                     'Toggle Advanced Options',
-                    id='toggle-advanced-options-button-{0}'.format(APP_UID),
+                    id=_uid('toggle-advanced-options-button'),
                     className='mb-2'),
                 Collapse(
                     [
@@ -209,7 +218,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 InputGroupAddon(
                                     'Training Data', addon_type='prepend'),
                                 Select(
-                                    id='training-data-{0}'.format(APP_UID),
+                                    id=_uid('training-data'),
                                     options=_TRAINING_DATASET_OPTIONS,
                                     value=(_TRAINING_DATASET_OPTIONS[0]
                                            ['value'])),
@@ -231,7 +240,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     'Optimisation Space',
                                     addon_type='prepend'),
                                 Select(
-                                    id='optimisation-space-{0}'.format(APP_UID),
+                                    id=_uid('optimisation-space'),
                                     options=_OPTIMISATION_SPACE_OPTIONS,
                                     value=_OPTIMISATION_SPACE_OPTIONS[0]
                                     ['value']),
@@ -262,13 +271,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ],
                             className='mb-1'),
                     ],
-                    id='advanced-options-collapse-{0}'.format(APP_UID),
+                    id=_uid('advanced-options-collapse'),
                     className='mb-1'),
                 InputGroup(
                     [
                         InputGroupAddon('Formatter', addon_type='prepend'),
                         Select(
-                            id='formatter-{0}'.format(APP_UID),
+                            id=_uid('formatter'),
                             options=_FORMATTER_OPTIONS,
                             value='str',
                         ),
@@ -278,7 +287,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     [
                         InputGroupAddon('Decimals', addon_type='prepend'),
                         Select(
-                            id='decimals-{0}'.format(APP_UID),
+                            id=_uid('decimals'),
                             options=[{
                                 'label': str(a),
                                 'value': a
@@ -295,12 +304,10 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
         CardBody([
             Button(
                 'Compute IDT Matrix',
-                id='compute-idt-matrix-button-{0}'.format(APP_UID),
+                id=_uid('compute-idt-matrix-button'),
                 className='mb-2'),
             Pre([
-                Code(
-                    id='idt-calculator-output-{0}'.format(APP_UID),
-                    className='code shell')
+                Code(id=_uid('idt-calculator-output'), className='code shell')
             ],
                 className='mt-2'),
         ]),
@@ -368,13 +375,13 @@ LAYOUT : Div
 @APP.callback(
     [
         Output(
-            component_id='camera-sensitivities-datatable-{0}'.format(APP_UID),
+            component_id=_uid('camera-sensitivities-datatable'),
             component_property='data'),
         Output(
-            component_id='camera-sensitivities-datatable-{0}'.format(APP_UID),
+            component_id=_uid('camera-sensitivities-datatable'),
             component_property='columns')
     ],
-    [Input('camera-sensitivities-{0}'.format(APP_UID), 'value')],
+    [Input(_uid('camera-sensitivities'), 'value')],
 )
 def set_camera_sensitivities_datable(camera_sensitivities):
     """
@@ -429,13 +436,13 @@ def set_camera_sensitivities_datable(camera_sensitivities):
 @APP.callback(
     [
         Output(
-            component_id='illuminant-datatable-{0}'.format(APP_UID),
+            component_id=_uid('illuminant-datatable'),
             component_property='data'),
         Output(
-            component_id='illuminant-datatable-{0}'.format(APP_UID),
+            component_id=_uid('illuminant-datatable'),
             component_property='columns')
     ],
-    [Input('illuminant-{0}'.format(APP_UID), 'value')],
+    [Input(_uid('illuminant'), 'value')],
 )
 def set_illuminant_datable(illuminant):
     """
@@ -485,9 +492,9 @@ def set_illuminant_datable(illuminant):
 
 
 @APP.callback(
-    Output('advanced-options-collapse-{0}'.format(APP_UID), 'is_open'),
-    [Input('toggle-advanced-options-button-{0}'.format(APP_UID), 'n_clicks')],
-    [State('advanced-options-collapse-{0}'.format(APP_UID), 'is_open')],
+    Output(_uid('advanced-options-collapse'), 'is_open'),
+    [Input(_uid('toggle-advanced-options-button'), 'n_clicks')],
+    [State(_uid('advanced-options-collapse'), 'is_open')],
 )
 def toggle_advanced_options(n_clicks, is_open):
     """
@@ -516,24 +523,22 @@ def toggle_advanced_options(n_clicks, is_open):
 
 @APP.callback(
     Output(
-        component_id='idt-calculator-output-{0}'.format(APP_UID),
+        component_id=_uid('idt-calculator-output'),
         component_property='children'), [
-            Input('compute-idt-matrix-button-{0}'.format(APP_UID), 'n_clicks'),
-            Input('formatter-{0}'.format(APP_UID), 'value'),
-            Input('decimals-{0}'.format(APP_UID), 'value'),
+            Input(_uid('compute-idt-matrix-button'), 'n_clicks'),
+            Input(_uid('formatter'), 'value'),
+            Input(_uid('decimals'), 'value'),
+        ], [
+            State(_uid('camera-sensitivities'), 'value'),
+            State(_uid('camera-sensitivities-datatable'), 'data'),
+            State(_uid('illuminant'), 'value'),
+            State(_uid('illuminant-datatable'), 'data'),
+            State(_uid('training-data'), 'value'),
+            State(_uid('chromatic-adaptation-transform'), 'value'),
+            State(_uid('optimisation-space'), 'value'),
+            State(_uid('camera-sensitivities-interpolator'), 'value'),
+            State(_uid('illuminant-interpolator'), 'value')
         ],
-    [
-        State('camera-sensitivities-{0}'.format(APP_UID), 'value'),
-        State('camera-sensitivities-datatable-{0}'.format(APP_UID), 'data'),
-        State('illuminant-{0}'.format(APP_UID), 'value'),
-        State('illuminant-datatable-{0}'.format(APP_UID), 'data'),
-        State('training-data-{0}'.format(APP_UID), 'value'),
-        State('chromatic-adaptation-transform-{0}'.format(APP_UID), 'value'),
-        State('optimisation-space-{0}'.format(APP_UID), 'value'),
-        State('camera-sensitivities-interpolator-{0}'.format(APP_UID),
-              'value'),
-        State('illuminant-interpolator-{0}'.format(APP_UID), 'value')
-    ],
     prevent_initial_call=True)
 def compute_idt_matrix(
         n_clicks,
