@@ -193,7 +193,7 @@ TEMPLATE_CTL_MODULE = """
 // Output : ACES 2065-1
 // Generated on : {date}
 
-import "utilities";
+import "ACESlib.Utilities";
 
 const float B[3][3] = {{
     {matrix}
