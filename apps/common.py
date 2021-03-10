@@ -20,8 +20,9 @@ __all__ = [
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
     'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
-    'format_float', 'format_matrix_nuke', 'format_vector_nuke',
-    'format_matrix_ctl', 'format_vector_ctl', 'slugify'
+    'TEMPLATE_DCTL_MODULE', 'format_float', 'format_matrix_nuke', 'format_vector_nuke',
+    'format_matrix_ctl', 'format_vector_ctl', 'format_float_dctl', 'format_matrix_dctl',
+    'format_vector_dctl', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -225,6 +226,49 @@ Color Transform Language (CTL) Module template.
 TEMPLATE_CTL_MODULE : unicode
 """
 
+TEMPLATE_DCTL_MODULE = """
+DEFINE_ACES_PARAM(IS_PARAMETRIC_ACES_TRANSFORM: 0)
+
+// Computed with {application}
+// Url : {url}
+// Camera : {camera}
+// Scene adopted white : {illuminant}
+// Input : Linear Camera RGB
+// Output : ACES 2065-1
+// Generated on : {date}
+
+__CONSTANT__ float B[3][3] = {{
+    {matrix}
+}};
+
+__CONSTANT__ float b[3] = {{ {multipliers} }};
+__CONSTANT__ float min_b = {b_min}f;
+__CONSTANT__ float k = {k_factor}f;
+
+__DEVICE__ inline float _clipf( float v) {{
+    return _fminf(v, 1.0f);
+}}
+
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B)
+{{
+    // Apply exposure and white balance factors
+    const float Rraw = _clipf((b[0] * p_R * k) / min_b);
+    const float Graw = _clipf((b[1] * p_G * k) / min_b);
+    const float Braw = _clipf((b[2] * p_B * k) / min_b);
+
+    // Apply IDT matrix
+    const float rOut = B[0][0] * Rraw + B[0][1] * Graw + B[0][2] * Braw;
+    const float gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
+    const float bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
+
+    return make_float3(rOut , gOut, bOut);
+}}""" [1:]
+"""
+DaVinci Color Transform Language (DCTL) Module template.
+
+TEMPLATE_DCTL_MODULE : unicode
+"""
+
 
 def format_float(a, decimals=10):
     """
@@ -356,6 +400,80 @@ def format_vector_ctl(V, decimals=10):
     """
 
     return ', '.join(map(lambda x: format_float(x, decimals), V))
+
+
+def format_float_dctl(a, decimals=10):
+    """
+    Formats given float number for *DCTL* at given decimal places.
+
+    Parameters
+    ----------
+    a : numeric
+        Float number to format.
+    decimals : int, optional
+        Decimal places.
+
+    Returns
+    -------
+    unicode
+        Formatted float number
+    """
+
+    return f'{{: 0.{decimals}f}}'.format(a)
+
+def format_vector_dctl(V, decimals=10):
+    """
+    Formats given vector for as *DCTL* module.
+
+    Parameters
+    ----------
+    V : array_like
+        Vector to format.
+    decimals : int, optional
+        Decimals to use when formatting the vector.
+
+    Returns
+    -------
+    unicode
+        *DCTL* formatted vector.
+    """
+
+    return ', '.join(map(lambda x: format_float_dctl(x, decimals), V))
+
+
+def format_matrix_dctl(M, decimals=10, padding=4):
+    """
+    Formats given matrix for as *DCTL* module.
+
+    Parameters
+    ----------
+    M : array_like
+        Matrix to format.
+    decimals : int, optional
+        Decimals to use when formatting the matrix.
+    padding : int, optional
+        Padding to use when formatting the matrix.
+
+    Returns
+    -------
+    unicode
+        *DCTL* formatted matrix.
+    """
+
+    def pretty(x):
+        """
+        Prettify given number.
+        """
+
+        return ', '.join(map(lambda x: format_float_dctl(x, decimals), x))
+
+    pad = ' ' * padding
+
+    dctl = f'{{{pretty(M[0])} }},\n'
+    dctl += f'{pad}{{{pretty(M[1])} }},\n'
+    dctl += f'{pad}{{{pretty(M[2])} }}'
+
+    return dctl
 
 
 def slugify(a):

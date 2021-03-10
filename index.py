@@ -12,7 +12,7 @@ from dash_html_components import A, Div, H3, Main, P
 import apps.idt_calculator as app_1
 from app import APP, SERVER  # noqa
 
-__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
+__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw'
 __copyright__ = ('Copyright (C) 2020-2021 '
                  'Academy of Motion Picture Arts and Sciences')
 __license__ = 'Academy of Motion Picture Arts and Sciences License Terms'
