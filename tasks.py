@@ -11,7 +11,7 @@ from colour.utilities import message_box
 
 import app
 
-__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
+__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw'
 __copyright__ = ('Copyright (C) 2020-2021 '
                  'Academy of Motion Picture Arts and Sciences')
 __license__ = 'Academy of Motion Picture Arts and Sciences License Terms'

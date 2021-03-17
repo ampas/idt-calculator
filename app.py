@@ -9,7 +9,7 @@ import dash_bootstrap_components
 import os
 from flask import Flask
 
-__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal'
+__author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw'
 __copyright__ = ('Copyright (C) 2020-2021 '
                  'Academy of Motion Picture Arts and Sciences')
 __license__ = 'Academy of Motion Picture Arts and Sciences License Terms'
