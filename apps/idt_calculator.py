@@ -30,9 +30,9 @@ from apps.common import (
     CAMERA_SENSITIVITIES_OPTIONS, CAT_OPTIONS, COLOUR_ENVIRONMENT,
     ILLUMINANT_OPTIONS, MSDS_CAMERA_SENSITIVITIES, TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE, TEMPLATE_DCTL_MODULE, TEMPLATE_NUKE_GROUP,
-    TRAINING_DATA_KODAK190PATCHES, format_float, format_matrix_ctl, format_vector_nuke,
-    format_vector_ctl, format_matrix_nuke, format_matrix_dctl, format_vector_dctl,
-    slugify)
+    TRAINING_DATA_KODAK190PATCHES, format_float, format_matrix_ctl,
+    format_vector_nuke, format_vector_ctl, format_matrix_nuke,
+    format_matrix_dctl, format_vector_dctl, slugify)
 
 __author__ = 'Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw'
 __copyright__ = ('Copyright (C) 2020-2021 '
@@ -119,10 +119,11 @@ _INTERPOLATORS = {
 _FORMATTER_OPTIONS = [{
     'label': label,
     'value': value
-} for label, value in [('Str', 'str'), ('Repr', 'repr'), ('CTL',
-                                                          'ctl'), ('DCTL',
-                                                                   'dctl'), ('Nuke',
-                                                                             'nuke')]]
+} for label, value in [('Str', 'str'), ('Repr',
+                                        'repr'), ('CTL',
+                                                  'ctl'), ('DCTL',
+                                                           'dctl'), ('Nuke',
+                                                                     'nuke')]]
 
 _STYLE_DATATABLE = {
     'header_background_colour': 'rgb(30, 30, 30)',
@@ -718,7 +719,8 @@ def compute_idt_matrix(
             output = TEMPLATE_DCTL_MODULE.format(
                 matrix=format_matrix_dctl(M, decimals),
                 multipliers=format_vector_dctl(RGB_w, decimals),
-                b_min = format_float(min(RGB_w[0], min(RGB_w[1], RGB_w[2])), decimals),
+                b_min=format_float(
+                    min(RGB_w[0], min(RGB_w[1], RGB_w[2])), decimals),
                 k_factor=format_float(exposure_factor, decimals),
                 camera=camera_name,
                 illuminant=illuminant_name,
