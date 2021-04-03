@@ -719,6 +719,9 @@ def compute_idt_matrix(
             output = TEMPLATE_DCTL_MODULE.format(
                 matrix=format_matrix_dctl(M, decimals),
                 multipliers=format_vector_dctl(RGB_w, decimals),
+                # TODO: Reassess computation with decision on
+                #  ampas/idt-calculator#26. Ideally, there should not be any
+                # math in the GUI besides the computation of the IDT itself.
                 b_min=format_float(
                     min(RGB_w[0], min(RGB_w[1], RGB_w[2])), decimals),
                 k_factor=format_float(exposure_factor, decimals),
