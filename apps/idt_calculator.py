@@ -645,7 +645,7 @@ def compute_idt_matrix(
         illuminant_interpolator,
     )
 
-    M, XYZ, RGB, RGB_w = _IDT_MATRIX_CACHE.get(key, [None] * 4)
+    M, RGB_w, XYZ, RGB = _IDT_MATRIX_CACHE.get(key, [None] * 4)
 
     if M is None:
         parsed_sensitivities_data = {}
@@ -684,7 +684,7 @@ def compute_idt_matrix(
         training_data = _TRAINING_DATASETS[training_data]
         optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
 
-        M, XYZ, RGB, RGB_w = colour.matrix_idt(
+        M, RGB_w, XYZ, RGB = colour.matrix_idt(
             sensitivities=sensitivities,
             illuminant=illuminant,
             training_data=training_data,
@@ -693,7 +693,7 @@ def compute_idt_matrix(
             additional_data=True,
         )
 
-        _IDT_MATRIX_CACHE[key] = M, XYZ, RGB, RGB_w
+        _IDT_MATRIX_CACHE[key] = M, RGB_w, XYZ, RGB
 
     with colour.utilities.numpy_print_options(
             formatter={'float': ('{{: 0.{0}f}}'.format(decimals)).format},
