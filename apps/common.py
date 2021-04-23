@@ -20,9 +20,9 @@ __all__ = [
     'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
     'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
     'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
-    'TEMPLATE_DCTL_MODULE', 'format_float', 'format_matrix_nuke', 'format_vector_nuke',
-    'format_matrix_ctl', 'format_vector_ctl', 'format_float_dctl', 'format_matrix_dctl',
-    'format_vector_dctl', 'slugify'
+    'TEMPLATE_DCTL_MODULE', 'format_float', 'format_matrix_nuke',
+    'format_vector_nuke', 'format_matrix_ctl', 'format_vector_ctl',
+    'format_float_dctl', 'format_matrix_dctl', 'format_vector_dctl', 'slugify'
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -420,6 +420,7 @@ def format_float_dctl(a, decimals=10):
     """
 
     return f'{{: 0.{decimals}f}}'.format(a)
+
 
 def format_vector_dctl(V, decimals=10):
     """
