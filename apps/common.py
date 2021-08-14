@@ -97,6 +97,8 @@ Illuminant options for a :class:`Dropdown`class instance.
 ILLUMINANTS_OPTIONS : list
 """
 ILLUMINANT_OPTIONS.insert(0, {'label': 'Custom', 'value': 'Custom'})
+ILLUMINANT_OPTIONS.insert(1, {'label': 'Blackbody', 'value': 'Blackbody'})
+ILLUMINANT_OPTIONS.insert(1, {'label': 'Daylight', 'value': 'Daylight'})
 
 TEMPLATE_DEFAULT_OUTPUT = """
 IDT Matrix

@@ -10,10 +10,12 @@ import sys
 from datetime import datetime
 from colour import (CubicSplineInterpolator, LinearInterpolator,
                     PchipInterpolator, SDS_ILLUMINANTS, SpectralDistribution,
-                    SpragueInterpolator)
+                    SpragueInterpolator, sd_CIE_illuminant_D_series,
+                    sd_blackbody)
 from colour.characterisation import (RGB_CameraSensitivities,
                                      optimisation_factory_rawtoaces_v1,
                                      optimisation_factory_JzAzBz)
+from colour.temperature import CCT_to_xy_CIE_D
 from dash.dependencies import Input, Output, State
 from dash_core_components import Link, Markdown
 from dash_bootstrap_components import (Button, Card, CardBody, CardHeader, Col,
@@ -190,6 +192,21 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
     Row([
         Col(
             [
+                Collapse(
+                    [
+                        InputGroup(
+                            [
+                                InputGroupAddon('CCT', addon_type='prepend'),
+                                Field(
+                                    id='cct-{0}'.format(APP_UID),
+                                    type='number',
+                                    value=5500,
+                                ),
+                            ],
+                            className='mb-1'),
+                    ],
+                    id=_uid('illuminant-options-collapse'),
+                    className='mb-1'),
                 DataTable(
                     id=_uid('illuminant-datatable'),
                     editable=True,
@@ -217,7 +234,9 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                 Button(
                     'Toggle Advanced Options',
                     id=_uid('toggle-advanced-options-button'),
-                    className='mb-2'),
+                    className='mb-2',
+                    style={'width': '100%'},
+                ),
                 Collapse(
                     [
                         InputGroup(
@@ -320,14 +339,18 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
     Card([
         CardHeader('Input Device Transform Matrix'),
         CardBody([
-            Button(
-                'Compute IDT Matrix',
-                id=_uid('compute-idt-matrix-button'),
-                className='mb-2'),
-            Button(
-                'Copy to Clipboard',
-                id=_uid('copy-to-clipboard-button'),
-                className='ml-2 mb-2'),
+            Row([
+                Col(
+                    Button(
+                        'Compute IDT Matrix',
+                        id=_uid('compute-idt-matrix-button'),
+                        style={'width': '100%'})),
+                Col(
+                    Button(
+                        'Copy to Clipboard',
+                        id=_uid('copy-to-clipboard-button'),
+                        style={'width': '100%'}))
+            ]),
             Pre([
                 Code(id=_uid('idt-calculator-output'), className='code shell')
             ],
@@ -466,16 +489,22 @@ def set_camera_sensitivities_datable(camera_sensitivities):
             component_id=_uid('illuminant-datatable'),
             component_property='columns')
     ],
-    [Input(_uid('illuminant'), 'value')],
+    [
+        Input(_uid('illuminant'), 'value'),
+        Input(_uid('cct'), 'value'),
+    ],
 )
-def set_illuminant_datable(illuminant):
+def set_illuminant_datable(illuminant, CCT):
     """
     Sets the *Illuminant* `DataTable` content for given illuminant name.
 
     Parameters
     ----------
     illuminant : unicode
-        Existing illuminant name or *Custom*.
+        Existing illuminant name or *Custom*, *Daylight* or *Blackbody*.
+    CCT : numeric
+        Custom correlated colour temperature (CCT) used for the *Daylight* and
+        *Blackbody* illuminant types.
 
     Returns
     -------
@@ -500,8 +529,15 @@ def set_illuminant_datable(illuminant):
             dict(wavelength=wavelength, **{'value': None})
             for wavelength in _CUSTOM_WAVELENGTHS
         ])
+
     else:
-        illuminant = SDS_ILLUMINANTS[illuminant]
+        if illuminant == 'Daylight':
+            xy = CCT_to_xy_CIE_D(CCT * 1.4388 / 1.4380)
+            illuminant = sd_CIE_illuminant_D_series(xy)
+        elif illuminant == 'Blackbody':
+            illuminant = sd_blackbody(CCT)
+        else:
+            illuminant = SDS_ILLUMINANTS[illuminant]
 
         data = ([
             dict(
@@ -513,6 +549,32 @@ def set_illuminant_datable(illuminant):
         ])
 
     return data, columns
+
+
+@APP.callback(
+    Output(_uid('illuminant-options-collapse'), 'is_open'),
+    [Input(_uid('illuminant'), 'value')],
+    [State(_uid('illuminant-options-collapse'), 'is_open')],
+)
+def toggle_illuminant_options(illuminant, is_open):
+    """
+    Collapses the *Illuminant Options* `Collapse` panel according to the
+    selected illuminant type.
+
+    Parameters
+    ----------
+    illuminant : unicode
+        Existing illuminant name or *Custom*, *Daylight* or *Blackbody*.
+    is_open : bool
+        Whether the *Advanced Options* `Collapse` panel is opened or collapsed.
+
+    Returns
+    -------
+    bool
+        Whether to open or collapse the *Illuminant Options* `Collapse` panel.
+    """
+
+    return illuminant in ('Daylight', 'Blackbody')
 
 
 @APP.callback(
