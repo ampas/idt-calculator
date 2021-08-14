@@ -119,11 +119,13 @@ _INTERPOLATORS = {
 _FORMATTER_OPTIONS = [{
     'label': label,
     'value': value
-} for label, value in [('Str', 'str'), ('Repr',
-                                        'repr'), ('CTL',
-                                                  'ctl'), ('DCTL',
-                                                           'dctl'), ('Nuke',
-                                                                     'nuke')]]
+} for label, value in [
+    ('Str', 'str'),
+    ('Repr', 'repr'),
+    ('CTL', 'ctl'),
+    ('DCTL', 'dctl'),
+    ('Nuke', 'nuke'),
+]]
 
 _STYLE_DATATABLE = {
     'header_background_colour': 'rgb(30, 30, 30)',
