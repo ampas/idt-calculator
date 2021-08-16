@@ -85,6 +85,7 @@ instance.
 
 CAT_OPTIONS : list
 """
+CAT_OPTIONS.append({'label': 'None', 'value': None})
 
 ILLUMINANT_OPTIONS = [{
     'label': key,

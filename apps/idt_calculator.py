@@ -119,11 +119,13 @@ _INTERPOLATORS = {
 _FORMATTER_OPTIONS = [{
     'label': label,
     'value': value
-} for label, value in [('Str', 'str'), ('Repr',
-                                        'repr'), ('CTL',
-                                                  'ctl'), ('DCTL',
-                                                           'dctl'), ('Nuke',
-                                                                     'nuke')]]
+} for label, value in [
+    ('Str', 'str'),
+    ('Repr', 'repr'),
+    ('CTL', 'ctl'),
+    ('DCTL', 'dctl'),
+    ('Nuke', 'nuke'),
+]]
 
 _STYLE_DATATABLE = {
     'header_background_colour': 'rgb(30, 30, 30)',
@@ -683,7 +685,9 @@ def compute_idt_matrix(
 
         training_data = _TRAINING_DATASETS[training_data]
         optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
-
+        chromatic_adaptation_transform = (
+            None if chromatic_adaptation_transform == 'None' else
+            chromatic_adaptation_transform)
         M, RGB_w, XYZ, RGB = colour.matrix_idt(
             sensitivities=sensitivities,
             illuminant=illuminant,
