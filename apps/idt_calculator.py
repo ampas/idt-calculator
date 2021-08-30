@@ -130,10 +130,10 @@ _FORMATTER_OPTIONS = [{
 ]]
 
 _STYLE_DATATABLE = {
-    'header_background_colour': 'rgb(30, 30, 30)',
-    'header_colour': 'rgb(220, 220, 220)',
-    'cell_background_colour': 'rgb(50, 50, 50)',
-    'cell_colour': 'rgb(220, 220, 220)',
+    'header_background_colour': 'rgb(233, 236, 239)',
+    'header_colour': 'rgb(0, 0, 0)',
+    'cell_background_colour': 'rgb(255, 255, 255)',
+    'cell_colour': 'rgb(0, 0, 0)',
 }
 
 _IDT_MATRIX_CACHE = {}

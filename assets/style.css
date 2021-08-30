@@ -1,0 +1,14 @@
+html {
+	font-family: Pontano Sans !important;
+	font-weight: 400;
+	font-size: 16px;
+}
+body {
+    background-color: white;
+}
+a{
+    color: #C1A138;;
+}
+.container{
+    max-width: 1400px;
+}
