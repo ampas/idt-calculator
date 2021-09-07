@@ -79,6 +79,22 @@ App unique id.
 APP_UID : unicode
 """
 
+HELP_TAB = ('''
+        ## Introduction
+        This calculator is intended to be a reference impelmentation of the procedures described in [Academy Procedure P-2013-001](http://j.mp/P-2013-001).  The calculator requires camera spectral sensitivities as input in order to calculate an IDT.  
+
+        ## Intended audiance
+        The intended audiance for the calcultor is camera manufacturers attempting to implement P-2013-001.  It is __*not*__ intended for end-users (e.g. cinematographers, DITs, VFX artists, VFX pipeline designers, etc.)  It is always recommended to obtain ACES input transforms directly from your camera's manufacturer.
+
+        ## Calculation engine
+        This calculator uses [python](https://python.org) and the [colour-science](https://www.colour-science.org) python package to impelement the procedures described in P-2013-001.  Any issues assoicated with this calculator should be logged on the [IDT calcuator issues page](https://www.github.com/ampas/idt-calculator/issues).  If the issues can be directly tracked to the Colour-Science python package, please also log those issues on the [Colour-Science python package issues page](https://github.com/colour-science/colour/issues).
+        
+        ## Recommended settings
+        
+        ## Advanced settings
+        
+        ''')
+
 _DATATABLE_DECIMALS = 7
 
 _CUSTOM_WAVELENGTHS = list(range(380, 395, 5)) + ['...']
@@ -362,8 +378,8 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
 
 _LAYOUT_COLUMN_FOOTER_CHILDREN = [
     Ul([
-        Li([Link('Back to index...', href='/', className='app-link')],
-           className='list-inline-item'),
+        # Li([Link('Back to index...', href='/', className='app-link')],
+        #   className='list-inline-item'),
         Li([
             A('Permalink',
               href=urllib.parse.urljoin(SERVER_URL, APP_PATH),
@@ -371,7 +387,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
         ],
            className='list-inline-item'),
         Li([
-            A('ACES Central', href='https://acescentral.com/', target='_blank')
+            A('ACESCentral', href='https://acescentral.com/', target='_blank')
         ],
            className='list-inline-item'),
     ],
@@ -391,7 +407,7 @@ LAYOUT = Container([
                 ]),
             ],
                 label='Computations',
-                className='mt-3'),
+                className='mt-3'),   
             Tab([
                 Markdown(APP_DESCRIPTION),
                 Markdown('{0} - {1}'.format(APP_NAME, __version__)),
@@ -399,6 +415,11 @@ LAYOUT = Container([
             ],
                 label='About',
                 className='mt-3'),
+            Tab([
+                Markdown(HELP_TAB)
+            ],
+                label='Help',
+                className='mt-3'), 
         ]),
     ]),
     Footer(
