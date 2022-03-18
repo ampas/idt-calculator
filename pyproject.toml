@@ -3,8 +3,8 @@ name = "idt-calculator"
 version = "0.1.0"
 description = "An ACES Input Device Transform (IDT) calculator"
 license = "License Terms for Academy Color Encoding System Components"
-authors = [ "Alex Forsythe <aforsythe@oscars.org >" ]
-maintainers = [ "Colour Developers <aforsythe@oscars.org >" ]
+authors = [ "Alex Forsythe <aforsythe@oscars.org>", "Thomas Mansencal <thomas.mansencal@gmail.com>" ]
+maintainers = [ "Academy of Motion Picture Arts and Sciences <aforsythe@oscars.org >" ]
 readme = 'README.rst'
 repository = "https://github.com/ampas/idt-calculator"
 homepage = "https://www.oscars.org/science-technology/sci-tech-projects/aces"
@@ -41,45 +41,71 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-colour = { git = "https://github.com/colour-science/colour.git", branch = "develop" }
-colour-datasets = "*"
+python = ">= 3.8, < 3.11"
+colour-science = ">= 0.4.0"
+colour-datasets = ">= 0.2.0"
 dash = "*"
 dash-core-components = "*"
-dash-bootstrap-components = "*"
+dash-bootstrap-components = "< 1"
 dash-html-components = "*"
 dash-renderer = "*"
 gunicorn = "*"
+imageio = ">= 2, < 3"
+numpy = ">= 1.19, < 2"
+scipy = ">= 1.5, < 2"
 plotly = "*"
+typing-extensions = ">= 4, < 5"  # Convenience for Google Colab.
 
+black = { version = "*", optional = true }  # Development dependency.
 coverage = { version = "*", optional = true }  # Development dependency.
 flake8 = { version = "*", optional = true }  # Development dependency.
 invoke = { version = "*", optional = true }  # Development dependency.
 nose = { version = "*", optional = true }  # Development dependency.
 pre-commit = { version = "*", optional = true }  # Development dependency.
 pytest = { version = "*", optional = true }  # Development dependency.
-yapf = { version = "0.23", optional = true }  # Development dependency.
 
 [tool.poetry.dev-dependencies]
+black = "*"
 coverage = "*"
 flake8 = "*"
 invoke = "*"
 nose = "*"
 pre-commit = "*"
 pytest = "*"
-yapf = "*"
 
 [tool.poetry.extras]
 development = [
+    "black",
     "coverage",
     "flake8",
     "invoke",
     "nose",
-    "pre",
+    "pre-commit",
     "pytest",
-    "yapf"
 ]
 
+[tool.black]
+line-length = 79
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | build
+  | dist
+)/
+'''
+
+[tool.flynt]
+line_length=999
+
+[tool.mypy]
+plugins = "numpy.typing.mypy_plugin"
+ignore_missing_imports = true
+
+[tool.pydocstyle]
+convention = "numpy"
+add-ignore = "D104,D200,D202,D205,D301,D400"
+
 [build-system]
-requires = [ "poetry>=0.12" ]
-build-backend = "poetry.masonry.api"
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

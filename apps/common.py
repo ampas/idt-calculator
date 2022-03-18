@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Common
 ======
@@ -8,21 +7,34 @@ import colour
 import colour_datasets
 import re
 
-__author__ = 'Colour Developers'
-__copyright__ = 'Copyright (C) 2018-2021 - Colour Developers'
-__license__ = 'New BSD License - https://opensource.org/licenses/BSD-3-Clause'
-__maintainer__ = 'Colour Developers'
-__email__ = 'colour-developers@colour-science.org'
-__status__ = 'Production'
+__author__ = "Colour Developers"
+__copyright__ = "Copyright (C) 2018-2021 - Colour Developers"
+__license__ = "New BSD License - https://opensource.org/licenses/BSD-3-Clause"
+__maintainer__ = "Colour Developers"
+__email__ = "colour-developers@colour-science.org"
+__status__ = "Production"
 
 __all__ = [
-    'COLOUR_ENVIRONMENT', 'DATASET_RAW_TO_ACES',
-    'TRAINING_DATA_KODAK190PATCHES', 'MSDS_CAMERA_SENSITIVITIES',
-    'CAMERA_SENSITIVITIES_OPTIONS', 'CAT_OPTIONS', 'ILLUMINANT_OPTIONS',
-    'TEMPLATE_DEFAULT_OUTPUT', 'TEMPLATE_NUKE_GROUP', 'TEMPLATE_CTL_MODULE',
-    'TEMPLATE_DCTL_MODULE', 'format_float', 'format_matrix_nuke',
-    'format_vector_nuke', 'format_matrix_ctl', 'format_vector_ctl',
-    'format_float_dctl', 'format_matrix_dctl', 'format_vector_dctl', 'slugify'
+    "COLOUR_ENVIRONMENT",
+    "DATASET_RAW_TO_ACES",
+    "TRAINING_DATA_KODAK190PATCHES",
+    "MSDS_CAMERA_SENSITIVITIES",
+    "CAMERA_SENSITIVITIES_OPTIONS",
+    "CAT_OPTIONS",
+    "ILLUMINANT_OPTIONS",
+    "TEMPLATE_DEFAULT_OUTPUT",
+    "TEMPLATE_NUKE_GROUP",
+    "TEMPLATE_CTL_MODULE",
+    "TEMPLATE_DCTL_MODULE",
+    "format_float",
+    "format_matrix_nuke",
+    "format_vector_nuke",
+    "format_matrix_ctl",
+    "format_vector_ctl",
+    "format_float_dctl",
+    "format_matrix_dctl",
+    "format_vector_dctl",
+    "slugify",
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -35,70 +47,70 @@ COLOUR_ENVIRONMENT : unicode
 
 def _print_colour_environment(describe):
     """
-    Intercepts colour environment description output to save it as a formatted
+    Intercept colour environment description output to save it as a formatted
     strings.
     """
 
     global COLOUR_ENVIRONMENT
 
     if COLOUR_ENVIRONMENT is None:
-        COLOUR_ENVIRONMENT = ''
+        COLOUR_ENVIRONMENT = ""
 
     print(describe)
 
     COLOUR_ENVIRONMENT += describe
-    COLOUR_ENVIRONMENT += '\n'
+    COLOUR_ENVIRONMENT += "\n"
 
 
 colour.utilities.describe_environment(print_callable=_print_colour_environment)
 
 DATASET_RAW_TO_ACES = colour_datasets.load(
-    'RAW to ACES Utility Data - Dyer et al. (2017)')
+    "RAW to ACES Utility Data - Dyer et al. (2017)"
+)
 
-TRAINING_DATA_KODAK190PATCHES = DATASET_RAW_TO_ACES['training']['190-patch']
+TRAINING_DATA_KODAK190PATCHES = DATASET_RAW_TO_ACES["training"]["190-patch"]
 """
 *Kodak* 190 patches training data.
 
 TRAINING_DATA_KODAK190PATCHES : MultiSpectralDistributions
 """
 
-MSDS_CAMERA_SENSITIVITIES = DATASET_RAW_TO_ACES['camera']
+MSDS_CAMERA_SENSITIVITIES = DATASET_RAW_TO_ACES["camera"]
 
-CAMERA_SENSITIVITIES_OPTIONS = [{
-    'label': key,
-    'value': key
-} for key in sorted(MSDS_CAMERA_SENSITIVITIES)]
+CAMERA_SENSITIVITIES_OPTIONS = [
+    {"label": key, "value": key} for key in sorted(MSDS_CAMERA_SENSITIVITIES)
+]
 """
 Camera sensitivities options for a :class:`Dropdown` class instance.
 
 CAMERA_SENSITIVITIES_OPTIONS : list
 """
-CAMERA_SENSITIVITIES_OPTIONS.insert(0, {'label': 'Custom', 'value': 'Custom'})
+CAMERA_SENSITIVITIES_OPTIONS.insert(0, {"label": "Custom", "value": "Custom"})
 
-CAT_OPTIONS = [{
-    'label': key,
-    'value': key
-} for key in sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())]
+CAT_OPTIONS = [
+    {"label": key, "value": key}
+    for key in sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())
+]
 """
 *Chromatic adaptation transform* options for a :class:`Dropdown` class
 instance.
 
 CAT_OPTIONS : list
 """
-CAT_OPTIONS.append({'label': 'None', 'value': None})
+CAT_OPTIONS.append({"label": "None", "value": None})
 
-ILLUMINANT_OPTIONS = [{
-    'label': key,
-    'value': key
-} for key in sorted(colour.SDS_ILLUMINANTS.keys())]
+ILLUMINANT_OPTIONS = [
+    {"label": key, "value": key}
+    for key in sorted(colour.SDS_ILLUMINANTS.keys())
+]
 """
 Illuminant options for a :class:`Dropdown`class instance.
 
 ILLUMINANTS_OPTIONS : list
 """
-ILLUMINANT_OPTIONS.insert(0, {'label': 'Custom', 'value': 'Custom'})
-ILLUMINANT_OPTIONS.insert(1, {'label': 'Blackbody', 'value': 'Blackbody'})
-ILLUMINANT_OPTIONS.insert(1, {'label': 'Daylight', 'value': 'Daylight'})
+ILLUMINANT_OPTIONS.insert(0, {"label": "Custom", "value": "Custom"})
+ILLUMINANT_OPTIONS.insert(1, {"label": "Blackbody", "value": "Blackbody"})
+ILLUMINANT_OPTIONS.insert(1, {"label": "Daylight", "value": "Daylight"})
 
 TEMPLATE_DEFAULT_OUTPUT = """
 IDT Matrix
@@ -109,7 +121,9 @@ IDT Matrix
 White Balance Multipliers
 -------------------------
 
-{1}""" [1:]
+{1}"""[
+    1:
+]
 """
 Default formatting template.
 
@@ -175,7 +189,7 @@ Input Device Transform (IDT)\
   ypos 75
  }}
 end_group
-""" [1:]
+""".strip()  # noqa
 """
 *The Foundry Nuke* *Input Device Transform* group template.
 
@@ -222,7 +236,9 @@ void main (
     gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
     bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
     aOut = aIn;
-}}""" [1:]
+}}"""[
+    1:
+]
 """
 Color Transform Language (CTL) Module template.
 
@@ -265,7 +281,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     const float bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
 
     return make_float3(rOut , gOut, bOut);
-}}""" [1:]
+}}""".strip()  # noqa
 """
 DaVinci Color Transform Language (DCTL) Module template.
 
@@ -275,7 +291,7 @@ TEMPLATE_DCTL_MODULE : unicode
 
 def format_float(a, decimals=10):
     """
-    Formats given float number at given decimal places.
+    Format given float number at given decimal places.
 
     Parameters
     ----------
@@ -290,12 +306,12 @@ def format_float(a, decimals=10):
         Formatted float number
     """
 
-    return f'{{: 0.{decimals}f}}'.format(a)
+    return f"{{: 0.{decimals}f}}".format(a)
 
 
 def format_matrix_nuke(M, decimals=10, padding=6):
     """
-    Formats given matrix for usage in *The Foundry Nuke*, i.e. *TCL* code for
+    Format given matrix for usage in *The Foundry Nuke*, i.e. *TCL* code for
     a *ColorMatrix* node.
 
     Parameters
@@ -318,20 +334,20 @@ def format_matrix_nuke(M, decimals=10, padding=6):
         Prettify given number.
         """
 
-        return ' '.join(map(lambda x: format_float(x, decimals), x))
+        return " ".join(map(lambda x: format_float(x, decimals), x))
 
-    pad = ' ' * padding
+    pad = " " * padding
 
-    tcl = f'{{{pretty(M[0])}}}\n'
-    tcl += f'{pad}{{{pretty(M[1])}}}\n'
-    tcl += f'{pad}{{{pretty(M[2])}}}'
+    tcl = f"{{{pretty(M[0])}}}\n"
+    tcl += f"{pad}{{{pretty(M[1])}}}\n"
+    tcl += f"{pad}{{{pretty(M[2])}}}"
 
     return tcl
 
 
 def format_vector_nuke(V, decimals=10):
     """
-    Formats given vector for usage in *The Foundry Nuke*, e.g. *TCL* code for
+    Format given vector for usage in *The Foundry Nuke*, e.g. *TCL* code for
     a *Multiply* node.
 
     Parameters
@@ -347,12 +363,12 @@ def format_vector_nuke(V, decimals=10):
         *The Foundry Nuke* formatted vector.
     """
 
-    return ' '.join(map(lambda x: format_float(x, decimals), V))
+    return " ".join(map(lambda x: format_float(x, decimals), V))
 
 
 def format_matrix_ctl(M, decimals=10, padding=4):
     """
-    Formats given matrix for as *CTL* module.
+    Format given matrix for as *CTL* module.
 
     Parameters
     ----------
@@ -374,20 +390,20 @@ def format_matrix_ctl(M, decimals=10, padding=4):
         Prettify given number.
         """
 
-        return ', '.join(map(lambda x: format_float(x, decimals), x))
+        return ", ".join(map(lambda x: format_float(x, decimals), x))
 
-    pad = ' ' * padding
+    pad = " " * padding
 
-    ctl = f'{{{pretty(M[0])} }},\n'
-    ctl += f'{pad}{{{pretty(M[1])} }},\n'
-    ctl += f'{pad}{{{pretty(M[2])} }}'
+    ctl = f"{{{pretty(M[0])} }},\n"
+    ctl += f"{pad}{{{pretty(M[1])} }},\n"
+    ctl += f"{pad}{{{pretty(M[2])} }}"
 
     return ctl
 
 
 def format_vector_ctl(V, decimals=10):
     """
-    Formats given vector for as *CTL* module.
+    Format given vector for as *CTL* module.
 
     Parameters
     ----------
@@ -402,12 +418,12 @@ def format_vector_ctl(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    return ', '.join(map(lambda x: format_float(x, decimals), V))
+    return ", ".join(map(lambda x: format_float(x, decimals), V))
 
 
 def format_float_dctl(a, decimals=10):
     """
-    Formats given float number for *DCTL* at given decimal places.
+    Format given float number for *DCTL* at given decimal places.
 
     Parameters
     ----------
@@ -422,12 +438,12 @@ def format_float_dctl(a, decimals=10):
         Formatted float number
     """
 
-    return f'{{: 0.{decimals}f}}'.format(a)
+    return f"{{: 0.{decimals}f}}".format(a)
 
 
 def format_vector_dctl(V, decimals=10):
     """
-    Formats given vector for as *DCTL* module.
+    Format given vector for as *DCTL* module.
 
     Parameters
     ----------
@@ -442,12 +458,12 @@ def format_vector_dctl(V, decimals=10):
         *DCTL* formatted vector.
     """
 
-    return ', '.join(map(lambda x: format_float_dctl(x, decimals), V))
+    return ", ".join(map(lambda x: format_float_dctl(x, decimals), V))
 
 
 def format_matrix_dctl(M, decimals=10, padding=4):
     """
-    Formats given matrix for as *DCTL* module.
+    Format given matrix for as *DCTL* module.
 
     Parameters
     ----------
@@ -469,13 +485,13 @@ def format_matrix_dctl(M, decimals=10, padding=4):
         Prettify given number.
         """
 
-        return ', '.join(map(lambda x: format_float_dctl(x, decimals), x))
+        return ", ".join(map(lambda x: format_float_dctl(x, decimals), x))
 
-    pad = ' ' * padding
+    pad = " " * padding
 
-    dctl = f'{{{pretty(M[0])} }},\n'
-    dctl += f'{pad}{{{pretty(M[1])} }},\n'
-    dctl += f'{pad}{{{pretty(M[2])} }}'
+    dctl = f"{{{pretty(M[0])} }},\n"
+    dctl += f"{pad}{{{pretty(M[1])} }},\n"
+    dctl += f"{pad}{{{pretty(M[2])} }}"
 
     return dctl
 
@@ -495,6 +511,8 @@ def slugify(a):
         Slugified string.
     """
 
-    return re.sub(r'\s|-|\.', '_',
-                  re.sub(r'(?u)[^-\w.]', ' ',
-                         str(a).strip()).strip().lower())
+    return re.sub(
+        r"\s|-|\.",
+        "_",
+        re.sub(r"(?u)[^-\w.]", " ", str(a).strip()).strip().lower(),
+    )
