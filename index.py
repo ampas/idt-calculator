@@ -3,10 +3,10 @@ Index
 =====
 """
 
+from dash.dcc import Link, Location, Markdown
 from dash.dependencies import Input, Output
+from dash.html import A, Div, H3, Main, P
 from dash_bootstrap_components import Col, Container, Row
-from dash_core_components import Link, Location, Markdown
-from dash_html_components import A, Div, H3, Main, P
 
 import apps.idt_calculator as app_1
 from app import APP, SERVER  # noqa

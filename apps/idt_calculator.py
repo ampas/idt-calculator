@@ -20,11 +20,14 @@ from colour import (
 from colour.characterisation import (
     RGB_CameraSensitivities,
     optimisation_factory_rawtoaces_v1,
-    optimisation_factory_JzAzBz,
+    optimisation_factory_Jzazbz,
 )
 from colour.temperature import CCT_to_xy_CIE_D
+from dash.dash_table import DataTable
+from dash.dcc import Link, Markdown
 from dash.dependencies import Input, Output, State
-from dash_core_components import Link, Markdown
+from dash.html import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
+from dash.dash_table.Format import Format, Scheme
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -34,7 +37,7 @@ from dash_bootstrap_components import (
     Collapse,
     Container,
     InputGroup,
-    InputGroupAddon,
+    InputGroupText,
     Row,
     Select,
     Tab,
@@ -43,9 +46,6 @@ from dash_bootstrap_components import (
 
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import Input as Field
-from dash_html_components import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
-from dash_table import DataTable
-from dash_table.Format import Format, Scheme
 
 from app import APP, SERVER_URL, __version__
 from apps.common import (
@@ -141,7 +141,7 @@ _OPTIMISATION_SPACE_OPTIONS = [
 
 _OPTIMISATION_FACTORIES = {
     "CIE Lab": optimisation_factory_rawtoaces_v1,
-    "JzAzBz": optimisation_factory_JzAzBz,
+    "JzAzBz": optimisation_factory_Jzazbz,
 }
 
 _INTERPOLATION_OPTIONS = [
@@ -188,7 +188,7 @@ def _uid(id_):
 _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
     InputGroup(
         [
-            InputGroupAddon("Camera Sensitivities", addon_type="prepend"),
+            InputGroupText("Camera Sensitivities"),
             Select(
                 id=_uid("camera-sensitivities"),
                 options=CAMERA_SENSITIVITIES_OPTIONS,
@@ -226,7 +226,7 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
 _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
     InputGroup(
         [
-            InputGroupAddon("Illuminant", addon_type="prepend"),
+            InputGroupText("Illuminant"),
             Select(
                 id=_uid("illuminant"),
                 options=ILLUMINANT_OPTIONS,
@@ -243,9 +243,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
                         [
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "CCT", addon_type="prepend"
-                                    ),
+                                    InputGroupText("CCT"),
                                     Field(
                                         id=f"cct-{APP_UID}",
                                         type="number",
@@ -296,9 +294,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         [
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "Training Data", addon_type="prepend"
-                                    ),
+                                    InputGroupText("Training Data"),
                                     Select(
                                         id=_uid("training-data"),
                                         options=_TRAINING_DATASET_OPTIONS,
@@ -313,9 +309,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "CAT", addon_type="prepend"
-                                    ),
+                                    InputGroupText("CAT"),
                                     Select(
                                         id=f"chromatic-adaptation-transform-{APP_UID}",
                                         options=CAT_OPTIONS,
@@ -326,10 +320,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "Optimisation Space",
-                                        addon_type="prepend",
-                                    ),
+                                    InputGroupText("Optimisation Space"),
                                     Select(
                                         id=_uid("optimisation-space"),
                                         options=_OPTIMISATION_SPACE_OPTIONS,
@@ -342,9 +333,8 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "Camera Sensitivities Interpolator",
-                                        addon_type="prepend",
+                                    InputGroupText(
+                                        "Camera Sensitivities Interpolator"
                                     ),
                                     Select(
                                         id=(
@@ -360,10 +350,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "Illuminant Interpolator",
-                                        addon_type="prepend",
-                                    ),
+                                    InputGroupText("Illuminant Interpolator"),
                                     Select(
                                         id=f"illuminant-interpolator-{APP_UID}",
                                         options=_INTERPOLATION_OPTIONS,
@@ -376,9 +363,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupAddon(
-                                        "Exposure Factor", addon_type="prepend"
-                                    ),
+                                    InputGroupText("Exposure Factor"),
                                     Field(
                                         id=f"exposure-factor-{APP_UID}",
                                         type="number",
@@ -393,7 +378,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     ),
                     InputGroup(
                         [
-                            InputGroupAddon("Formatter", addon_type="prepend"),
+                            InputGroupText("Formatter"),
                             Select(
                                 id=_uid("formatter"),
                                 options=_FORMATTER_OPTIONS,
@@ -404,7 +389,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     ),
                     InputGroup(
                         [
-                            InputGroupAddon("Decimals", addon_type="prepend"),
+                            InputGroupText("Decimals"),
                             Select(
                                 id=_uid("decimals"),
                                 options=[
@@ -666,8 +651,8 @@ def set_illuminant_datable(illuminant, CCT):
         Tuple of data and columns.
     """
 
-    labels = ["Wavelength", "Value"]
-    ids = ["wavelength", "value"]
+    labels = ["Wavelength", "Irradiance"]
+    ids = ["wavelength", "irradiance"]
     precision = [
         None,
         Format(precision=_DATATABLE_DECIMALS, scheme=Scheme.fixed),
@@ -684,7 +669,7 @@ def set_illuminant_datable(illuminant, CCT):
 
     if illuminant == "Custom":
         data = [
-            dict(wavelength=wavelength, **{"value": None})
+            dict(wavelength=wavelength, **{"irradiance": None})
             for wavelength in _CUSTOM_WAVELENGTHS
         ]
 
@@ -700,10 +685,7 @@ def set_illuminant_datable(illuminant, CCT):
         data = [
             dict(
                 wavelength=wavelength,
-                format=Format(
-                    precision=_DATATABLE_DECIMALS, scheme=Scheme.fixed
-                ),
-                **{"value": illuminant[wavelength]},
+                **{"irradiance": illuminant[wavelength]},
             )
             for wavelength in illuminant.wavelengths
         ]
@@ -867,7 +849,7 @@ def compute_idt_matrix(
                 tuple(
                     [
                         data.get("wavelength"),
-                        data.get("value"),
+                        data.get("irradiance"),
                     ]
                 )
                 for data in illuminant_data
@@ -906,8 +888,8 @@ def compute_idt_matrix(
 
         parsed_illuminant_data = {}
         for data in illuminant_data:
-            value = data.get("value")
-            if value is None:
+            irradiance = data.get("irradiance")
+            if irradiance is None:
                 return "Please define all the illuminant values!"
 
             wavelength = data["wavelength"]
@@ -915,7 +897,7 @@ def compute_idt_matrix(
                 return "Please define all the illuminant wavelengths!"
 
             parsed_illuminant_data[wavelength] = colour.utilities.as_float(
-                value
+                irradiance
             )
         illuminant = SpectralDistribution(
             parsed_illuminant_data,
