@@ -9,6 +9,7 @@ from dash.html import A, Div, H3, Main, P
 from dash_bootstrap_components import Col, Container, Row
 
 import apps.idt_calculator as app_1
+import apps.idt_calculator_blackbox_camera as app_2
 from app import APP, SERVER  # noqa
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
@@ -30,7 +31,7 @@ def load_app(app):
 
     Parameters
     ----------
-    app : unicode
+    app : str
         App path.
 
     Returns
@@ -41,6 +42,8 @@ def load_app(app):
 
     if app == app_1.APP_PATH:
         return app_1.LAYOUT
+    elif app == app_2.APP_PATH:
+        return app_2.LAYOUT
     else:
         return Container(
             [
@@ -61,19 +64,41 @@ def load_app(app):
                                                 " apps.",
                                             ]
                                         ),
-                                        H3(
+                                        P(
                                             [
-                                                Link(
-                                                    app_1.APP_NAME,
-                                                    href=app_1.APP_PATH,
-                                                    className="app-link",
-                                                )
+                                                H3(
+                                                    [
+                                                        Link(
+                                                            app_1.APP_NAME,
+                                                            href=app_1.APP_PATH,
+                                                            className="app-link",
+                                                        ),
+                                                    ]
+                                                ),
+                                                Markdown(
+                                                    app_1.APP_DESCRIPTION.replace(
+                                                        "This app c", "C"
+                                                    )
+                                                ),
                                             ]
                                         ),
-                                        Markdown(
-                                            app_1.APP_DESCRIPTION.replace(
-                                                "This app c", "C"
-                                            )
+                                        P(
+                                            [
+                                                H3(
+                                                    [
+                                                        Link(
+                                                            app_2.APP_NAME,
+                                                            href=app_2.APP_PATH,
+                                                            className="app-link",
+                                                        ),
+                                                    ]
+                                                ),
+                                                Markdown(
+                                                    app_2.APP_DESCRIPTION.replace(
+                                                        "This app c", "C"
+                                                    )
+                                                ),
+                                            ]
                                         ),
                                     ]
                                 )
