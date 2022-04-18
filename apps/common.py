@@ -1,27 +1,52 @@
 """
-Common
-======
+Common Apps Utilities
+=====================
 """
 
 import colour
+import colour_checker_detection  # noqa
 import colour_datasets
-import re
+from colour import (
+    CubicSplineInterpolator,
+    LinearInterpolator,
+    PchipInterpolator,
+    SpragueInterpolator,
+)
+from colour.characterisation import (
+    optimisation_factory_rawtoaces_v1,
+    optimisation_factory_Jzazbz,
+)
 
-__author__ = "Colour Developers"
-__copyright__ = "Copyright (C) 2018-2021 - Colour Developers"
-__license__ = "New BSD License - https://opensource.org/licenses/BSD-3-Clause"
-__maintainer__ = "Colour Developers"
-__email__ = "colour-developers@colour-science.org"
+from aces.idt import (
+    optimisation_factory_Oklab,
+    optimisation_factory_IPT,
+)
+
+
+__author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
+__copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
 __status__ = "Production"
+
 
 __all__ = [
     "COLOUR_ENVIRONMENT",
+    "STYLE_DATATABLE",
+    "DATATABLE_DECIMALS",
+    "CUSTOM_WAVELENGTHS",
     "DATASET_RAW_TO_ACES",
     "TRAINING_DATA_KODAK190PATCHES",
     "MSDS_CAMERA_SENSITIVITIES",
-    "CAMERA_SENSITIVITIES_OPTIONS",
-    "CAT_OPTIONS",
-    "ILLUMINANT_OPTIONS",
+    "OPTIONS_CAMERA_SENSITIVITIES",
+    "OPTIONS_CAT",
+    "OPTIONS_ILLUMINANT",
+    "OPTIONS_INTERPOLATION",
+    "INTERPOLATORS",
+    "OPTIONS_OPTIMISATION_SPACES",
+    "OPTIMISATION_FACTORIES",
+    "OPTIONS_DISPLAY_COLOURSPACES",
     "TEMPLATE_DEFAULT_OUTPUT",
     "TEMPLATE_NUKE_GROUP",
     "TEMPLATE_CTL_MODULE",
@@ -34,14 +59,13 @@ __all__ = [
     "format_float_dctl",
     "format_matrix_dctl",
     "format_vector_dctl",
-    "slugify",
 ]
 
 COLOUR_ENVIRONMENT = None
 """
 *Colour* environment formatted as a string.
 
-COLOUR_ENVIRONMENT : unicode
+COLOUR_ENVIRONMENT : str
 """
 
 
@@ -64,9 +88,40 @@ def _print_colour_environment(describe):
 
 colour.utilities.describe_environment(print_callable=_print_colour_environment)
 
+STYLE_DATATABLE = {
+    "header_background_colour": "rgb(30, 30, 30)",
+    "header_colour": "rgb(220, 220, 220)",
+    "cell_background_colour": "rgb(50, 50, 50)",
+    "cell_colour": "rgb(220, 220, 220)",
+}
+"""
+Datatable stylesheet.
+
+STYLE_DATATABLE : dict
+"""
+
+DATATABLE_DECIMALS = 7
+"""
+Datatable decimals.
+
+DATATABLE_DECIMALS : int
+"""
+
+CUSTOM_WAVELENGTHS = list(range(380, 395, 5)) + ["..."]
+"""
+Custom wavelengths list.
+
+CUSTOM_WAVELENGTHS : list
+"""
+
 DATASET_RAW_TO_ACES = colour_datasets.load(
     "RAW to ACES Utility Data - Dyer et al. (2017)"
 )
+"""
+*RAW to ACES* dataset.
+
+DATASET_RAW_TO_ACES : dict
+"""
 
 TRAINING_DATA_KODAK190PATCHES = DATASET_RAW_TO_ACES["training"]["190-patch"]
 """
@@ -76,18 +131,23 @@ TRAINING_DATA_KODAK190PATCHES : MultiSpectralDistributions
 """
 
 MSDS_CAMERA_SENSITIVITIES = DATASET_RAW_TO_ACES["camera"]
+"""
+Camera sensitivities multi-spectral distributions.
 
-CAMERA_SENSITIVITIES_OPTIONS = [
+MSDS_CAMERA_SENSITIVITIES : dict
+"""
+
+OPTIONS_CAMERA_SENSITIVITIES = [
     {"label": key, "value": key} for key in sorted(MSDS_CAMERA_SENSITIVITIES)
 ]
 """
 Camera sensitivities options for a :class:`Dropdown` class instance.
 
-CAMERA_SENSITIVITIES_OPTIONS : list
+OPTIONS_CAMERA_SENSITIVITIES : list
 """
-CAMERA_SENSITIVITIES_OPTIONS.insert(0, {"label": "Custom", "value": "Custom"})
+OPTIONS_CAMERA_SENSITIVITIES.insert(0, {"label": "Custom", "value": "Custom"})
 
-CAT_OPTIONS = [
+OPTIONS_CAT = [
     {"label": key, "value": key}
     for key in sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())
 ]
@@ -95,11 +155,11 @@ CAT_OPTIONS = [
 *Chromatic adaptation transform* options for a :class:`Dropdown` class
 instance.
 
-CAT_OPTIONS : list
+OPTIONS_CAT : list
 """
-CAT_OPTIONS.append({"label": "None", "value": None})
+OPTIONS_CAT.append({"label": "None", "value": None})
 
-ILLUMINANT_OPTIONS = [
+OPTIONS_ILLUMINANT = [
     {"label": key, "value": key}
     for key in sorted(colour.SDS_ILLUMINANTS.keys())
 ]
@@ -108,9 +168,58 @@ Illuminant options for a :class:`Dropdown`class instance.
 
 ILLUMINANTS_OPTIONS : list
 """
-ILLUMINANT_OPTIONS.insert(0, {"label": "Custom", "value": "Custom"})
-ILLUMINANT_OPTIONS.insert(1, {"label": "Blackbody", "value": "Blackbody"})
-ILLUMINANT_OPTIONS.insert(1, {"label": "Daylight", "value": "Daylight"})
+OPTIONS_ILLUMINANT.insert(0, {"label": "Custom", "value": "Custom"})
+OPTIONS_ILLUMINANT.insert(1, {"label": "Blackbody", "value": "Blackbody"})
+OPTIONS_ILLUMINANT.insert(1, {"label": "Daylight", "value": "Daylight"})
+
+OPTIONS_INTERPOLATION = [
+    {"label": key, "value": key}
+    for key in ["Cubic Spline", "Linear", "PCHIP", "Sprague (1880)"]
+]
+
+INTERPOLATORS = {
+    "Cubic Spline": CubicSplineInterpolator,
+    "Linear": LinearInterpolator,
+    "PCHIP": PchipInterpolator,
+    "Sprague (1880)": SpragueInterpolator,
+}
+"""
+Spectral distribution interpolators.
+
+INTERPOLATORS : dict
+"""
+
+OPTIMISATION_FACTORIES = {
+    "Oklab": optimisation_factory_Oklab,
+    "IPT": optimisation_factory_IPT,
+    "JzAzBz": optimisation_factory_Jzazbz,
+    "CIE Lab": optimisation_factory_rawtoaces_v1,
+}
+"""
+Optimisation factories.
+
+OPTIMISATION_FACTORIES : dict
+"""
+
+OPTIONS_DISPLAY_COLOURSPACES = [
+    {"label": key, "value": key} for key in ["sRGB", "Display P3"]
+]
+"""
+Display colourspaces.
+
+OPTIONS_DISPLAY_COLOURSPACES : list
+"""
+
+
+OPTIONS_OPTIMISATION_SPACES = [
+    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES.keys()
+]
+"""
+Optimisation colourspaces.
+
+OPTIONS_OPTIMISATION_SPACES : list
+"""
+
 
 TEMPLATE_DEFAULT_OUTPUT = """
 IDT Matrix
@@ -127,7 +236,7 @@ White Balance Multipliers
 """
 Default formatting template.
 
-TEMPLATE_DEFAULT_OUTPUT : unicode
+TEMPLATE_DEFAULT_OUTPUT : str
 """
 
 TEMPLATE_NUKE_GROUP = """
@@ -193,7 +302,7 @@ end_group
 """
 *The Foundry Nuke* *Input Device Transform* group template.
 
-TEMPLATE_NUKE_GROUP : unicode
+TEMPLATE_NUKE_GROUP : str
 """
 
 TEMPLATE_CTL_MODULE = """
@@ -242,7 +351,7 @@ void main (
 """
 Color Transform Language (CTL) Module template.
 
-TEMPLATE_CTL_MODULE : unicode
+TEMPLATE_CTL_MODULE : str
 """
 
 TEMPLATE_DCTL_MODULE = """
@@ -285,7 +394,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
 """
 DaVinci Color Transform Language (DCTL) Module template.
 
-TEMPLATE_DCTL_MODULE : unicode
+TEMPLATE_DCTL_MODULE : str
 """
 
 
@@ -302,7 +411,7 @@ def format_float(a, decimals=10):
 
     Returns
     -------
-    unicode
+    str
         Formatted float number
     """
 
@@ -325,7 +434,7 @@ def format_matrix_nuke(M, decimals=10, padding=6):
 
     Returns
     -------
-    unicode
+    str
         *The Foundry Nuke* formatted matrix.
     """
 
@@ -359,7 +468,7 @@ def format_vector_nuke(V, decimals=10):
 
     Returns
     -------
-    unicode
+    str
         *The Foundry Nuke* formatted vector.
     """
 
@@ -381,7 +490,7 @@ def format_matrix_ctl(M, decimals=10, padding=4):
 
     Returns
     -------
-    unicode
+    str
         *CTL* formatted matrix.
     """
 
@@ -414,7 +523,7 @@ def format_vector_ctl(V, decimals=10):
 
     Returns
     -------
-    unicode
+    str
         *CTL* formatted vector.
     """
 
@@ -434,7 +543,7 @@ def format_float_dctl(a, decimals=10):
 
     Returns
     -------
-    unicode
+    str
         Formatted float number
     """
 
@@ -454,7 +563,7 @@ def format_vector_dctl(V, decimals=10):
 
     Returns
     -------
-    unicode
+    str
         *DCTL* formatted vector.
     """
 
@@ -476,7 +585,7 @@ def format_matrix_dctl(M, decimals=10, padding=4):
 
     Returns
     -------
-    unicode
+    str
         *DCTL* formatted matrix.
     """
 
@@ -494,25 +603,3 @@ def format_matrix_dctl(M, decimals=10, padding=4):
     dctl += f"{pad}{{{pretty(M[2])} }}"
 
     return dctl
-
-
-def slugify(a):
-    """
-    Slugifies given string to remove non-programmatic friendly characters.
-
-    Parameters
-    ----------
-    a : unicode
-        String to slugify.
-
-    Returns
-    -------
-    unicode
-        Slugified string.
-    """
-
-    return re.sub(
-        r"\s|-|\.",
-        "_",
-        re.sub(r"(?u)[^-\w.]", " ", str(a).strip()).strip().lower(),
-    )

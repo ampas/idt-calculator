@@ -37,7 +37,7 @@ SERVER_URL = os.environ.get("AMPAS_APPS_SERVER")
 """
 Server url used to construct permanent links for the individual apps.
 
-SERVER_URL : unicode
+SERVER_URL : str
 """
 
 APP = dash.Dash(

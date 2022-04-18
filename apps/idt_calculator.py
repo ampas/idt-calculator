@@ -4,30 +4,36 @@ Input Device Transform (IDT) Calculator
 """
 
 import colour
-import urllib.parse
+import numpy as np
 import sys
-from datetime import datetime
+import urllib.parse
 from colour import (
-    CubicSplineInterpolator,
-    LinearInterpolator,
-    PchipInterpolator,
+    RGB_COLOURSPACES,
+    RGB_to_RGB,
     SDS_ILLUMINANTS,
+    XYZ_to_RGB,
     SpectralDistribution,
-    SpragueInterpolator,
     sd_CIE_illuminant_D_series,
     sd_blackbody,
 )
 from colour.characterisation import (
     RGB_CameraSensitivities,
-    optimisation_factory_rawtoaces_v1,
-    optimisation_factory_Jzazbz,
+    camera_RGB_to_ACES2065_1,
+    matrix_idt,
 )
+from colour.models import RGB_COLOURSPACE_ACES2065_1
 from colour.temperature import CCT_to_xy_CIE_D
+from colour.utilities import (
+    CACHE_REGISTRY,
+    as_float,
+    as_float_array,
+    numpy_print_options,
+)
 from dash.dash_table import DataTable
+from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Link, Markdown
 from dash.dependencies import Input, Output, State
-from dash.html import A, Code, Div, Footer, H3, Li, Main, Pre, Ul
-from dash.dash_table.Format import Format, Scheme
+from dash.html import A, Code, Div, Footer, H3, Img, Li, Main, Pre, Ul
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -46,14 +52,24 @@ from dash_bootstrap_components import (
 
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import Input as Field
+from datetime import datetime
 
+from aces.idt import png_compare_colour_checkers, error_delta_E, slugify
 from app import APP, SERVER_URL, __version__
 from apps.common import (
-    CAMERA_SENSITIVITIES_OPTIONS,
-    CAT_OPTIONS,
+    OPTIONS_CAMERA_SENSITIVITIES,
+    OPTIONS_CAT,
     COLOUR_ENVIRONMENT,
-    ILLUMINANT_OPTIONS,
+    CUSTOM_WAVELENGTHS,
+    DATATABLE_DECIMALS,
+    OPTIMISATION_FACTORIES,
+    OPTIONS_DISPLAY_COLOURSPACES,
+    OPTIONS_ILLUMINANT,
+    OPTIONS_INTERPOLATION,
+    OPTIONS_OPTIMISATION_SPACES,
+    INTERPOLATORS,
     MSDS_CAMERA_SENSITIVITIES,
+    STYLE_DATATABLE,
     TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE,
     TEMPLATE_DCTL_MODULE,
@@ -66,7 +82,6 @@ from apps.common import (
     format_matrix_nuke,
     format_matrix_dctl,
     format_vector_dctl,
-    slugify,
 )
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
@@ -85,21 +100,21 @@ __all__ = [
     "set_camera_sensitivities_datable",
     "set_illuminant_datable",
     "toggle_advanced_options",
-    "compute_idt_matrix",
+    "compute_idt",
 ]
 
 APP_NAME = "Academy Input Device Transform (IDT) Calculator"
 """
 App name.
 
-APP_NAME : unicode
+APP_NAME : str
 """
 
 APP_PATH = f"/apps/{__name__.split('.')[-1]}"
 """
 App path, i.e. app url.
 
-APP_PATH : unicode
+APP_PATH : str
 """
 
 APP_DESCRIPTION = (
@@ -109,21 +124,17 @@ APP_DESCRIPTION = (
 """
 App description.
 
-APP_DESCRIPTION : unicode
+APP_DESCRIPTION : str
 """
 
 APP_UID = hash(APP_NAME)
 """
 App unique id.
 
-APP_UID : unicode
+APP_UID : str
 """
 
-_DATATABLE_DECIMALS = 7
-
-_CUSTOM_WAVELENGTHS = list(range(380, 395, 5)) + ["..."]
-
-_TRAINING_DATASET_OPTIONS = [
+_OPTIONS_TRAINING_DATASET = [
     {"label": key, "value": key}
     for key in ["Kodak - 190 Patches", "ISO 17321-1"]
 ]
@@ -135,28 +146,13 @@ _TRAINING_DATASETS = {
     ),
 }
 
-_OPTIMISATION_SPACE_OPTIONS = [
-    {"label": key, "value": key} for key in ["CIE Lab", "JzAzBz"]
-]
-
-_OPTIMISATION_FACTORIES = {
-    "CIE Lab": optimisation_factory_rawtoaces_v1,
-    "JzAzBz": optimisation_factory_Jzazbz,
+_TRAINING_DATASET_TO_COLUMNS = {
+    "Kodak - 190 Patches": 19,
+    "ISO 17321-1": 6,
 }
 
-_INTERPOLATION_OPTIONS = [
-    {"label": key, "value": key}
-    for key in ["Cubic Spline", "Linear", "PCHIP", "Sprague (1880)"]
-]
 
-_INTERPOLATORS = {
-    "Cubic Spline": CubicSplineInterpolator,
-    "Linear": LinearInterpolator,
-    "PCHIP": PchipInterpolator,
-    "Sprague (1880)": SpragueInterpolator,
-}
-
-_FORMATTER_OPTIONS = [
+_OPTIONS_FORMATTER = [
     {"label": label, "value": value}
     for label, value in [
         ("Str", "str"),
@@ -167,14 +163,9 @@ _FORMATTER_OPTIONS = [
     ]
 ]
 
-_STYLE_DATATABLE = {
-    "header_background_colour": "rgb(30, 30, 30)",
-    "header_colour": "rgb(220, 220, 220)",
-    "cell_background_colour": "rgb(50, 50, 50)",
-    "cell_colour": "rgb(220, 220, 220)",
-}
-
-_IDT_MATRIX_CACHE = {}
+_CACHE_MATRIX_IDT = CACHE_REGISTRY.register_cache(
+    f"{__name__}._CACHE_MATRIX_IDT"
+)
 
 
 def _uid(id_):
@@ -190,36 +181,32 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
         [
             InputGroupText("Camera Sensitivities"),
             Select(
-                id=_uid("camera-sensitivities"),
-                options=CAMERA_SENSITIVITIES_OPTIONS,
-                value=CAMERA_SENSITIVITIES_OPTIONS[0]["value"],
+                id=_uid("camera-sensitivities-select"),
+                options=OPTIONS_CAMERA_SENSITIVITIES,
+                value=OPTIONS_CAMERA_SENSITIVITIES[0]["value"],
             ),
         ],
         className="mb-1",
     ),
     Row(
-        [
-            Col(
-                [
-                    DataTable(
-                        id=_uid("camera-sensitivities-datatable"),
-                        editable=True,
-                        style_as_list_view=True,
-                        style_header={
-                            "backgroundColor": _STYLE_DATATABLE[
-                                "header_background_colour"
-                            ]
-                        },
-                        style_cell={
-                            "backgroundColor": _STYLE_DATATABLE[
-                                "cell_background_colour"
-                            ],
-                            "color": _STYLE_DATATABLE["cell_colour"],
-                        },
-                    ),
-                ]
+        Col(
+            DataTable(
+                id=_uid("camera-sensitivities-datatable"),
+                editable=True,
+                style_as_list_view=True,
+                style_header={
+                    "backgroundColor": STYLE_DATATABLE[
+                        "header_background_colour"
+                    ]
+                },
+                style_cell={
+                    "backgroundColor": STYLE_DATATABLE[
+                        "cell_background_colour"
+                    ],
+                    "color": STYLE_DATATABLE["cell_colour"],
+                },
             ),
-        ]
+        ),
     ),
 ]
 
@@ -228,53 +215,49 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         [
             InputGroupText("Illuminant"),
             Select(
-                id=_uid("illuminant"),
-                options=ILLUMINANT_OPTIONS,
-                value=ILLUMINANT_OPTIONS[0]["value"],
+                id=_uid("illuminant-select"),
+                options=OPTIONS_ILLUMINANT,
+                value=OPTIONS_ILLUMINANT[0]["value"],
             ),
         ],
         className="mb-1",
     ),
     Row(
-        [
-            Col(
-                [
-                    Collapse(
+        Col(
+            [
+                Collapse(
+                    InputGroup(
                         [
-                            InputGroup(
-                                [
-                                    InputGroupText("CCT"),
-                                    Field(
-                                        id=f"cct-{APP_UID}",
-                                        type="number",
-                                        value=5500,
-                                    ),
-                                ],
-                                className="mb-1",
+                            InputGroupText("CCT"),
+                            Field(
+                                id=_uid("cct-field"),
+                                type="number",
+                                value=5500,
                             ),
                         ],
-                        id=_uid("illuminant-options-collapse"),
                         className="mb-1",
                     ),
-                    DataTable(
-                        id=_uid("illuminant-datatable"),
-                        editable=True,
-                        style_as_list_view=True,
-                        style_header={
-                            "backgroundColor": _STYLE_DATATABLE[
-                                "header_background_colour"
-                            ]
-                        },
-                        style_cell={
-                            "backgroundColor": _STYLE_DATATABLE[
-                                "cell_background_colour"
-                            ],
-                            "color": _STYLE_DATATABLE["cell_colour"],
-                        },
-                    ),
-                ]
-            ),
-        ]
+                    id=_uid("illuminant-options-collapse"),
+                    className="mb-1",
+                ),
+                DataTable(
+                    id=_uid("illuminant-datatable"),
+                    editable=True,
+                    style_as_list_view=True,
+                    style_header={
+                        "backgroundColor": STYLE_DATATABLE[
+                            "header_background_colour"
+                        ]
+                    },
+                    style_cell={
+                        "backgroundColor": STYLE_DATATABLE[
+                            "cell_background_colour"
+                        ],
+                        "color": STYLE_DATATABLE["cell_colour"],
+                    },
+                ),
+            ]
+        ),
     ),
 ]
 
@@ -294,12 +277,27 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         [
                             InputGroup(
                                 [
+                                    InputGroupText("RGB Display Colourspace"),
+                                    Select(
+                                        id=_uid(
+                                            "rgb-display-colourspace-select"
+                                        ),
+                                        options=OPTIONS_DISPLAY_COLOURSPACES,
+                                        value=OPTIONS_DISPLAY_COLOURSPACES[0][
+                                            "value"
+                                        ],
+                                    ),
+                                ],
+                                className="mb-1",
+                            ),
+                            InputGroup(
+                                [
                                     InputGroupText("Training Data"),
                                     Select(
-                                        id=_uid("training-data"),
-                                        options=_TRAINING_DATASET_OPTIONS,
+                                        id=_uid("training-data-select"),
+                                        options=_OPTIONS_TRAINING_DATASET,
                                         value=(
-                                            _TRAINING_DATASET_OPTIONS[0][
+                                            _OPTIONS_TRAINING_DATASET[0][
                                                 "value"
                                             ]
                                         ),
@@ -311,9 +309,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 [
                                     InputGroupText("CAT"),
                                     Select(
-                                        id=f"chromatic-adaptation-transform-{APP_UID}",
-                                        options=CAT_OPTIONS,
-                                        value=CAT_OPTIONS[3]["value"],
+                                        id=_uid(
+                                            "chromatic-adaptation-transform-select"
+                                        ),
+                                        options=OPTIONS_CAT,
+                                        value=str(OPTIONS_CAT[3]["value"]),
                                     ),
                                 ],
                                 className="mb-1",
@@ -322,9 +322,9 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 [
                                     InputGroupText("Optimisation Space"),
                                     Select(
-                                        id=_uid("optimisation-space"),
-                                        options=_OPTIMISATION_SPACE_OPTIONS,
-                                        value=_OPTIMISATION_SPACE_OPTIONS[0][
+                                        id=_uid("optimisation-space-select"),
+                                        options=OPTIONS_OPTIMISATION_SPACES,
+                                        value=OPTIONS_OPTIMISATION_SPACES[0][
                                             "value"
                                         ],
                                     ),
@@ -337,11 +337,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                         "Camera Sensitivities Interpolator"
                                     ),
                                     Select(
-                                        id=(
-                                            f"camera-sensitivities-interpolator-{APP_UID}"  # noqa
+                                        id=_uid(
+                                            "camera-sensitivities-interpolator-select"
                                         ),
-                                        options=_INTERPOLATION_OPTIONS,
-                                        value=_INTERPOLATION_OPTIONS[3][
+                                        options=OPTIONS_INTERPOLATION,
+                                        value=OPTIONS_INTERPOLATION[3][
                                             "value"
                                         ],
                                     ),
@@ -352,9 +352,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 [
                                     InputGroupText("Illuminant Interpolator"),
                                     Select(
-                                        id=f"illuminant-interpolator-{APP_UID}",
-                                        options=_INTERPOLATION_OPTIONS,
-                                        value=_INTERPOLATION_OPTIONS[1][
+                                        id=_uid(
+                                            "illuminant-interpolator-select"
+                                        ),
+                                        options=OPTIONS_INTERPOLATION,
+                                        value=OPTIONS_INTERPOLATION[1][
                                             "value"
                                         ],
                                     ),
@@ -365,7 +367,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 [
                                     InputGroupText("Exposure Factor"),
                                     Field(
-                                        id=f"exposure-factor-{APP_UID}",
+                                        id=_uid("exposure-factor-select"),
                                         type="number",
                                         value=1,
                                     ),
@@ -380,8 +382,8 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         [
                             InputGroupText("Formatter"),
                             Select(
-                                id=_uid("formatter"),
-                                options=_FORMATTER_OPTIONS,
+                                id=_uid("formatter-select"),
+                                options=_OPTIONS_FORMATTER,
                                 value="str",
                             ),
                         ],
@@ -391,7 +393,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         [
                             InputGroupText("Decimals"),
                             Select(
-                                id=_uid("decimals"),
+                                id=_uid("decimals-select"),
                                 options=[
                                     {"label": str(a), "value": a}
                                     for a in range(1, 16, 1)
@@ -430,18 +432,22 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         ]
                     ),
                     Pre(
-                        [
-                            Code(
-                                id=_uid("idt-calculator-output"),
-                                className="code shell",
-                            )
-                        ],
+                        Code(
+                            id=_uid("idt-calculator-output"),
+                            className="code shell",
+                        ),
                         id=_uid("idt-calculator-pre"),
                         className="mt-2",
+                        style={"display": "none"},
                     ),
                 ]
             ),
         ]
+    ),
+    Row(
+        Col(
+            Div(id=_uid("output-data-div")),
+        ),
     ),
 ]
 
@@ -449,27 +455,23 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
     Ul(
         [
             Li(
-                [Link("Back to index...", href="/", className="app-link")],
+                Link("Back to index...", href="/", className="app-link"),
                 className="list-inline-item",
             ),
             Li(
-                [
-                    A(
-                        "Permalink",
-                        href=urllib.parse.urljoin(SERVER_URL, APP_PATH),
-                        target="_blank",
-                    )
-                ],
+                A(
+                    "Permalink",
+                    href=urllib.parse.urljoin(SERVER_URL, APP_PATH),
+                    target="_blank",
+                ),
                 className="list-inline-item",
             ),
             Li(
-                [
-                    A(
-                        "ACES Central",
-                        href="https://acescentral.com/",
-                        target="_blank",
-                    )
-                ],
+                A(
+                    "ACES Central",
+                    href="https://acescentral.com/",
+                    target="_blank",
+                ),
                 className="list-inline-item",
             ),
         ],
@@ -482,63 +484,55 @@ LAYOUT = Container(
     [
         H3([Link(APP_NAME, href=APP_PATH)]),
         Main(
-            [
-                Tabs(
-                    [
-                        Tab(
+            Tabs(
+                [
+                    Tab(
+                        Row(
                             [
-                                Row(
-                                    [
-                                        Col(
-                                            _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN,  # noqa
-                                            width=4,
-                                        ),
-                                        Col(
-                                            _LAYOUT_COLUMN_ILLUMINANT_CHILDREN,
-                                            width=3,
-                                        ),
-                                        Col(
-                                            _LAYOUT_COLUMN_OPTIONS_CHILDREN,
-                                            width=5,
-                                        ),
-                                    ]
+                                Col(
+                                    _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN,
+                                    width=4,
                                 ),
-                            ],
-                            label="Computations",
-                            className="mt-3",
-                        ),
-                        Tab(
-                            [
-                                Markdown(APP_DESCRIPTION),
-                                Markdown(f"{APP_NAME} - {__version__}"),
-                                Pre(
-                                    [
-                                        Code(
-                                            COLOUR_ENVIRONMENT,
-                                            className="code shell",
-                                        )
-                                    ]
+                                Col(
+                                    _LAYOUT_COLUMN_ILLUMINANT_CHILDREN,
+                                    width=3,
                                 ),
-                            ],
-                            label="About",
-                            className="mt-3",
+                                Col(
+                                    _LAYOUT_COLUMN_OPTIONS_CHILDREN,
+                                    width=5,
+                                ),
+                            ]
                         ),
-                    ]
-                ),
-            ]
+                        label="Computations",
+                        className="mt-3",
+                    ),
+                    Tab(
+                        [
+                            Markdown(APP_DESCRIPTION),
+                            Markdown(f"{APP_NAME} - {__version__}"),
+                            Pre(
+                                [
+                                    Code(
+                                        COLOUR_ENVIRONMENT,
+                                        className="code shell",
+                                    )
+                                ]
+                            ),
+                        ],
+                        label="About",
+                        className="mt-3",
+                    ),
+                ]
+            ),
         ),
         Footer(
-            [
-                Container(
-                    [
-                        Row(
-                            [Col(_LAYOUT_COLUMN_FOOTER_CHILDREN)],
-                            className="text-center",
-                        ),
-                    ],
-                    fluid=True,
-                )
-            ],
+            Container(
+                Row(
+                    Col(_LAYOUT_COLUMN_FOOTER_CHILDREN),
+                    className="text-center",
+                ),
+                fluid=True,
+            ),
             className="footer",
         ),
     ]
@@ -561,7 +555,7 @@ LAYOUT : Div
             component_property="columns",
         ),
     ],
-    [Input(_uid("camera-sensitivities"), "value")],
+    [Input(_uid("camera-sensitivities-select"), "value")],
 )
 def set_camera_sensitivities_datable(camera_sensitivities):
     """
@@ -570,7 +564,7 @@ def set_camera_sensitivities_datable(camera_sensitivities):
 
     Parameters
     ----------
-    camera_sensitivities : unicode
+    camera_sensitivities : str
         Existing camera sensitivities name or *Custom*.
 
     Returns
@@ -582,7 +576,7 @@ def set_camera_sensitivities_datable(camera_sensitivities):
     labels = ["Wavelength", "Red", "Green", "Blue"]
     ids = ["wavelength", "R", "G", "B"]
     precision = [None] + [
-        Format(precision=_DATATABLE_DECIMALS, scheme=Scheme.fixed)
+        Format(precision=DATATABLE_DECIMALS, scheme=Scheme.fixed)
     ] * 3
     columns = [
         {
@@ -597,7 +591,7 @@ def set_camera_sensitivities_datable(camera_sensitivities):
     if camera_sensitivities == "Custom":
         data = [
             dict(wavelength=wavelength, **{column: None for column in labels})
-            for wavelength in _CUSTOM_WAVELENGTHS
+            for wavelength in CUSTOM_WAVELENGTHS
         ]
 
     else:
@@ -629,8 +623,8 @@ def set_camera_sensitivities_datable(camera_sensitivities):
         ),
     ],
     [
-        Input(_uid("illuminant"), "value"),
-        Input(_uid("cct"), "value"),
+        Input(_uid("illuminant-select"), "value"),
+        Input(_uid("cct-field"), "value"),
     ],
 )
 def set_illuminant_datable(illuminant, CCT):
@@ -639,7 +633,7 @@ def set_illuminant_datable(illuminant, CCT):
 
     Parameters
     ----------
-    illuminant : unicode
+    illuminant : str
         Existing illuminant name or *Custom*, *Daylight* or *Blackbody*.
     CCT : numeric
         Custom correlated colour temperature (CCT) used for the *Daylight* and
@@ -655,7 +649,7 @@ def set_illuminant_datable(illuminant, CCT):
     ids = ["wavelength", "irradiance"]
     precision = [
         None,
-        Format(precision=_DATATABLE_DECIMALS, scheme=Scheme.fixed),
+        Format(precision=DATATABLE_DECIMALS, scheme=Scheme.fixed),
     ]
     columns = [
         {
@@ -670,7 +664,7 @@ def set_illuminant_datable(illuminant, CCT):
     if illuminant == "Custom":
         data = [
             dict(wavelength=wavelength, **{"irradiance": None})
-            for wavelength in _CUSTOM_WAVELENGTHS
+            for wavelength in CUSTOM_WAVELENGTHS
         ]
 
     else:
@@ -695,17 +689,17 @@ def set_illuminant_datable(illuminant, CCT):
 
 @APP.callback(
     Output(_uid("illuminant-options-collapse"), "is_open"),
-    [Input(_uid("illuminant"), "value")],
+    [Input(_uid("illuminant-select"), "value")],
     [State(_uid("illuminant-options-collapse"), "is_open")],
 )
-def toggle_illuminant_options(illuminant, is_open):
+def toggle_options_illuminant(illuminant, is_open):
     """
     Collapse the *Illuminant Options* `Collapse` panel according to the
     selected illuminant type.
 
     Parameters
     ----------
-    illuminant : unicode
+    illuminant : str
         Existing illuminant name or *Custom*, *Daylight* or *Blackbody*.
     is_open : bool
         Whether the *Advanced Options* `Collapse` panel is opened or collapsed.
@@ -750,30 +744,32 @@ def toggle_advanced_options(n_clicks, is_open):
 
 
 @APP.callback(
-    Output(
-        component_id=_uid("idt-calculator-output"),
-        component_property="children",
-    ),
     [
-        Input(_uid("compute-idt-matrix-button"), "n_clicks"),
-        Input(_uid("formatter"), "value"),
-        Input(_uid("decimals"), "value"),
-        Input(_uid("exposure-factor"), "value"),
+        Output(_uid("idt-calculator-output"), "children"),
+        Output(_uid("output-data-div"), "children"),
+        Output(_uid("idt-calculator-pre"), "style"),
     ],
     [
-        State(_uid("camera-sensitivities"), "value"),
+        Input(_uid("compute-idt-matrix-button"), "n_clicks"),
+        Input(_uid("formatter-select"), "value"),
+        Input(_uid("decimals-select"), "value"),
+        Input(_uid("exposure-factor-select"), "value"),
+    ],
+    [
+        State(_uid("camera-sensitivities-select"), "value"),
         State(_uid("camera-sensitivities-datatable"), "data"),
-        State(_uid("illuminant"), "value"),
+        State(_uid("illuminant-select"), "value"),
         State(_uid("illuminant-datatable"), "data"),
-        State(_uid("training-data"), "value"),
-        State(_uid("chromatic-adaptation-transform"), "value"),
-        State(_uid("optimisation-space"), "value"),
-        State(_uid("camera-sensitivities-interpolator"), "value"),
-        State(_uid("illuminant-interpolator"), "value"),
+        State(_uid("rgb-display-colourspace-select"), "value"),
+        State(_uid("training-data-select"), "value"),
+        State(_uid("chromatic-adaptation-transform-select"), "value"),
+        State(_uid("optimisation-space-select"), "value"),
+        State(_uid("camera-sensitivities-interpolator-select"), "value"),
+        State(_uid("illuminant-interpolator-select"), "value"),
     ],
     prevent_initial_call=True,
 )
-def compute_idt_matrix(
+def compute_idt(
     n_clicks,
     formatter,
     decimals,
@@ -782,6 +778,7 @@ def compute_idt_matrix(
     sensitivities_data,
     illuminant_name,
     illuminant_data,
+    RGB_display_colourspace,
     training_data,
     chromatic_adaptation_transform,
     optimisation_space,
@@ -789,43 +786,45 @@ def compute_idt_matrix(
     illuminant_interpolator,
 ):
     """
-    Compute the *Input Device Transform* (IDT) matrix.
+    Compute the *Input Device Transform* (IDT).
 
     Parameters
     ----------
     n_clicks : int
         Integer that represents that number of times the button has been
         clicked.
-    formatter : unicode
+    formatter : str
         Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
     decimals : int
         Decimals to use when formatting the IDT matrix.
     exposure_factor : numeric
         Exposure adjustment factor :math:`k` to normalize 18% grey.
-    camera_name : unicode
+    camera_name : str
         Name of the camera.
     sensitivities_data : list
         List of wavelength dicts of camera sensitivities data.
-    illuminant_name : unicode
+    illuminant_name : str
         Name of the illuminant.
+    RGB_display_colourspace : str
+        *RGB* display colourspace.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
-    training_data : unicode
+    training_data : str
         Name of the training data.
-    chromatic_adaptation_transform : unicode
+    chromatic_adaptation_transform : str
         Name of the chromatic adaptation transform.
-    optimisation_space : unicode
-        Name of the optimisation space used to select the correspond
+    optimisation_space : str
+        Name of the optimisation space used to select the corresponding
         optimisation factory.
-    sensitivities_interpolator : unicode
+    sensitivities_interpolator : str
         Name of the camera sensitivities interpolator.
-    illuminant_interpolator : unicode
+    illuminant_interpolator : str
         Name of the illuminant interpolator.
 
     Returns
     -------
-    unicode
-        IDT matrix.
+    tuple
+        Tuple of *Dash* components.
     """
 
     key = (
@@ -863,7 +862,7 @@ def compute_idt_matrix(
         illuminant_interpolator,
     )
 
-    M, RGB_w, XYZ, RGB = _IDT_MATRIX_CACHE.get(key, [None] * 4)
+    M, RGB_w, XYZ, RGB, illuminant = _CACHE_MATRIX_IDT.get(key, [None] * 5)
 
     if M is None:
         parsed_sensitivities_data = {}
@@ -878,12 +877,12 @@ def compute_idt_matrix(
                     "Please define all the camera sensitivities wavelengths!"
                 )
 
-            parsed_sensitivities_data[
-                wavelength
-            ] = colour.utilities.as_float_array([red, green, blue])
+            parsed_sensitivities_data[wavelength] = as_float_array(
+                [red, green, blue]
+            )
         sensitivities = RGB_CameraSensitivities(
             parsed_sensitivities_data,
-            interpolator=_INTERPOLATORS[sensitivities_interpolator],
+            interpolator=INTERPOLATORS[sensitivities_interpolator],
         )
 
         parsed_illuminant_data = {}
@@ -896,37 +895,34 @@ def compute_idt_matrix(
             if wavelength == "...":
                 return "Please define all the illuminant wavelengths!"
 
-            parsed_illuminant_data[wavelength] = colour.utilities.as_float(
-                irradiance
-            )
+            parsed_illuminant_data[wavelength] = as_float(irradiance)
         illuminant = SpectralDistribution(
             parsed_illuminant_data,
-            interpolator=_INTERPOLATORS[illuminant_interpolator],
+            interpolator=INTERPOLATORS[illuminant_interpolator],
         )
 
-        training_data = _TRAINING_DATASETS[training_data]
-        optimisation_factory = _OPTIMISATION_FACTORIES[optimisation_space]
+        training_dataset = _TRAINING_DATASETS[training_data]
+        optimisation_factory = OPTIMISATION_FACTORIES[optimisation_space]
         chromatic_adaptation_transform = (
             None
             if chromatic_adaptation_transform == "None"
             else chromatic_adaptation_transform
         )
-        M, RGB_w, XYZ, RGB = colour.matrix_idt(
+        M, RGB_w, XYZ, RGB = matrix_idt(
             sensitivities=sensitivities,
             illuminant=illuminant,
-            training_data=training_data,
+            training_data=training_dataset,
             optimisation_factory=optimisation_factory,
             chromatic_adaptation_transform=chromatic_adaptation_transform,
             additional_data=True,
         )
 
-        _IDT_MATRIX_CACHE[key] = M, RGB_w, XYZ, RGB
+        _CACHE_MATRIX_IDT[key] = M, RGB_w, XYZ, RGB, illuminant
 
-    with colour.utilities.numpy_print_options(
-        formatter={"float": (f"{{: 0.{decimals}f}}").format},
+    with numpy_print_options(
+        formatter={"float": f"{{: 0.{decimals}f}}".format},
         threshold=sys.maxsize,
     ):
-
         now = datetime.now().strftime("%b %d, %Y %H:%M:%S")
 
         if formatter == "str":
@@ -949,7 +945,7 @@ def compute_idt_matrix(
                 matrix=format_matrix_dctl(M, decimals),
                 multipliers=format_vector_dctl(RGB_w, decimals),
                 # TODO: Reassess computation with decision on
-                #  ampas/idt-calculator#26. Ideally, there should not be any
+                # ampas/idt-calculator#26. Ideally, there should not be any
                 # math in the GUI besides the computation of the IDT itself.
                 b_min=format_float(
                     min(RGB_w[0], min(RGB_w[1], RGB_w[2])), decimals
@@ -971,10 +967,56 @@ def compute_idt_matrix(
                 date=now,
                 application=f"{APP_NAME} - {__version__}",
                 url=APP_PATH,
-                group=slugify("_".join([camera_name, illuminant_name])),
+                group=slugify(
+                    "_".join([camera_name, illuminant_name]).lower()
+                ),
             )
 
-        return output
+    def RGB_working_to_RGB_display(RGB):
+        """
+        Convert given *RGB* array from the working colourspace to the display
+        colourspace.
+        """
+
+        return RGB_to_RGB(
+            RGB,
+            RGB_COLOURSPACE_ACES2065_1,
+            RGB_COLOURSPACES[RGB_display_colourspace],
+            apply_cctf_encoding=True,
+        )
+
+    samples_idt = camera_RGB_to_ACES2065_1(RGB, M, np.ones(3))
+    samples_reference = XYZ_to_RGB(
+        XYZ,
+        RGB_COLOURSPACE_ACES2065_1.whitepoint,
+        RGB_COLOURSPACE_ACES2065_1.whitepoint,
+        RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
+    )
+
+    compare_colour_checkers_idt_correction = png_compare_colour_checkers(
+        RGB_working_to_RGB_display(samples_idt),
+        RGB_working_to_RGB_display(samples_reference),
+        _TRAINING_DATASET_TO_COLUMNS[training_data],
+    )
+
+    delta_E_idt = error_delta_E(samples_idt, samples_reference)
+
+    return (
+        output,
+        [
+            H3(
+                f"IDT (ΔE: {np.median(delta_E_idt):.7f})",
+                style={"textAlign": "center"},
+            ),
+            Img(
+                src=(
+                    f"data:image/png;base64,{compare_colour_checkers_idt_correction}"
+                ),
+                style={"width": "100%"},
+            ),
+        ],
+        {"display": "block"},
+    )
 
 
 APP.clientside_callback(
