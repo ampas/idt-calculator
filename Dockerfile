@@ -1,5 +1,7 @@
 FROM python:3.8
 
+RUN apt-get update \
+    && apt-get -y install ffmpeg libsm6 libxext6
 WORKDIR /tmp
 COPY ./requirements.txt /tmp
 RUN pip install -r requirements.txt \
