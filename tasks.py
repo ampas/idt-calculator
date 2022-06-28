@@ -3,6 +3,7 @@ Invoke - Tasks
 ==============
 """
 
+import platform
 from invoke import Context, task
 from invoke.exceptions import Failure
 
@@ -157,11 +158,13 @@ def docker_build(ctx: Context):
 
     message_box('Building "docker" image...')
 
-    ctx.run(
-        "docker build -t {0}/{1}:latest -t {0}/{1}:v{2} .".format(
-            ORG, CONTAINER, app.__version__
+    for archictecture in ("arm64", "amd64"):
+        ctx.run(
+            f"docker build --platform=linux/{archictecture} "
+            f"-t {ORG}/{CONTAINER}:latest "
+            f"-t {ORG}/{CONTAINER}:latest-{archictecture} "
+            f"-t {ORG}/{CONTAINER}:v{app.__version__}-{archictecture} ."
         )
-    )
 
 
 @task
@@ -202,12 +205,12 @@ def docker_run(ctx):
     message_box('Running "docker" container...')
     ctx.run(
         "docker run -d "
-        "--name={1} "
-        "-p 8010:8000 {0}/{1}".format(ORG, CONTAINER)
+        f"--name={CONTAINER} "
+        f"-p 8010:8000 {ORG}/{CONTAINER}:latest-{platform.uname()[4].lower()}"
     )
 
 
-@task
+@task(clean, precommit, docker_run)
 def docker_push(ctx: Context):
     """
     Push the *docker* container.
@@ -219,4 +222,4 @@ def docker_push(ctx: Context):
     """
 
     message_box('Pushing "docker" container...')
-    ctx.run(f"docker push {ORG}/{CONTAINER}")
+    ctx.run(f"docker push --all-tags {ORG}/{CONTAINER}")
