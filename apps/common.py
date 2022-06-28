@@ -20,6 +20,7 @@ from colour.characterisation import (
 from aces.idt import (
     optimisation_factory_Oklab,
     optimisation_factory_IPT,
+    optimisation_factory_IPT_Munish2021,
 )
 
 
@@ -192,6 +193,7 @@ INTERPOLATORS : dict
 OPTIMISATION_FACTORIES = {
     "Oklab": optimisation_factory_Oklab,
     "IPT": optimisation_factory_IPT,
+    "IPT Munish 2021": optimisation_factory_IPT_Munish2021,
     "JzAzBz": optimisation_factory_Jzazbz,
     "CIE Lab": optimisation_factory_rawtoaces_v1,
 }

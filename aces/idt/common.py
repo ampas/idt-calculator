@@ -11,7 +11,12 @@ import numpy as np
 import re
 
 from colour.algebra import euclidean_distance, vector_dot
-from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
+from colour.models import (
+    RGB_COLOURSPACE_ACES2065_1,
+    XYZ_to_Oklab,
+    XYZ_to_IPT,
+    XYZ_to_IPT_Munish2021,
+)
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa
@@ -216,5 +221,58 @@ def optimisation_factory_IPT():
         """*CIE XYZ* colourspace to *IPT* colourspace function."""
 
         return XYZ_to_IPT(XYZ)
+
+    return objective_function, XYZ_to_optimization_colour_model
+
+
+def optimisation_factory_IPT_Munish2021():
+    """
+    Produce the objective function and *CIE XYZ* colourspace to optimisation
+    colourspace/colour model function based on the
+    *Munish Ragoo and Farup (2021)* *Optimised IPT* colourspace.
+
+    The objective function returns the euclidean distance between the training
+    data *RGB* tristimulus values and the training data *CIE XYZ* tristimulus
+    values** in the *Munish Ragoo and Farup (2021)* *Optimised IPT*
+    colourspace.
+
+    Returns
+    -------
+    :class:`tuple`
+        Objective function and *CIE XYZ* colourspace to
+        *Munish Ragoo and Farup (2021)* *Optimised IPT* colourspace
+        function.
+
+    Examples
+    --------
+    >>> optimisation_factory_IPT_Munish2021()  # doctest: +SKIP
+    (<function optimisation_factory_IPT_Munish2021.<locals>\
+.objective_function at 0x...>, \
+<function optimisation_factory_IPT_Munish2021.<locals>\
+.XYZ_to_optimization_colour_model at 0x...>)
+    """
+
+    def objective_function(M, RGB, Jab):
+        """
+        *Munish Ragoo and Farup (2021)* *Optimised IPT* colourspace based
+        objective function.
+        """
+
+        M = np.reshape(M, [3, 3])
+
+        XYZ_t = vector_dot(
+            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
+        )
+        Jab_t = XYZ_to_IPT_Munish2021(XYZ_t)
+
+        return np.sum(euclidean_distance(Jab, Jab_t))
+
+    def XYZ_to_optimization_colour_model(XYZ):
+        """
+        *CIE XYZ* colourspace to *Munish Ragoo and Farup (2021)*
+        *Optimised IPT* colourspace function.
+        """
+
+        return XYZ_to_IPT_Munish2021(XYZ)
 
     return objective_function, XYZ_to_optimization_colour_model

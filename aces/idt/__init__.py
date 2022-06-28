@@ -4,6 +4,7 @@ from .common import (
     png_compare_colour_checkers,
     optimisation_factory_Oklab,
     optimisation_factory_IPT,
+    optimisation_factory_IPT_Munish2021,
 )
 from .blackbox_camera import (
     generate_reference_colour_checker,
@@ -21,6 +22,7 @@ __all__ = [
     "png_compare_colour_checkers",
     "optimisation_factory_Oklab",
     "optimisation_factory_IPT",
+    "optimisation_factory_IPT_Munish2021",
 ]
 __all__ += [
     "generate_reference_colour_checker",
