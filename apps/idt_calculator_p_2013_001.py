@@ -1,6 +1,6 @@
 """
-Input Device Transform (IDT) Calculator
-=======================================
+Input Device Transform (IDT) Calculator - P-2013-001
+====================================================
 """
 
 import colour
@@ -100,10 +100,10 @@ __all__ = [
     "set_camera_sensitivities_datable",
     "set_illuminant_datable",
     "toggle_advanced_options",
-    "compute_idt",
+    "compute_idt_p2013_001",
 ]
 
-APP_NAME = "Academy Input Device Transform (IDT) Calculator"
+APP_NAME = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
 """
 App name.
 
@@ -119,7 +119,8 @@ APP_PATH : str
 
 APP_DESCRIPTION = (
     "This app computes the *Input Device Transform* (IDT) "
-    "for given camera sensitivities and illuminant."
+    "for given camera sensitivities and illuminant according to *P-2013-001* "
+    "method."
 )
 """
 App description.
@@ -769,7 +770,7 @@ def toggle_advanced_options(n_clicks, is_open):
     ],
     prevent_initial_call=True,
 )
-def compute_idt(
+def compute_idt_p2013_001(
     n_clicks,
     formatter,
     decimals,

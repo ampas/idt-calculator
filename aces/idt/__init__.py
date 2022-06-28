@@ -5,7 +5,7 @@ from .common import (
     optimisation_factory_Oklab,
     optimisation_factory_IPT,
 )
-from .blackbox_camera import (
+from .prosumer_camera import (
     generate_reference_colour_checker,
     archive_to_idt,
     apply_idt,
