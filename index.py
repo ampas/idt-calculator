@@ -8,8 +8,8 @@ from dash.dependencies import Input, Output
 from dash.html import A, Div, H3, Main, P
 from dash_bootstrap_components import Col, Container, Row
 
-import apps.idt_calculator as app_1
-import apps.idt_calculator_blackbox_camera as app_2
+import apps.idt_calculator_p_2013_001 as app_1
+import apps.idt_calculator_prosumer_camera as app_2
 from app import APP, SERVER  # noqa
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"

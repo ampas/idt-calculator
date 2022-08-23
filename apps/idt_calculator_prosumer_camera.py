@@ -1,6 +1,6 @@
 """
-Input Device Transform (IDT) Calculator for Blackbox Camera
-===========================================================
+Input Device Transform (IDT) Calculator - Prosumer Camera
+=========================================================
 """
 
 import os.path
@@ -91,14 +91,12 @@ __all__ = [
     "toggle_advanced_options",
     "set_illuminant_datable",
     "toggle_options_illuminant",
-    "compute_idt_blackbox_camera",
+    "compute_idt_prosumer_camera",
 ]
 
 colour.plotting.colour_style()
 
-APP_NAME = (
-    "Academy Input Device Transform (IDT) Calculator for Blackbox Camera"
-)
+APP_NAME = "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
 """
 App name.
 
@@ -114,7 +112,8 @@ APP_PATH : str
 
 APP_DESCRIPTION = (
     "This app computes the *Input Device Transform* (IDT) "
-    "for given *ColorChecker Classic* images."
+    "for a series of *ColorChecker Classic* images captured by a prosumer "
+    "camera."
 )
 """
 App description.
@@ -706,7 +705,7 @@ def download_idt_zip(n_clicks):
     ],
     prevent_initial_call=True,
 )
-def compute_idt_blackbox_camera(
+def compute_idt_prosumer_camera(
     n_clicks,
     RGB_display_colourspace,
     illuminant_data,
@@ -719,7 +718,7 @@ def compute_idt_blackbox_camera(
     LUT_smoothing,
 ):
     """
-    Compute the *Input Device Transform* (IDT) for a blackbox camera.
+    Compute the *Input Device Transform* (IDT) for a prosumer camera.
 
     Parameters
     ----------

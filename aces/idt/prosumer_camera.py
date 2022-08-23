@@ -1,5 +1,5 @@
 """
-Input Device Transform (IDT) Blackbox Camera Utilities
+Input Device Transform (IDT) Prosumer Camera Utilities
 ======================================================
 """
 
@@ -193,7 +193,7 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC = (
 )
 """
 Settings for the segmentation of the *X-Rite* *ColorChecker Classic* and
-*X-Rite* *ColorChecker Passport* for a typical *Blackbox Camera* shoot.
+*X-Rite* *ColorChecker Passport* for a typical *Prosumer Camera* shoot.
 
 SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC : dict
 """
