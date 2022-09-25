@@ -817,8 +817,8 @@ def compute_idt_prosumer_camera(
         data_archive_to_idt.data_archive_to_samples.data_sample_colour_checkers
     )
     samples_median = data_sample_colour_checkers.samples_analysis["data"][
-        "exposure"
-    ]["colour_checker"][0]["samples_median"]
+        "colour_checker"
+    ][0]["samples_median"]
 
     samples_idt = apply_idt(
         samples_median,

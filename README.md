@@ -117,280 +117,145 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
         "data": {
             "type": "object",
             "properties": {
-                "exposure": {
+                "colour_checker": {
                     "type": "object",
-                    "properties": {
-                        "colour_checker": {
-                            "type": "object",
-                            "patternProperties": {
-                                "-10": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-9": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-8": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-7": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-6": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-5": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-4": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-3": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-2": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-1": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "0": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "1": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "2": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "3": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "4": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "5": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "6": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "7": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "8": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "9": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "10": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                }
-                            },
-                            "additionalProperties": false
+                    "patternProperties": {
+                        "-10": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
                         },
-                        "grey_card": {
-                            "type": "object",
-                            "patternProperties": {
-                                "-10": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-9": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-8": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-7": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-6": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-5": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-4": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-3": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-2": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "-1": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "0": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "1": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "2": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "3": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "4": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "5": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "6": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "7": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "8": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "9": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                },
-                                "10": {
-                                    "type": "array",
-                                    "items": [{
-                                        "type": "string"
-                                    }]
-                                }
-                            },
-                            "additionalProperties": false
+                        "-9": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-8": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-7": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-6": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-5": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-4": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-3": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-2": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "-1": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "0": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "1": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "2": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "3": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "4": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "5": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "6": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "7": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "8": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "9": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
+                        },
+                        "10": {
+                            "type": "array",
+                            "items": [{
+                                "type": "string"
+                            }]
                         }
                     },
-                    "required": [
-                        "colour_checker"
-                    ]
+                    "additionalProperties": false
                 },
-
                 "flatfield": {
+                    "type": "array",
+                    "items": [{
+                        "type": "string"
+                    }]
+                },
+                "grey_card": {
                     "type": "array",
                     "items": [{
                         "type": "string"
@@ -398,7 +263,7 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
                 }
             },
             "required": [
-                "exposure"
+                "colour_checker"
             ]
         }
     },

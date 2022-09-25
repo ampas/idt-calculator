@@ -163,8 +163,9 @@ RGB_COLORCHECKER_CLASSIC_ACES : NDArray
 DATA_SPECIFICATION = {
     "header": {"schema_version": "0.1.0", "camera": None},
     "data": {
-        "exposure": {"colour_checker": {}, "grey_card": {}},
+        "colour_checker": {},
         "flatfield": [],
+        "grey_card": [],
     },
 }
 """
@@ -443,7 +444,7 @@ def sample_colour_checkers(specification, additional_data=False):
     samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
 
     # Segmentation occurs on EV 0 and is reused on all brackets.
-    paths = specification["data"]["exposure"]["colour_checker"][0]
+    paths = specification["data"]["colour_checker"][0]
 
     # Detecting the colour checker and whether it is flipped.
     is_flipped, should_flip = False, False
@@ -518,37 +519,35 @@ def sample_colour_checkers(specification, additional_data=False):
         ).tolist()
 
     # ColourChecker Classic Samples per EV
-    for EV in specification["data"]["exposure"]["colour_checker"].keys():
-        samples_analysis["data"]["exposure"]["colour_checker"][EV] = {}
-        samples_analysis["data"]["exposure"]["colour_checker"][EV][
-            "samples_sequence"
-        ] = []
-        for path in specification["data"]["exposure"]["colour_checker"][EV]:
+    for EV in specification["data"]["colour_checker"].keys():
+        samples_analysis["data"]["colour_checker"][EV] = {}
+        samples_analysis["data"]["colour_checker"][EV]["samples_sequence"] = []
+        for path in specification["data"]["colour_checker"][EV]:
             image = read_image(path)
             image = flip_image(image) if is_flipped else image
             swatch_colours = swatch_colours_from_image(
                 image, colour_checker_rectangle
             )
 
-            samples_analysis["data"]["exposure"]["colour_checker"][EV][
+            samples_analysis["data"]["colour_checker"][EV][
                 "samples_sequence"
             ].append(swatch_colours.tolist())
 
         sequence_neutral_5 = as_float_array(
             [
                 samples[21]
-                for samples in samples_analysis["data"]["exposure"][
-                    "colour_checker"
-                ][EV]["samples_sequence"]
+                for samples in samples_analysis["data"]["colour_checker"][EV][
+                    "samples_sequence"
+                ]
             ]
         )
         mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
 
-        samples_analysis["data"]["exposure"]["colour_checker"][EV][
+        samples_analysis["data"]["colour_checker"][EV][
             "samples_median"
         ] = np.median(
             as_float_array(
-                samples_analysis["data"]["exposure"]["colour_checker"][EV][
+                samples_analysis["data"]["colour_checker"][EV][
                     "samples_sequence"
                 ]
             )[mask],
@@ -591,9 +590,7 @@ def sort_samples(
 
     samples_camera = []
     samples_reference = []
-    for EV, images in samples_analysis["data"]["exposure"][
-        "colour_checker"
-    ].items():
+    for EV, images in samples_analysis["data"]["colour_checker"].items():
         samples_reference.append(EV_reference_colour_checker[EV])
         samples_EV = as_float_array(images["samples_median"])[-6:, ...]
         samples_camera.append(samples_EV)
@@ -871,10 +868,10 @@ def decode_samples(
     LUT_decoding.name = "LUT - Decoding"
 
     samples_decoded = {}
-    for EV in sorted(samples_analysis["data"]["exposure"]["colour_checker"]):
+    for EV in sorted(samples_analysis["data"]["colour_checker"]):
         samples_decoded[EV] = LUT_decoding.apply(
             as_float_array(
-                samples_analysis["data"]["exposure"]["colour_checker"][EV][
+                samples_analysis["data"]["colour_checker"][EV][
                     "samples_median"
                 ]
             )
@@ -1024,16 +1021,14 @@ def archive_to_specification(
 
         specification["header"]["camera"] = Path(archive).stem
 
-        colour_checker_directory = (
-            root_directory / "data" / "exposure" / "colour_checker"
-        )
+        colour_checker_directory = root_directory / "data" / "colour_checker"
 
         attest(colour_checker_directory.exists())
 
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
-                specification["data"]["exposure"]["colour_checker"][EV] = list(
+                specification["data"]["colour_checker"][EV] = list(
                     (colour_checker_directory / exposure_directory).glob(
                         f"*.{image_format}"
                     )
@@ -1045,22 +1040,22 @@ def archive_to_specification(
                 flatfield_directory.glob(f"*.{image_format}")
             )
 
-    for exposure in list(
-        specification["data"]["exposure"]["colour_checker"].keys()
-    ):
+        grey_card_directory = root_directory / "data" / "grey_card"
+        if grey_card_directory.exists():
+            specification["data"]["grey_card"] = list(
+                flatfield_directory.glob(f"*.{image_format}")
+            )
+
+    for exposure in list(specification["data"]["colour_checker"].keys()):
         images = [
             Path(root_directory) / image
-            for image in specification["data"]["exposure"][
-                "colour_checker"
-            ].pop(exposure)
+            for image in specification["data"]["colour_checker"].pop(exposure)
         ]
 
         for image in images:
             attest(image.exists())
 
-        specification["data"]["exposure"]["colour_checker"][
-            int(exposure)
-        ] = images
+        specification["data"]["colour_checker"][int(exposure)] = images
 
     if specification["data"].get("flatfield") is not None:
         images = [
@@ -1071,6 +1066,16 @@ def archive_to_specification(
             attest(image.exists())
 
         specification["data"]["flatfield"] = images
+
+    if specification["data"].get("grey_card") is not None:
+        images = [
+            Path(root_directory) / image
+            for image in specification["data"]["grey_card"]
+        ]
+        for image in images:
+            attest(image.exists())
+
+        specification["data"]["grey_card"] = images
 
     return specification
 
