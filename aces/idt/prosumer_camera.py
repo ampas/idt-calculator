@@ -487,7 +487,7 @@ def sample_colour_checkers(specification, additional_data=False):
     cv2.drawContours(image_segmentation, clusters, -1, (0, 1, 1), 3)
 
     # Flatfield
-    if specification["data"]["flatfield"] is not None:
+    if specification["data"].get("flatfield") is not None:
         samples_analysis["data"]["flatfield"] = {"samples_sequence": []}
         for path in specification["data"]["flatfield"]:
             image = read_image(path)
@@ -1062,14 +1062,15 @@ def archive_to_specification(
             int(exposure)
         ] = images
 
-    images = [
-        Path(root_directory) / image
-        for image in specification["data"]["flatfield"]
-    ]
-    for image in images:
-        attest(image.exists())
+    if specification["data"].get("flatfield") is not None:
+        images = [
+            Path(root_directory) / image
+            for image in specification["data"]["flatfield"]
+        ]
+        for image in images:
+            attest(image.exists())
 
-    specification["data"]["flatfield"] = images
+        specification["data"]["flatfield"] = images
 
     return specification
 
