@@ -206,7 +206,8 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
         Upload(
             id=_uid("idt-archive-upload"),
             text="Click or drop an IDT Archive here to upload!",
-            max_file_size=4096,
+            max_file_size=16384,
+            chunk_size=128,
             filetypes=["zip"],
             upload_id=uuid.uuid1(),
             # pause_button=True,
