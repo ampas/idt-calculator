@@ -206,7 +206,8 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
         Upload(
             id=_uid("idt-archive-upload"),
             text="Click or drop an IDT Archive here to upload!",
-            max_file_size=4096,
+            max_file_size=16384,
+            chunk_size=128,
             filetypes=["zip"],
             upload_id=uuid.uuid1(),
             # pause_button=True,
@@ -307,6 +308,17 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                         id=_uid("ev-range-input"),
                                         value="-1 0 1",
                                         placeholder="-1 0 1",
+                                    ),
+                                ],
+                                className="mb-1",
+                            ),
+                            InputGroup(
+                                [
+                                    InputGroupText("Grey Card Reflectance"),
+                                    Field(
+                                        id=_uid("grey-card-reflectance"),
+                                        value="0.18 0.18 0.18",
+                                        placeholder="0.18 0.18 0.18",
                                     ),
                                 ],
                                 className="mb-1",
@@ -700,6 +712,7 @@ def download_idt_zip(n_clicks):
         State(_uid("illuminant-interpolator-select"), "value"),
         State(_uid("decoding-method-select"), "value"),
         State(_uid("ev-range-input"), "value"),
+        State(_uid("grey-card-reflectance"), "value"),
         State(_uid("lut-size-select"), "value"),
         State(_uid("lut-smoothing-input-number"), "value"),
     ],
@@ -714,6 +727,7 @@ def compute_idt_prosumer_camera(
     illuminant_interpolator,
     decoding_method,
     EV_range,
+    grey_card_reflectance,
     LUT_size,
     LUT_smoothing,
 ):
@@ -741,6 +755,8 @@ def compute_idt_prosumer_camera(
         Decoding method.
     EV_range : str
         Exposure values to use when computing the *IDT* matrix.
+    grey_card_reflectance : str
+        Measured grey card reflectance.
     LUT_size : integer
         *LUT* size.
     LUT_smoothing : integer
@@ -787,7 +803,10 @@ def compute_idt_prosumer_camera(
         },
         generate_LUT3x1D_kwargs={"size": as_int_scalar(LUT_size)},
         filter_LUT3x1D_kwargs={"sigma": as_int_scalar(LUT_smoothing)},
-        decode_samples_kwargs={"decoding_method": decoding_method},
+        decode_samples_kwargs={
+            "decoding_method": decoding_method,
+            "grey_card_reflectance": np.loadtxt([grey_card_reflectance]),
+        },
         matrix_idt_kwargs={
             "EV_range": np.loadtxt([EV_range]),
             "training_data": reference_colour_checker,
@@ -812,12 +831,12 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    data_sample_colour_checkers = (
-        data_archive_to_idt.data_archive_to_samples.data_sample_colour_checkers
+    data_specification_to_samples = (
+        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
     )
-    samples_median = data_sample_colour_checkers.samples_analysis["data"][
-        "exposure"
-    ]["colour_checker"][0]["samples_median"]
+    samples_median = data_specification_to_samples.samples_analysis["data"][
+        "colour_checker"
+    ][0]["samples_median"]
 
     samples_idt = apply_idt(
         samples_median,

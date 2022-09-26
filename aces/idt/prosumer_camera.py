@@ -33,7 +33,7 @@ from colour import (
 )
 from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
-from colour.models import RGB_COLOURSPACE_ACES2065_1
+from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.io import LUT_to_LUT
 from colour.hints import Dict, NDArray, Union
 from colour.utilities import (
@@ -67,6 +67,7 @@ __all__ = [
     "SD_ILLUMINANT_ACES",
     "generate_reference_colour_checker",
     "RGB_COLORCHECKER_CLASSIC_ACES",
+    "SAMPLES_COUNT_DEFAULT",
     "DATA_SPECIFICATION",
     "DATA_SAMPLES_ANALYSIS",
     "EXTENSION_DEFAULT",
@@ -76,8 +77,8 @@ __all__ = [
     "is_colour_checker_flipped",
     "flip_image",
     "list_sub_directories",
-    "DataSampleColourCheckers",
-    "sample_colour_checkers",
+    "DataSpecificationSamples",
+    "specification_to_samples",
     "sort_samples",
     "DataGenerateLUT3x1D",
     "generate_LUT3x1D",
@@ -160,11 +161,20 @@ RGB_COLORCHECKER_CLASSIC_ACES : NDArray
 """
 
 
+SAMPLES_COUNT_DEFAULT = 24
+"""
+Default samples count.
+
+SAMPLES_COUNT_DEFAULT : int
+"""
+
+
 DATA_SPECIFICATION = {
     "header": {"schema_version": "0.1.0", "camera": None},
     "data": {
-        "exposure": {"colour_checker": {}, "grey_card": {}},
-        "flatfield": [],
+        "colour_checker": None,
+        "flatfield": None,
+        "grey_card": None,
     },
 }
 """
@@ -175,11 +185,10 @@ DATA_SPECIFICATION : dict
 
 DATA_SAMPLES_ANALYSIS = deepcopy(DATA_SPECIFICATION)
 """
-Template specification for the colour checker sampling process.
+Template specification for the image sampling process.
 
 DATA_SAMPLES_ANALYSIS : dict
 """
-
 
 EXTENSION_DEFAULT = "tif"
 """
@@ -245,7 +254,7 @@ def mask_outliers(a, axis=None, z_score=3):
 def swatch_colours_from_image(
     image,
     colour_checker_rectangle,
-    samples=24,
+    samples=SAMPLES_COUNT_DEFAULT,
     swatches_h=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
         "swatches_horizontal"
     ],
@@ -262,7 +271,7 @@ def swatch_colours_from_image(
         Rectifying rectangle.
     samples : integer, optional
         Samples count to use to compute the swatches colours. The effective
-        samples count is :math:`samples_analysis^2`.
+        samples count is :math:`samples^2`.
     swatches_h : int, optional
         Horizontal swatches.
     swatches_v : int, optional
@@ -400,13 +409,11 @@ def list_sub_directories(
         if all([filterer(path) for filterer in filterers])
     ]
 
-    print(directory, sub_directories)
-
     return sub_directories
 
 
 @dataclass
-class DataSampleColourCheckers(MixinDataclassIterable):
+class DataSpecificationSamples(MixinDataclassIterable):
     """
     Analysis data from the colour checker sampling process.
 
@@ -422,9 +429,9 @@ class DataSampleColourCheckers(MixinDataclassIterable):
     image_segmentation: NDArray
 
 
-def sample_colour_checkers(specification, additional_data=False):
+def specification_to_samples(specification, additional_data=False):
     """
-    Sample the colour checkers for given *IDT* archive specification.
+    Sample the images for given *IDT* archive specification.
 
     Parameters
     ----------
@@ -435,15 +442,15 @@ def sample_colour_checkers(specification, additional_data=False):
 
     Returns
     -------
-    dict or DataSampleColourCheckers
-        Samples produced by the colour checker sampling process or data from
-        the colour checker sampling process.
+    dict or DataSpecificationSamples
+        Samples produced by the image sampling process or data from
+        the image sampling process.
     """
 
     samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
 
     # Segmentation occurs on EV 0 and is reused on all brackets.
-    paths = specification["data"]["exposure"]["colour_checker"][0]
+    paths = specification["data"]["colour_checker"][0]
 
     # Detecting the colour checker and whether it is flipped.
     is_flipped, should_flip = False, False
@@ -487,7 +494,7 @@ def sample_colour_checkers(specification, additional_data=False):
     cv2.drawContours(image_segmentation, clusters, -1, (0, 1, 1), 3)
 
     # Flatfield
-    if specification["data"]["flatfield"] is not None:
+    if specification["data"].get("flatfield") is not None:
         samples_analysis["data"]["flatfield"] = {"samples_sequence": []}
         for path in specification["data"]["flatfield"]:
             image = read_image(path)
@@ -514,41 +521,80 @@ def sample_colour_checkers(specification, additional_data=False):
             as_float_array(
                 samples_analysis["data"]["flatfield"]["samples_sequence"]
             )[mask],
-            0,
+            (0, 1),
+        ).tolist()
+
+    # Grey Card
+    if specification["data"].get("grey_card") is not None:
+        samples_analysis["data"]["grey_card"] = {"samples_sequence": []}
+        for path in specification["data"]["grey_card"]:
+            image = read_image(path)
+            height, width, channels = image.shape
+            grey_card_colour = np.mean(
+                image[
+                    height // 2
+                    - SAMPLES_COUNT_DEFAULT : height // 2
+                    + SAMPLES_COUNT_DEFAULT,
+                    width // 2
+                    - SAMPLES_COUNT_DEFAULT : width // 2
+                    + SAMPLES_COUNT_DEFAULT,
+                    0:channels,
+                ],
+                axis=(0, 1),
+            )
+
+            samples_analysis["data"]["grey_card"]["samples_sequence"].append(
+                grey_card_colour.tolist()
+            )
+
+        samples_sequence = as_float_array(
+            [
+                samples[0]
+                for samples in samples_analysis["data"]["grey_card"][
+                    "samples_sequence"
+                ]
+            ]
+        )
+        mask = np.all(~mask_outliers(samples_sequence), axis=-1)
+
+        samples_analysis["data"]["grey_card"]["samples_median"] = np.median(
+            as_float_array(
+                samples_analysis["data"]["grey_card"]["samples_sequence"]
+            )[mask],
+            (0, 1),
         ).tolist()
 
     # ColourChecker Classic Samples per EV
-    for EV in specification["data"]["exposure"]["colour_checker"].keys():
-        samples_analysis["data"]["exposure"]["colour_checker"][EV] = {}
-        samples_analysis["data"]["exposure"]["colour_checker"][EV][
-            "samples_sequence"
-        ] = []
-        for path in specification["data"]["exposure"]["colour_checker"][EV]:
+    samples_analysis["data"]["colour_checker"] = {}
+    for EV in specification["data"]["colour_checker"].keys():
+        samples_analysis["data"]["colour_checker"][EV] = {}
+        samples_analysis["data"]["colour_checker"][EV]["samples_sequence"] = []
+        for path in specification["data"]["colour_checker"][EV]:
             image = read_image(path)
             image = flip_image(image) if is_flipped else image
             swatch_colours = swatch_colours_from_image(
                 image, colour_checker_rectangle
             )
 
-            samples_analysis["data"]["exposure"]["colour_checker"][EV][
+            samples_analysis["data"]["colour_checker"][EV][
                 "samples_sequence"
             ].append(swatch_colours.tolist())
 
         sequence_neutral_5 = as_float_array(
             [
                 samples[21]
-                for samples in samples_analysis["data"]["exposure"][
-                    "colour_checker"
-                ][EV]["samples_sequence"]
+                for samples in samples_analysis["data"]["colour_checker"][EV][
+                    "samples_sequence"
+                ]
             ]
         )
         mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
 
-        samples_analysis["data"]["exposure"]["colour_checker"][EV][
+        samples_analysis["data"]["colour_checker"][EV][
             "samples_median"
         ] = np.median(
             as_float_array(
-                samples_analysis["data"]["exposure"]["colour_checker"][EV][
+                samples_analysis["data"]["colour_checker"][EV][
                     "samples_sequence"
                 ]
             )[mask],
@@ -556,7 +602,7 @@ def sample_colour_checkers(specification, additional_data=False):
         ).tolist()
 
     if additional_data:
-        return DataSampleColourCheckers(samples_analysis, image_segmentation)
+        return DataSpecificationSamples(samples_analysis, image_segmentation)
     else:
         return samples_analysis
 
@@ -565,7 +611,7 @@ def sort_samples(
     samples_analysis, reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES
 ):
     """
-    Sort the samples produced by the colour checker sampling process.
+    Sort the samples produced by the image sampling process.
 
     The *ACES* reference samples are sorted and indexed as a function of the
     camera samples ordering. This ensures that the camera samples are
@@ -574,7 +620,7 @@ def sort_samples(
     Parameters
     ----------
     samples_analysis : dict
-        Samples produced by the colour checker sampling process.
+        Samples produced by the image sampling process.
     reference_colour_checker : NDArray
         Reference *ACES* *RGB* values for the *ColorChecker Classic*.
 
@@ -591,9 +637,7 @@ def sort_samples(
 
     samples_camera = []
     samples_reference = []
-    for EV, images in samples_analysis["data"]["exposure"][
-        "colour_checker"
-    ].items():
+    for EV, images in samples_analysis["data"]["colour_checker"].items():
         samples_reference.append(EV_reference_colour_checker[EV])
         samples_EV = as_float_array(images["samples_median"])[-6:, ...]
         samples_camera.append(samples_EV)
@@ -825,20 +869,26 @@ class DataDecodeSamples(MixinDataclassIterable):
 
 
 def decode_samples(
-    samples_analysis, LUT, decoding_method="Median", additional_data=False
+    samples_analysis,
+    LUT,
+    decoding_method="Median",
+    grey_card_reflectance=(0.18, 0.18, 0.18),
+    additional_data=False,
 ):
     """
-    Decode the samples produced by the colour checker sampling process.
+    Decode the samples produced by the image sampling process.
 
     Parameters
     ----------
     samples_analysis : dict
-        Samples produced by the colour checker sampling process.
+        Samples produced by the image sampling process.
     LUT : LUT1D or LUT3x1D
         Linearisation *LUT* for the camera samples.
-    decoding_method : str
+    decoding_method : str, optional
         {"Median", "Average", "Per Channel", "ACES"},
         Decoding method.
+    grey_card_reflectance : array_like, optional
+        Measured grey card reflectance.
     additional_data : bool, optional
         Whether to return additional data.
 
@@ -852,6 +902,8 @@ def decode_samples(
         decoding_method,
         ["Median", "Average", "Per Channel", "ACES"],
     )
+
+    grey_card_reflectance = as_float_array(grey_card_reflectance)
 
     if decoding_method == "median":
         LUT_decoding = LUT1D(np.median(LUT.table, axis=-1))
@@ -870,11 +922,33 @@ def decode_samples(
 
     LUT_decoding.name = "LUT - Decoding"
 
+    if samples_analysis["data"]["grey_card"] is not None:
+        sampled_grey_card_reflectance = samples_analysis["data"]["grey_card"][
+            "samples_median"
+        ]
+        linear_gain = grey_card_reflectance / LUT_decoding.apply(
+            sampled_grey_card_reflectance
+        )
+        if decoding_method == "median":
+            linear_gain = np.median(linear_gain)
+        elif decoding_method == "average":
+            linear_gain = np.average(linear_gain)
+        elif decoding_method == "per channel":
+            pass
+        elif decoding_method == "aces":
+            linear_gain = RGB_luminance(
+                linear_gain,
+                RGB_COLOURSPACE_ACES2065_1.primaries,
+                RGB_COLOURSPACE_ACES2065_1.whitepoint,
+            )
+
+        LUT_decoding.table *= linear_gain
+
     samples_decoded = {}
-    for EV in sorted(samples_analysis["data"]["exposure"]["colour_checker"]):
+    for EV in sorted(samples_analysis["data"]["colour_checker"]):
         samples_decoded[EV] = LUT_decoding.apply(
             as_float_array(
-                samples_analysis["data"]["exposure"]["colour_checker"][EV][
+                samples_analysis["data"]["colour_checker"][EV][
                     "samples_median"
                 ]
             )
@@ -941,6 +1015,8 @@ def matrix_idt(
         *IDT* matrix or data from the *Input Device Transform* (IDT) matrix
         generation process.
     """
+
+    EV_range = as_float_array(EV_range)
 
     samples_normalised = as_float_array(
         [
@@ -1024,16 +1100,14 @@ def archive_to_specification(
 
         specification["header"]["camera"] = Path(archive).stem
 
-        colour_checker_directory = (
-            root_directory / "data" / "exposure" / "colour_checker"
-        )
+        colour_checker_directory = root_directory / "data" / "colour_checker"
 
         attest(colour_checker_directory.exists())
 
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
-                specification["data"]["exposure"]["colour_checker"][EV] = list(
+                specification["data"]["colour_checker"][EV] = list(
                     (colour_checker_directory / exposure_directory).glob(
                         f"*.{image_format}"
                     )
@@ -1045,31 +1119,42 @@ def archive_to_specification(
                 flatfield_directory.glob(f"*.{image_format}")
             )
 
-    for exposure in list(
-        specification["data"]["exposure"]["colour_checker"].keys()
-    ):
+        grey_card_directory = root_directory / "data" / "grey_card"
+        if grey_card_directory.exists():
+            specification["data"]["grey_card"] = list(
+                flatfield_directory.glob(f"*.{image_format}")
+            )
+
+    for exposure in list(specification["data"]["colour_checker"].keys()):
         images = [
             Path(root_directory) / image
-            for image in specification["data"]["exposure"][
-                "colour_checker"
-            ].pop(exposure)
+            for image in specification["data"]["colour_checker"].pop(exposure)
         ]
 
         for image in images:
             attest(image.exists())
 
-        specification["data"]["exposure"]["colour_checker"][
-            int(exposure)
-        ] = images
+        specification["data"]["colour_checker"][int(exposure)] = images
 
-    images = [
-        Path(root_directory) / image
-        for image in specification["data"]["flatfield"]
-    ]
-    for image in images:
-        attest(image.exists())
+    if specification["data"].get("flatfield") is not None:
+        images = [
+            Path(root_directory) / image
+            for image in specification["data"]["flatfield"]
+        ]
+        for image in images:
+            attest(image.exists())
 
-    specification["data"]["flatfield"] = images
+        specification["data"]["flatfield"] = images
+
+    if specification["data"].get("grey_card") is not None:
+        images = [
+            Path(root_directory) / image
+            for image in specification["data"]["grey_card"]
+        ]
+        for image in images:
+            attest(image.exists())
+
+        specification["data"]["grey_card"] = images
 
     return specification
 
@@ -1082,19 +1167,19 @@ _CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
 @dataclass
 class DataArchiveToSamples(MixinDataclassIterable):
     """
-    Data from an *Input Device Transform* (IDT) archive to colour checker
-    sampling process.
+    Data from an *Input Device Transform* (IDT) archive to image sampling
+    process.
 
     Parameters
     ----------
     specification : dict
         Archive specification.
-    data_sample_colour_checkers : DataSampleColourCheckers
-        Analysis data from the colour checker sampling process.
+    data_specification_to_samples : DataSpecificationSamples
+        Analysis data from the image sampling process.
     """
 
     specification: Dict
-    data_sample_colour_checkers: DataSampleColourCheckers
+    data_specification_to_samples: DataSpecificationSamples
 
 
 def archive_to_samples(
@@ -1119,9 +1204,9 @@ def archive_to_samples(
 
     Returns
     -------
-    DataSampleColourCheckers or DataArchiveToSamples
-        Data from the colour checker sampling process or data from an
-        *Input Device Transform* (IDT) archive to colour checker sampling
+    DataSpecificationSamples or DataArchiveToSamples
+        Data from the image sampling process or data from an
+        *Input Device Transform* (IDT) archive to image sampling
         process.
     """
 
@@ -1134,12 +1219,12 @@ def archive_to_samples(
             archive, temporary_directory.name, image_format
         )
 
-        data_sample_colour_checkers = sample_colour_checkers(
+        data_specification_to_samples = specification_to_samples(
             specification, additional_data=True
         )
 
         data_archive_to_samples = DataArchiveToSamples(
-            specification, data_sample_colour_checkers
+            specification, data_specification_to_samples
         )
 
         if cleanup:
@@ -1150,7 +1235,7 @@ def archive_to_samples(
     if additional_data:
         return data_archive_to_samples
     else:
-        return data_archive_to_samples.data_sample_colour_checkers
+        return data_archive_to_samples.data_specification_to_samples
 
 
 @dataclass
@@ -1162,8 +1247,8 @@ class DataArchiveToIdt(MixinDataclassIterable):
     Parameters
     ----------
     data_archive_to_samples : DataArchiveToSamples
-        Data from an *Input Device Transform* (IDT) archive to colour checker
-        sampling process.
+        Data from an *Input Device Transform* (IDT) archive to image sampling
+        process.
     samples_camera : NDArray
         Samples from the camera.
     samples_reference : NDArray
@@ -1244,7 +1329,7 @@ def archive_to_idt(
         **archive_to_samples_kwargs,
     )
     samples_camera, samples_reference = sort_samples(
-        data_archive_to_samples.data_sample_colour_checkers.samples_analysis,
+        data_archive_to_samples.data_specification_to_samples.samples_analysis,
         **sort_samples_kwargs,
     )
 
@@ -1260,7 +1345,7 @@ def archive_to_idt(
     )
 
     data_decode_samples = decode_samples(
-        data_archive_to_samples.data_sample_colour_checkers.samples_analysis,
+        data_archive_to_samples.data_specification_to_samples.samples_analysis,
         LUT_filtered,
         additional_data=True,
         **decode_samples_kwargs,
@@ -1283,7 +1368,7 @@ def archive_to_idt(
             data_matrix_idt,
         )
     else:
-        return data_matrix_idt.LUT_decoding, data_matrix_idt.M
+        return data_decode_samples.LUT_decoding, data_matrix_idt.M
 
 
 def apply_idt(RGB, LUT, M):
@@ -1376,11 +1461,11 @@ def png_segmented_image(data_archive_to_idt):
         *PNG* data.
     """
 
-    data_sample_colour_checkers = (
-        data_archive_to_idt.data_archive_to_samples.data_sample_colour_checkers
+    data_specification_to_samples = (
+        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
     )
     colour.plotting.plot_image(
-        data_sample_colour_checkers.image_segmentation,
+        data_specification_to_samples.image_segmentation,
         standalone=False,
     )
     buffer = io.BytesIO()
