@@ -4,13 +4,19 @@ Invoke - Tasks
 """
 
 import platform
-from invoke import Context, task
-from invoke.exceptions import Failure
 
 from colour.hints import Boolean
 from colour.utilities import message_box
 
 import app
+
+import inspect
+
+if not hasattr(inspect, "getargspec"):
+    inspect.getargspec = inspect.getfullargspec
+
+from invoke import Context, task
+from invoke.exceptions import Failure
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
 __copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
@@ -37,31 +43,6 @@ APPLICATION_NAME = app.__application_name__
 ORG = "ampas"
 
 CONTAINER = APPLICATION_NAME.replace(" ", "").lower()
-
-
-def _patch_invoke_annotations_support():
-    """See https://github.com/pyinvoke/invoke/issues/357."""
-
-    import invoke
-    from unittest.mock import patch
-    from inspect import getfullargspec, ArgSpec
-
-    def patched_inspect_getargspec(function):
-        spec = getfullargspec(function)
-        return ArgSpec(*spec[0:4])
-
-    org_task_argspec = invoke.tasks.Task.argspec
-
-    def patched_task_argspec(*args, **kwargs):
-        with patch(
-            target="inspect.getargspec", new=patched_inspect_getargspec
-        ):
-            return org_task_argspec(*args, **kwargs)
-
-    invoke.tasks.Task.argspec = patched_task_argspec
-
-
-_patch_invoke_annotations_support()
 
 
 @task

@@ -145,7 +145,6 @@ def generate_reference_colour_checker(
             sd_to_aces_relative_exposure_values(
                 sd,
                 illuminant,
-                apply_chromatic_adaptation=True,
                 chromatic_adaptation_transform=chromatic_adaptation_transform,
             )
             for sd in sds
