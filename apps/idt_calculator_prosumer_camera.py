@@ -53,10 +53,11 @@ from aces.idt import (
     archive_to_idt,
     error_delta_E,
     generate_reference_colour_checker,
+    png_colour_checker_segmentation,
     png_compare_colour_checkers,
     png_extrapolated_camera_samples,
+    png_grey_card_sampling,
     png_measured_camera_samples,
-    png_segmented_image,
     zip_idt,
 )
 from app import APP, SERVER_URL, __version__
@@ -872,60 +873,82 @@ def compute_idt_prosumer_camera(
         data_archive_to_idt, os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE)
     )
 
+    # Delta-E
+    components = [
+        H3(
+            f"IDT (ΔE: {np.median(delta_E_idt):.7f})",
+            style={"textAlign": "center"},
+        ),
+        Img(
+            src=(
+                f"data:image/png;base64,{compare_colour_checkers_idt_correction}"
+            ),
+            style={"width": "100%"},
+        ),
+        H3(
+            f"LUT1D (ΔE: {np.median(delta_E_decoded):.7f})",
+            style={"textAlign": "center"},
+        ),
+        Img(
+            src=(
+                f"data:image/png;base64,{compare_colour_checkers_LUT_correction}"
+            ),
+            style={"width": "100%"},
+        ),
+        H3("Baseline", style={"textAlign": "center"}),
+        Img(
+            src=(f"data:image/png;base64,{compare_colour_checkers_baseline}"),
+            style={"width": "100%"},
+        ),
+    ]
+
+    # Segmentation
+    components += [
+        H3("Segmentation", style={"textAlign": "center"}),
+        Img(
+            src=(
+                f"data:image/png;base64,"
+                f"{png_colour_checker_segmentation(data_archive_to_idt)}"
+            ),
+            style={"width": "100%"},
+        ),
+    ]
+    if (
+        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
+        is not None
+    ):
+        components += [
+            Img(
+                src=(
+                    f"data:image/png;base64,"
+                    f"{png_grey_card_sampling(data_archive_to_idt)}"
+                ),
+                style={"width": "100%"},
+            ),
+        ]
+
+    # Camera Samples
+    components += [
+        H3("Measured Camera Samples", style={"textAlign": "center"}),
+        Img(
+            src=(
+                f"data:image/png;base64,"
+                f"{png_measured_camera_samples(data_archive_to_idt)}"
+            ),
+            style={"width": "100%"},
+        ),
+        H3("Filtered Camera Samples", style={"textAlign": "center"}),
+        Img(
+            src=(
+                f"data:image/png;base64,"
+                f"{png_extrapolated_camera_samples(data_archive_to_idt)}"
+            ),
+            style={"width": "100%"},
+        ),
+    ]
+
     return (
         "",
-        [
-            H3(
-                f"IDT (ΔE: {np.median(delta_E_idt):.7f})",
-                style={"textAlign": "center"},
-            ),
-            Img(
-                src=(
-                    f"data:image/png;base64,{compare_colour_checkers_idt_correction}"
-                ),
-                style={"width": "100%"},
-            ),
-            H3(
-                f"LUT1D (ΔE: {np.median(delta_E_decoded):.7f})",
-                style={"textAlign": "center"},
-            ),
-            Img(
-                src=(
-                    f"data:image/png;base64,{compare_colour_checkers_LUT_correction}"
-                ),
-                style={"width": "100%"},
-            ),
-            H3("Baseline", style={"textAlign": "center"}),
-            Img(
-                src=(
-                    f"data:image/png;base64,{compare_colour_checkers_baseline}"
-                ),
-                style={"width": "100%"},
-            ),
-            H3("Segmentation", style={"textAlign": "center"}),
-            Img(
-                src=(
-                    f"data:image/png;base64,"
-                    f"{png_segmented_image(data_archive_to_idt)}"
-                ),
-                style={"width": "100%"},
-            ),
-            H3("Measured Camera Samples", style={"textAlign": "center"}),
-            Img(
-                src=(
-                    f"data:image/png;base64,"
-                    f"{png_measured_camera_samples(data_archive_to_idt)}"
-                ),
-                style={"width": "100%"},
-            ),
-            H3("Filtered Camera Samples", style={"textAlign": "center"}),
-            Img(
-                src=(
-                    f"data:image/png;base64,"
-                    f"{png_extrapolated_camera_samples(data_archive_to_idt)}"
-                ),
-                style={"width": "100%"},
-            ),
-        ],
+        components,
         {"display": "block"},
     )

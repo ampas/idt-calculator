@@ -10,7 +10,8 @@ from .prosumer_camera import (
     archive_to_idt,
     apply_idt,
     zip_idt,
-    png_segmented_image,
+    png_colour_checker_segmentation,
+    png_grey_card_sampling,
     png_measured_camera_samples,
     png_extrapolated_camera_samples,
 )
@@ -27,7 +28,8 @@ __all__ += [
     "archive_to_idt",
     "apply_idt",
     "zip_idt",
-    "png_segmented_image",
+    "png_colour_checker_segmentation",
+    "png_grey_card_sampling",
     "png_measured_camera_samples",
     "png_extrapolated_camera_samples",
 ]

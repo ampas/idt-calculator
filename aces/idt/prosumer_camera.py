@@ -35,11 +35,12 @@ from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.io import LUT_to_LUT
-from colour.hints import Dict, NDArray, Union
+from colour.hints import Dict, NDArray, Optional, Union
 from colour.utilities import (
     CACHE_REGISTRY,
     MixinDataclassIterable,
     as_float_array,
+    as_int_array,
     attest,
     optional,
     orient,
@@ -94,7 +95,8 @@ __all__ = [
     "archive_to_idt",
     "apply_idt",
     "zip_idt",
-    "png_segmented_image",
+    "png_colour_checker_segmentation",
+    "png_grey_card_sampling",
     "png_measured_camera_samples",
     "png_extrapolated_camera_samples",
 ]
@@ -105,7 +107,6 @@ Reference reflectances for the *ColorChecker Classic*.
 
 SDS_COLORCHECKER_CLASSIC : tuple
 """
-
 
 SD_ILLUMINANT_ACES = SDS_ILLUMINANTS["D60"]
 """
@@ -159,14 +160,12 @@ Reference *ACES* *RGB* values for the *ColorChecker Classic*.
 RGB_COLORCHECKER_CLASSIC_ACES : NDArray
 """
 
-
 SAMPLES_COUNT_DEFAULT = 24
 """
 Default samples count.
 
 SAMPLES_COUNT_DEFAULT : int
 """
-
 
 DATA_SPECIFICATION = {
     "header": {"schema_version": "0.1.0", "camera": None},
@@ -420,12 +419,15 @@ class DataSpecificationSamples(MixinDataclassIterable):
     ----------
     samples_analysis : dict
         Samples produced by the colour checker sampling process.
-    image_segmentation : NDArray
-        Image with segmentation contours.
+    image_colour_checker_segmentation : NDArray
+        Image of the colour checker with segmentation contours.
+    image_grey_card_sampling : NDArray
+        Image of the grey card with sampling contours.
     """
 
     samples_analysis: dict
-    image_segmentation: NDArray
+    image_colour_checker_segmentation: NDArray
+    image_grey_card_sampling: Optional[NDArray]
 
 
 def specification_to_samples(specification, additional_data=False):
@@ -484,13 +486,17 @@ def specification_to_samples(specification, additional_data=False):
 
     is_flipped = should_flip
 
-    image_segmentation = (
+    image_colour_checker_segmentation = (
         colour_checker_detection.detection.segmentation.adjust_image(
             image, SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"]
         )
     )
-    cv2.drawContours(image_segmentation, swatches, -1, (1, 0, 1), 3)
-    cv2.drawContours(image_segmentation, clusters, -1, (0, 1, 1), 3)
+    cv2.drawContours(
+        image_colour_checker_segmentation, swatches, -1, (1, 0, 1), 3
+    )
+    cv2.drawContours(
+        image_colour_checker_segmentation, clusters, -1, (0, 1, 1), 3
+    )
 
     # Flatfield
     if specification["data"].get("flatfield") is not None:
@@ -524,11 +530,13 @@ def specification_to_samples(specification, additional_data=False):
         ).tolist()
 
     # Grey Card
+    image_grey_card_sampling = None
     if specification["data"].get("grey_card") is not None:
         samples_analysis["data"]["grey_card"] = {"samples_sequence": []}
         for path in specification["data"]["grey_card"]:
             image = read_image(path)
             height, width, channels = image.shape
+            print(image.shape)
             grey_card_colour = np.mean(
                 image[
                     height // 2
@@ -562,6 +570,36 @@ def specification_to_samples(specification, additional_data=False):
             )[mask],
             (0, 1),
         ).tolist()
+
+        image_grey_card_sampling = image
+        cv2.drawContours(
+            image_grey_card_sampling,
+            [
+                as_int_array(
+                    [
+                        [
+                            width // 2 - SAMPLES_COUNT_DEFAULT,
+                            height // 2 - SAMPLES_COUNT_DEFAULT,
+                        ],
+                        [
+                            width // 2 + SAMPLES_COUNT_DEFAULT,
+                            height // 2 - SAMPLES_COUNT_DEFAULT,
+                        ],
+                        [
+                            width // 2 + SAMPLES_COUNT_DEFAULT,
+                            height // 2 + SAMPLES_COUNT_DEFAULT,
+                        ],
+                        [
+                            width // 2 - SAMPLES_COUNT_DEFAULT,
+                            height // 2 + SAMPLES_COUNT_DEFAULT,
+                        ],
+                    ]
+                )
+            ],
+            -1,
+            (1, 0, 1),
+            3,
+        )
 
     # ColourChecker Classic Samples per EV
     samples_analysis["data"]["colour_checker"] = {}
@@ -601,7 +639,11 @@ def specification_to_samples(specification, additional_data=False):
         ).tolist()
 
     if additional_data:
-        return DataSpecificationSamples(samples_analysis, image_segmentation)
+        return DataSpecificationSamples(
+            samples_analysis,
+            image_colour_checker_segmentation,
+            image_grey_card_sampling,
+        )
     else:
         return samples_analysis
 
@@ -1444,9 +1486,42 @@ def zip_idt(data_archive_to_idt, output_directory):
     return zip_file
 
 
-def png_segmented_image(data_archive_to_idt):
+def png_colour_checker_segmentation(data_archive_to_idt):
     """
-    Return the segmentation image as *PNG* data.
+    Return the colour checker segmentation image as *PNG* data.
+
+    Parameters
+    ----------
+    data_archive_to_idt : DataArchiveToIdt
+        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
+        generation process.
+
+    Returns
+    -------
+    str
+        *PNG* data.
+    """
+
+    data_specification_to_samples = (
+        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
+    )
+
+    colour.plotting.plot_image(
+        data_specification_to_samples.image_colour_checker_segmentation,
+        standalone=False,
+    )
+
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+    plt.close()
+
+    return data_png
+
+
+def png_grey_card_sampling(data_archive_to_idt):
+    """
+    Return the grey card image sampling as *PNG* data.
 
     Parameters
     ----------
@@ -1464,7 +1539,7 @@ def png_segmented_image(data_archive_to_idt):
         data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
     )
     colour.plotting.plot_image(
-        data_specification_to_samples.image_segmentation,
+        data_specification_to_samples.image_grey_card_sampling,
         standalone=False,
     )
     buffer = io.BytesIO()
