@@ -31,7 +31,7 @@ from colour.utilities import (
 )
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
-from dash.dcc import Link, Markdown
+from dash.dcc import Link, Location, Markdown
 from dash.dependencies import Input, Output, State
 from dash.html import A, Code, Div, Footer, H3, Img, Li, Main, Pre, Ul
 from dash_bootstrap_components import (
@@ -76,6 +76,7 @@ from apps.common import (
     TEMPLATE_NUKE_GROUP,
     TRAINING_DATA_KODAK190PATCHES,
     format_float,
+    format_idt_clf,
     format_matrix_ctl,
     format_vector_nuke,
     format_vector_ctl,
@@ -158,6 +159,7 @@ _OPTIONS_FORMATTER = [
     for label, value in [
         ("Str", "str"),
         ("Repr", "repr"),
+        ("CLF", "clf"),
         ("CTL", "ctl"),
         ("DCTL", "dctl"),
         ("Nuke", "nuke"),
@@ -484,6 +486,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
 LAYOUT = Container(
     [
         H3([Link(APP_NAME, href=APP_PATH)]),
+        Location(id=_uid("url"), refresh=False),
         Main(
             Tabs(
                 [
@@ -767,6 +770,7 @@ def toggle_advanced_options(n_clicks, is_open):
         State(_uid("optimisation-space-select"), "value"),
         State(_uid("camera-sensitivities-interpolator-select"), "value"),
         State(_uid("illuminant-interpolator-select"), "value"),
+        State(_uid("url"), "href"),
     ],
     prevent_initial_call=True,
 )
@@ -785,6 +789,7 @@ def compute_idt_p2013_001(
     optimisation_space,
     sensitivities_interpolator,
     illuminant_interpolator,
+    href,
 ):
     """
     Compute the *Input Device Transform* (IDT).
@@ -821,6 +826,8 @@ def compute_idt_p2013_001(
         Name of the camera sensitivities interpolator.
     illuminant_interpolator : str
         Name of the illuminant interpolator.
+    href
+        URL.
 
     Returns
     -------
@@ -863,7 +870,15 @@ def compute_idt_p2013_001(
         illuminant_interpolator,
     )
 
-    M, RGB_w, XYZ, RGB, illuminant = _CACHE_MATRIX_IDT.get(key, [None] * 5)
+    (
+        M,
+        RGB_w,
+        XYZ,
+        RGB,
+        illuminant,
+        parsed_sensitivities_data,
+        parsed_illuminant_data,
+    ) = _CACHE_MATRIX_IDT.get(key, [None] * 7)
 
     if M is None:
         parsed_sensitivities_data = {}
@@ -918,7 +933,15 @@ def compute_idt_p2013_001(
             additional_data=True,
         )
 
-        _CACHE_MATRIX_IDT[key] = M, RGB_w, XYZ, RGB, illuminant
+        _CACHE_MATRIX_IDT[key] = (
+            M,
+            RGB_w,
+            XYZ,
+            RGB,
+            illuminant,
+            parsed_sensitivities_data,
+            parsed_illuminant_data,
+        )
 
     with numpy_print_options(
         formatter={"float": f"{{: 0.{decimals}f}}".format},
@@ -930,6 +953,30 @@ def compute_idt_p2013_001(
             output = TEMPLATE_DEFAULT_OUTPUT.format(str(M), str(RGB_w))
         elif formatter == "repr":
             output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
+        elif formatter == "clf":
+            output = format_idt_clf(
+                camera_name,
+                M,
+                RGB_w * exposure_factor,
+                {
+                    "Application": f"{APP_NAME} - {__version__}",
+                    "Url": href,
+                    "Date": datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+                    "ExposureFactor": exposure_factor,
+                    "CameraName": camera_name,
+                    "SensitivitiesData": str(parsed_sensitivities_data)
+                    .replace("array([", "[")
+                    .replace("])", "]"),
+                    "IlluminantName": illuminant_name,
+                    "IlluminantData": parsed_illuminant_data,
+                    "RGBDisplayColourspace": RGB_display_colourspace,
+                    "TrainingData": training_data,
+                    "ChromaticAdaptationTransform": chromatic_adaptation_transform,
+                    "OptimisationSpace": optimisation_space,
+                    "SensitivitiesInterpolator": sensitivities_interpolator,
+                    "IlluminantInterpolator": illuminant_interpolator,
+                },
+            )
         elif formatter == "ctl":
             output = TEMPLATE_CTL_MODULE.format(
                 matrix=format_matrix_ctl(M, decimals),
@@ -939,7 +986,7 @@ def compute_idt_p2013_001(
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME} - {__version__}",
-                url=APP_PATH,
+                url=href,
             )
         elif formatter == "dctl":
             output = TEMPLATE_DCTL_MODULE.format(
@@ -956,7 +1003,7 @@ def compute_idt_p2013_001(
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME} - {__version__}",
-                url=APP_PATH,
+                url=href,
             )
         elif formatter == "nuke":
             output = TEMPLATE_NUKE_GROUP.format(
@@ -967,7 +1014,7 @@ def compute_idt_p2013_001(
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME} - {__version__}",
-                url=APP_PATH,
+                url=href,
                 group=slugify(
                     "_".join([camera_name, illuminant_name]).lower()
                 ),

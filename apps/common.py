@@ -6,6 +6,8 @@ Common Apps Utilities
 import colour
 import colour_checker_detection  # noqa
 import colour_datasets
+import numpy as np
+import xml.etree.ElementTree as ET
 from colour import (
     CubicSplineInterpolator,
     LinearInterpolator,
@@ -59,6 +61,7 @@ __all__ = [
     "format_float_dctl",
     "format_matrix_dctl",
     "format_vector_dctl",
+    "format_idt_clf",
 ]
 
 COLOUR_ENVIRONMENT = None
@@ -334,7 +337,6 @@ void main (
     input varying float bIn,
     input varying float aIn = 1.0)
 {{
-
     // Apply exposure and white balance factors
     float Rraw = clip((b[0] * rIn * k) / min_b);
     float Graw = clip((b[1] * gIn * k) / min_b);
@@ -552,7 +554,7 @@ def format_float_dctl(a, decimals=10):
 
 def format_vector_dctl(V, decimals=10):
     """
-    Format given vector for as *DCTL* module.
+    Format given vector as a *DCTL* module.
 
     Parameters
     ----------
@@ -572,7 +574,7 @@ def format_vector_dctl(V, decimals=10):
 
 def format_matrix_dctl(M, decimals=10, padding=4):
     """
-    Format given matrix for as *DCTL* module.
+    Format given matrix as a *DCTL* module.
 
     Parameters
     ----------
@@ -603,3 +605,75 @@ def format_matrix_dctl(M, decimals=10, padding=4):
     dctl += f"{pad}{{{pretty(M[2])} }}"
 
     return dctl
+
+
+def format_idt_clf(camera_name, matrix, multipliers, information):
+    """
+    Format the *IDT* matrix and multipliers as a *Common LUT Format* (CLF).
+
+    Parameters
+    ----------
+    matrix : ArrayLike
+        *IDT* matrix.
+    multipliers : ArrayLike
+        *IDT* multipliers.
+    information : dict
+        Information pertaining to the *IDT* and the computation parameters.
+
+    Returns
+    -------
+    str
+        *CLF* file path.
+    """
+
+    root = ET.Element(
+        "ProcessList",
+        compCLFversion="3",
+        id=f"urn:ampas:aces:transformId:v1.5:IDT.{camera_name}.a1.v1",
+        name=f"{camera_name} to ACES2065-1",
+    )
+
+    def format_array(a):
+        """Format given array :math:`a`."""
+
+        return "\n".join(map(str, np.ravel(a).tolist()))
+
+    et_input_descriptor = ET.SubElement(root, "InputDescriptor")
+    et_input_descriptor.text = camera_name
+
+    et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
+    et_output_descriptor.text = "ACES2065-1"
+
+    et_info = ET.SubElement(root, "Info")
+    et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
+    for key, value in information.items():
+        sub_element = ET.SubElement(et_academy_idt_calculator, key)
+        sub_element.text = str(value)
+
+    et_multipliers = ET.SubElement(
+        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+    )
+    et_array = ET.SubElement(et_multipliers, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(np.diag(multipliers))}"
+
+    et_range = ET.SubElement(
+        root,
+        "Range",
+        inBitDepth="32f",
+        outBitDepth="32f",
+    )
+    et_max_out_value = ET.SubElement(et_range, "maxOutValue")
+    et_max_out_value.text = "1"
+
+    et_matrix = ET.SubElement(
+        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+    )
+    et_array = ET.SubElement(et_matrix, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(matrix)}"
+
+    ET.indent(root)
+
+    clf_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    clf_content += ET.tostring(root, encoding="UTF-8").decode("utf8")
+
+    return clf_content

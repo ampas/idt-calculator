@@ -107,6 +107,9 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
                 },
                 "camera": {
                     "type": "string"
+                },
+                "manufacturer": {
+                    "type": "string"
                 }
             },
             "required": [

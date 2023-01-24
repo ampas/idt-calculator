@@ -9,6 +9,7 @@ import io
 import matplotlib
 import numpy as np
 import re
+import unicodedata
 
 from colour.algebra import euclidean_distance, vector_dot
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
@@ -32,26 +33,54 @@ __all__ = [
 ]
 
 
-def slugify(a):
+def slugify(object_, allow_unicode=False):
     """
-    Slugify given string to remove non-programmatic friendly characters.
+    Generate a *SEO* friendly and human-readable slug from given object.
+
+    Convert to ASCII if ``allow_unicode`` is *False*. Convert spaces or
+    repeated dashes to single dashes. Remove characters that aren't
+    alphanumerics, underscores, or hyphens. Convert to lowercase. Also strip
+    leading and trailing whitespace, dashes, and underscores.
 
     Parameters
     ----------
-    a : str
-        String to slugify.
+    object_ : object
+        Object to convert to a slug.
+    allow_unicode : bool
+        Whether to allow unicode characters in the generated slug.
 
     Returns
     -------
-    str
-        Slugified string.
+    :class:`str`
+        Generated slug.
+
+    References
+    ----------
+    -   https://github.com/django/django/blob/\
+0dd29209091280ccf34e07c9468746c396b7778e/django/utils/text.py#L400
+
+    Examples
+    --------
+    >>> slugify(
+    ...     " Jack & Jill like numbers 1,2,3 and 4 and silly characters ?%.$!/"
+    ... )
+    'jack-jill-like-numbers-123-and-4-and-silly-characters'
     """
 
-    return re.sub(
-        r"\s|-|\.",
-        "_",
-        re.sub(r"(?u)[^-\w.]", " ", str(a).strip()).strip(),
-    )
+    value = str(object_)
+
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
 def error_delta_E(samples_test, samples_reference):
