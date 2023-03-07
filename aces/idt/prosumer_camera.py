@@ -1482,6 +1482,20 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
     et_output_descriptor.text = "ACES2065-1"
 
     et_info = ET.SubElement(root, "Info")
+    et_metadata = ET.SubElement(et_info, "Archive")
+    for (
+        key,
+        value,
+    ) in data_archive_to_idt.data_archive_to_samples.specification[
+        "header"
+    ].items():
+        if key == "schema_version":
+            continue
+
+        sub_element = ET.SubElement(
+            et_metadata, key.replace("_", " ").title().replace(" ", "")
+        )
+        sub_element.text = str(value)
     et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
         sub_element = ET.SubElement(et_academy_idt_calculator, key)

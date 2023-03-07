@@ -110,6 +110,18 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
                 },
                 "manufacturer": {
                     "type": "string"
+                },
+                "exposure_settings": {
+                    "type": "string"
+                },
+                "debayer_settings": {
+                    "type": "string"
+                },
+                "output_description": {
+                    "type": "string"
+                },
+                "lighting_description": {
+                    "type": "string"
                 }
             },
             "required": [
@@ -282,6 +294,8 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
 The implicit specification of the IDT archive requires that the image sequences are stored in specific directories that match the JSON schema:
 
 ![IDT Archive Implicit Structure](docs/_static/idt_archive_implicit_structure.png)
+
+The implicit specification cannot represent some of the metadata that the explicit specification supports, e.g. `manufacture` or `exposure_settings`.
 
 ## License
 

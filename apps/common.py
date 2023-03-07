@@ -645,6 +645,12 @@ def format_idt_clf(camera_name, matrix, multipliers, information):
     et_output_descriptor.text = "ACES2065-1"
 
     et_info = ET.SubElement(root, "Info")
+    et_metadata = ET.SubElement(et_info, "Archive")
+    for key, value in {
+        "CameraName": camera_name,
+    }.items():
+        sub_element = ET.SubElement(et_metadata, key)
+        sub_element.text = str(value)
     et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
         sub_element = ET.SubElement(et_academy_idt_calculator, key)
