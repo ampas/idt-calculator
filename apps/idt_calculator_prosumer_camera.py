@@ -351,7 +351,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 min=0,
                                 max=256,
                                 step=1,
-                                value=16,
+                                value=32,
                             ),
                         ],
                         className="mb-1",
