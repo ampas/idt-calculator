@@ -674,15 +674,12 @@ def sort_samples(
         Tuple of camera and reference *ACES* *RGB* samples.
     """
 
-    EV_reference_colour_checker = {
-        i: reference_colour_checker[-6:, ...] * pow(2, i)
-        for i in range(-20, 20, 1)
-    }
-
     samples_camera = []
     samples_reference = []
     for EV, images in samples_analysis["data"]["colour_checker"].items():
-        samples_reference.append(EV_reference_colour_checker[EV])
+        samples_reference.append(
+            reference_colour_checker[-6:, ...] * pow(2, EV)
+        )
         samples_EV = as_float_array(images["samples_median"])[-6:, ...]
         samples_camera.append(samples_EV)
     samples_camera = np.vstack(samples_camera)
@@ -1178,7 +1175,7 @@ def archive_to_specification(
         for image in images:
             attest(image.exists())
 
-        specification["data"]["colour_checker"][int(exposure)] = images
+        specification["data"]["colour_checker"][float(exposure)] = images
 
     if specification["data"].get("flatfield") is not None:
         images = [
