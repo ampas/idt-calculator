@@ -20,6 +20,7 @@ import scipy.optimize
 import scipy.stats
 import shutil
 import tempfile
+import xml.etree.ElementTree as ET
 from copy import deepcopy
 from colour import (
     Extrapolator,
@@ -50,8 +51,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from scipy.optimize import minimize
 from zipfile import ZipFile
-
-from aces.idt import slugify
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa
@@ -94,6 +93,7 @@ __all__ = [
     "DataArchiveToIdt",
     "archive_to_idt",
     "apply_idt",
+    "idt_to_clf",
     "zip_idt",
     "png_colour_checker_segmentation",
     "png_grey_card_sampling",
@@ -168,7 +168,11 @@ SAMPLES_COUNT_DEFAULT : int
 """
 
 DATA_SPECIFICATION = {
-    "header": {"schema_version": "0.1.0", "camera": None},
+    "header": {
+        "schema_version": "0.1.0",
+        "camera": "Undefined",
+        "manufacturer": "Undefined",
+    },
     "data": {
         "colour_checker": None,
         "flatfield": None,
@@ -536,7 +540,6 @@ def specification_to_samples(specification, additional_data=False):
         for path in specification["data"]["grey_card"]:
             image = read_image(path)
             height, width, channels = image.shape
-            print(image.shape)
             grey_card_colour = np.mean(
                 image[
                     height // 2
@@ -1435,7 +1438,90 @@ def apply_idt(RGB, LUT, M):
     return vector_dot(M, LUT.apply(RGB))
 
 
-def zip_idt(data_archive_to_idt, output_directory):
+def idt_to_clf(data_archive_to_idt, output_directory, information):
+    """
+    Convert the *IDT* matrix generation process data to *Common LUT Format*
+    (CLF).
+
+    Parameters
+    ----------
+    data_archive_to_idt : DataArchiveToIdt
+        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
+        generation process.
+    output_directory : str
+        Output directory for the zip file.
+    information : dict
+        Information pertaining to the *IDT* and the computation parameters.
+
+    Returns
+    -------
+    str
+        *CLF* file path.
+    """
+
+    camera_name = data_archive_to_idt.data_archive_to_samples.specification[
+        "header"
+    ]["camera"]
+    manufacturer = data_archive_to_idt.data_archive_to_samples.specification[
+        "header"
+    ]["manufacturer"]
+
+    root = ET.Element(
+        "ProcessList",
+        compCLFversion="3",
+        id=f"urn:ampas:aces:transformId:v1.5:IDT.{manufacturer}.{camera_name}.a1.v1",
+        name=f"{manufacturer} {camera_name} to ACES2065-1",
+    )
+
+    def format_array(a):
+        """Format given array :math:`a`."""
+
+        return "\n".join(map(str, np.ravel(a).tolist()))
+
+    et_input_descriptor = ET.SubElement(root, "InputDescriptor")
+    et_input_descriptor.text = f"{manufacturer} {camera_name}"
+
+    et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
+    et_output_descriptor.text = "ACES2065-1"
+
+    et_info = ET.SubElement(root, "Info")
+    et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
+    for key, value in information.items():
+        sub_element = ET.SubElement(et_academy_idt_calculator, key)
+        sub_element.text = str(value)
+
+    et_lut1d = ET.SubElement(
+        root,
+        "LUT1D",
+        inBitDepth="32f",
+        outBitDepth="32f",
+        interpolation="linear",
+    )
+    LUT_decoding = data_archive_to_idt.data_decode_samples.LUT_decoding
+    et_array = ET.SubElement(et_lut1d, "Array", dim=f"{LUT_decoding.size} 1")
+    et_array.text = f"\n{format_array(LUT_decoding.table)}"
+
+    et_matrix = ET.SubElement(
+        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+    )
+    M = data_archive_to_idt.data_matrix_idt.M
+    et_array = ET.SubElement(et_matrix, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(M)}"
+
+    clf_path = (
+        f"{output_directory}/"
+        f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.clf"
+    )
+    ET.indent(root)
+
+    with open(clf_path, "w") as clf_file:
+        clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        clf_file.write(ET.tostring(root, encoding="UTF-8").decode("utf8"))
+
+    return clf_path
+
+
+def zip_idt(data_archive_to_idt, output_directory, information):
     """
     Zip the *IDT*.
 
@@ -1445,42 +1531,54 @@ def zip_idt(data_archive_to_idt, output_directory):
         Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
         generation process.
     output_directory : str
-        Output directory for the zip file.
+        Output directory for the *zip* file.
+    information : dict
+        Information pertaining to the *IDT* and the computation parameters.
 
     Returns
     -------
     str
-        Zip file path.
+        *Zip* file path.
     """
 
     camera_name = data_archive_to_idt.data_archive_to_samples.specification[
         "header"
     ]["camera"]
+    manufacturer = data_archive_to_idt.data_archive_to_samples.specification[
+        "header"
+    ]["manufacturer"]
 
-    camera_name = f"IDT_{slugify(camera_name)}"
-
-    spi1d_file = f"{output_directory}/{camera_name}.spi1d"
+    spi1d_path = (
+        f"{output_directory}/"
+        f"{manufacturer}.Input.{camera_name}_to_Linear.spi1d"
+    )
     colour.write_LUT(
         data_archive_to_idt.data_decode_samples.LUT_decoding,
-        spi1d_file,
+        spi1d_path,
     )
 
-    spimtx_file = f"{output_directory}/{camera_name}.spimtx"
+    spimtx_path = (
+        f"{output_directory}/"
+        f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.spimtx"
+    )
     colour.write_LUT(
         colour.LUTOperatorMatrix(data_archive_to_idt.data_matrix_idt.M),
-        spimtx_file,
+        spimtx_path,
     )
 
-    json_path = f"{output_directory}/{camera_name}.json"
+    clf_path = idt_to_clf(data_archive_to_idt, output_directory, information)
+
+    json_path = f"{output_directory}/{manufacturer}.{camera_name}.json"
     with open(json_path, "w") as json_file:
         json_file.write(jsonpickle.encode(data_archive_to_idt, indent=2))
 
-    zip_file = Path(output_directory) / f"{camera_name}.zip"
+    zip_file = Path(output_directory) / f"IDT_{manufacturer}_{camera_name}.zip"
 
     os.chdir(output_directory)
     with ZipFile(zip_file, "w") as zip_archive:
-        zip_archive.write(spi1d_file.replace(output_directory, "")[1:])
-        zip_archive.write(spimtx_file.replace(output_directory, "")[1:])
+        zip_archive.write(spi1d_path.replace(output_directory, "")[1:])
+        zip_archive.write(spimtx_path.replace(output_directory, "")[1:])
+        zip_archive.write(clf_path.replace(output_directory, "")[1:])
         zip_archive.write(json_path.replace(output_directory, "")[1:])
 
     return zip_file

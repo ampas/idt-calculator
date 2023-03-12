@@ -6,6 +6,7 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 import os.path
 
 import colour
+import datetime
 import tempfile
 import urllib.parse
 import uuid
@@ -24,7 +25,7 @@ from colour.temperature import CCT_to_xy_CIE_D
 from colour.utilities import as_float, as_int_scalar
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
-from dash.dcc import Download, Link, Markdown, send_file
+from dash.dcc import Download, Link, Location, Markdown, send_file
 from dash.dependencies import Input, Output, State
 from dash.html import A, Br, Code, Div, Footer, H3, Img, Li, Main, Pre, Ul
 from dash_bootstrap_components import (
@@ -128,7 +129,6 @@ App unique id.
 
 APP_UID : str
 """
-
 
 _ROOT_UPLOADED_IDT_ARCHIVE = tempfile.gettempdir()
 
@@ -445,6 +445,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
 LAYOUT = Container(
     [
         H3([Link(APP_NAME, href=APP_PATH)]),
+        Location(id=_uid("url"), refresh=False),
         Main(
             Tabs(
                 [
@@ -464,7 +465,8 @@ LAYOUT = Container(
                                         ),
                                         Row(
                                             Col(
-                                                _LAYOUT_COLUMN_IDT_COMPUTATION_CHILDREN,  # noqa
+                                                _LAYOUT_COLUMN_IDT_COMPUTATION_CHILDREN,
+                                                # noqa
                                             ),
                                         ),
                                     ],
@@ -707,6 +709,7 @@ def download_idt_zip(n_clicks):
     ],
     [
         State(_uid("rgb-display-colourspace-select"), "value"),
+        State(_uid("illuminant-select"), "value"),
         State(_uid("illuminant-datatable"), "data"),
         State(_uid("chromatic-adaptation-transform-select"), "value"),
         State(_uid("optimisation-space-select"), "value"),
@@ -716,12 +719,14 @@ def download_idt_zip(n_clicks):
         State(_uid("grey-card-reflectance"), "value"),
         State(_uid("lut-size-select"), "value"),
         State(_uid("lut-smoothing-input-number"), "value"),
+        State(_uid("url"), "href"),
     ],
     prevent_initial_call=True,
 )
 def compute_idt_prosumer_camera(
     n_clicks,
     RGB_display_colourspace,
+    illuminant_name,
     illuminant_data,
     chromatic_adaptation_transform,
     optimisation_space,
@@ -731,6 +736,7 @@ def compute_idt_prosumer_camera(
     grey_card_reflectance,
     LUT_size,
     LUT_smoothing,
+    href,
 ):
     """
     Compute the *Input Device Transform* (IDT) for a prosumer camera.
@@ -742,6 +748,8 @@ def compute_idt_prosumer_camera(
         clicked.
     RGB_display_colourspace : str
         *RGB* display colourspace.
+    illuminant_name : str
+        Name of the illuminant.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
     chromatic_adaptation_transform : str
@@ -763,6 +771,8 @@ def compute_idt_prosumer_camera(
     LUT_smoothing : integer
         Standard deviation of the gaussian convolution kernel used for
         smoothing.
+    href
+        URL.
 
     Returns
     -------
@@ -864,19 +874,41 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    delta_E_idt = error_delta_E(samples_idt, reference_colour_checker)
-    delta_E_decoded = error_delta_E(samples_decoded, reference_colour_checker)
+    delta_E_idt = np.median(
+        error_delta_E(samples_idt, reference_colour_checker)
+    )
+    delta_E_decoded = np.median(
+        error_delta_E(samples_decoded, reference_colour_checker)
+    )
 
     global _PATH_IDT_ZIP
 
     _PATH_IDT_ZIP = zip_idt(
-        data_archive_to_idt, os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE)
+        data_archive_to_idt,
+        os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
+        {
+            "Application": f"{APP_NAME} - {__version__}",
+            "Url": href,
+            "Date": datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+            "RGBDisplayColourspace": RGB_display_colourspace,
+            "IlluminantName": illuminant_name,
+            "IlluminantData": parsed_illuminant_data,
+            "ChromaticAdaptationTransform": chromatic_adaptation_transform,
+            "OptimisationSpace": optimisation_space,
+            "IlluminantInterpolator": illuminant_interpolator,
+            "DecodingMethod": decoding_method,
+            "EVRange": EV_range,
+            "GreyCardReflectance": grey_card_reflectance,
+            "LUTSize": LUT_size,
+            "LUTSmoothing": LUT_smoothing,
+            "DeltaE": delta_E_idt,
+        },
     )
 
     # Delta-E
     components = [
         H3(
-            f"IDT (ΔE: {np.median(delta_E_idt):.7f})",
+            f"IDT (ΔE: {delta_E_idt:.7f})",
             style={"textAlign": "center"},
         ),
         Img(
@@ -886,7 +918,7 @@ def compute_idt_prosumer_camera(
             style={"width": "100%"},
         ),
         H3(
-            f"LUT1D (ΔE: {np.median(delta_E_decoded):.7f})",
+            f"LUT1D (ΔE: {delta_E_decoded:.7f})",
             style={"textAlign": "center"},
         ),
         Img(
