@@ -6,7 +6,6 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 import os.path
 
 import colour
-import datetime
 import tempfile
 import urllib.parse
 import uuid
@@ -48,6 +47,7 @@ from dash_bootstrap_components import (
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import Input as Field
 from dash_uploader import Upload, callback, configure_upload
+from datetime import datetime
 
 from aces.idt import (
     apply_idt,
