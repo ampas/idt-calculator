@@ -44,7 +44,7 @@ classifiers = [
 python = ">= 3.9, < 3.12"
 colour-datasets = ">= 0.2.1"
 colour-checker-detection = ">= 0.1.4"
-colour-science = ">= 0.4.2"
+colour = { git = "https://github.com/colour-science/colour.git", branch = "develop" }
 dash = "*"
 dash-bootstrap-components = "*"
 dash-renderer = "*"
