@@ -33,10 +33,7 @@ from colour import (
     sd_to_aces_relative_exposure_values,
 )
 from colour.algebra import smoothstep_function, vector_dot
-from colour.characterisation import (
-    optimisation_factory_rawtoaces_v1,
-    whitepoint_preserving_matrix,
-)
+from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.io import LUT_to_LUT
 from colour.hints import Dict, NDArray, Optional, Union
@@ -49,7 +46,6 @@ from colour.utilities import (
     optional,
     orient,
     validate_method,
-    zeros,
 )
 from dataclasses import dataclass
 from pathlib import Path
@@ -1029,7 +1025,6 @@ def matrix_idt(
     training_data=RGB_COLORCHECKER_CLASSIC_ACES,
     optimisation_factory=optimisation_factory_rawtoaces_v1,
     optimisation_kwargs=None,
-    whitepoint_preservation=True,
     additional_data=False,
 ):
     """
@@ -1052,9 +1047,6 @@ def matrix_idt(
         optimisation colour model function.
     optimisation_kwargs : dict, optional
         Parameters for :func:`scipy.optimize.minimize` definition.
-    whitepoint_preservation
-        Whether to use whitepoint preservation, i.e. optimisation uses 6 terms
-        instead of 9 and rows summation is constrained to 1.
     additional_data : bool, optional
         Whether to return additional data.
 
@@ -1090,7 +1082,7 @@ def matrix_idt(
     (
         objective_function,
         XYZ_to_optimization_colour_model,
-    ) = optimisation_factory(whitepoint_preservation)
+    ) = optimisation_factory()
     optimisation_settings = {
         "method": "BFGS",
         "jac": "2-point",
@@ -1098,24 +1090,12 @@ def matrix_idt(
     if optimisation_kwargs is not None:
         optimisation_settings.update(optimisation_kwargs)
 
-    x_0 = (
-        np.identity(3)[..., :-1] if whitepoint_preservation else np.identity(3)
-    )
-
     M = minimize(
         objective_function,
-        x_0,
+        np.ravel(np.identity(3)),
         (samples_weighted, XYZ_to_optimization_colour_model(XYZ)),
         **optimisation_settings,
-    ).x
-
-    M = (
-        whitepoint_preserving_matrix(
-            np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
-        )
-        if whitepoint_preservation
-        else np.reshape(M, (3, 3))
-    )
+    ).x.reshape([3, 3])
 
     if additional_data:
         return DataMatrixIdt(M, samples_weighted)

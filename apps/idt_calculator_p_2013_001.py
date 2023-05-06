@@ -336,22 +336,6 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupText("Whitepoint Preservation"),
-                                    Select(
-                                        id=_uid(
-                                            "whitepoint-preservation-select"
-                                        ),
-                                        options=[
-                                            {"label": "1", "value": "1"},
-                                            {"label": "0", "value": "0"},
-                                        ],
-                                        value="0",
-                                    ),
-                                ],
-                                className="mb-1",
-                            ),
-                            InputGroup(
-                                [
                                     InputGroupText(
                                         "Camera Sensitivities Interpolator"
                                     ),
@@ -784,7 +768,6 @@ def toggle_advanced_options(n_clicks, is_open):
         State(_uid("training-data-select"), "value"),
         State(_uid("chromatic-adaptation-transform-select"), "value"),
         State(_uid("optimisation-space-select"), "value"),
-        State(_uid("whitepoint-preservation-select"), "value"),
         State(_uid("camera-sensitivities-interpolator-select"), "value"),
         State(_uid("illuminant-interpolator-select"), "value"),
         State(_uid("url"), "href"),
@@ -804,7 +787,6 @@ def compute_idt_p2013_001(
     training_data,
     chromatic_adaptation_transform,
     optimisation_space,
-    whitepoint_preservation,
     sensitivities_interpolator,
     illuminant_interpolator,
     href,
@@ -840,9 +822,6 @@ def compute_idt_p2013_001(
     optimisation_space : str
         Name of the optimisation space used to select the corresponding
         optimisation factory.
-    whitepoint_preservation : str
-        Whether to use whitepoint preservation, i.e. optimisation uses 6 terms
-        instead of 9 and rows summation is constrained to 1.
     sensitivities_interpolator : str
         Name of the camera sensitivities interpolator.
     illuminant_interpolator : str
@@ -887,7 +866,6 @@ def compute_idt_p2013_001(
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
-        whitepoint_preservation,
         sensitivities_interpolator,
         illuminant_interpolator,
     )
@@ -952,7 +930,6 @@ def compute_idt_p2013_001(
             training_data=training_dataset,
             optimisation_factory=optimisation_factory,
             chromatic_adaptation_transform=chromatic_adaptation_transform,
-            whitepoint_preservation=bool(int(whitepoint_preservation)),
             additional_data=True,
         )
 
@@ -996,7 +973,6 @@ def compute_idt_p2013_001(
                     "TrainingData": training_data,
                     "ChromaticAdaptationTransform": chromatic_adaptation_transform,
                     "OptimisationSpace": optimisation_space,
-                    "WhitePreservation": whitepoint_preservation,
                     "SensitivitiesInterpolator": sensitivities_interpolator,
                     "IlluminantInterpolator": illuminant_interpolator,
                 },

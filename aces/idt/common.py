@@ -12,9 +12,7 @@ import re
 import unicodedata
 
 from colour.algebra import euclidean_distance, vector_dot
-from colour.characterisation import whitepoint_preserving_matrix
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
-from colour.utilities import zeros
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa
@@ -163,7 +161,7 @@ def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
     return data_png
 
 
-def optimisation_factory_Oklab(whitepoint_preservation: bool = True):
+def optimisation_factory_Oklab():
     """
     Produce the objective function and *CIE XYZ* colourspace to optimisation
     colourspace/colour model function based on the *Oklab* colourspace.
@@ -171,12 +169,6 @@ def optimisation_factory_Oklab(whitepoint_preservation: bool = True):
     The objective function returns the euclidean distance between the training
     data *RGB* tristimulus values and the training data *CIE XYZ* tristimulus
     values** in the *Oklab* colourspace.
-
-    Parameters
-    ----------
-    whitepoint_preservation
-        Whether to use whitepoint preservation, i.e. optimisation uses 6 terms
-        instead of 9 and rows summation is constrained to 1.
 
     Returns
     -------
@@ -196,13 +188,7 @@ def optimisation_factory_Oklab(whitepoint_preservation: bool = True):
     def objective_function(M, RGB, Jab):
         """*Oklab* colourspace based objective function."""
 
-        M = (
-            whitepoint_preserving_matrix(
-                np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
-            )
-            if whitepoint_preservation
-            else np.reshape(M, (3, 3))
-        )
+        M = np.reshape(M, [3, 3])
 
         XYZ_t = vector_dot(
             RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
@@ -219,7 +205,7 @@ def optimisation_factory_Oklab(whitepoint_preservation: bool = True):
     return objective_function, XYZ_to_optimization_colour_model
 
 
-def optimisation_factory_IPT(whitepoint_preservation: bool = True):
+def optimisation_factory_IPT():
     """
     Produce the objective function and *CIE XYZ* colourspace to optimisation
     colourspace/colour model function based on the *IPT* colourspace.
@@ -227,12 +213,6 @@ def optimisation_factory_IPT(whitepoint_preservation: bool = True):
     The objective function returns the euclidean distance between the training
     data *RGB* tristimulus values and the training data *CIE XYZ* tristimulus
     values** in the *IPT* colourspace.
-
-    Parameters
-    ----------
-    whitepoint_preservation
-        Whether to use whitepoint preservation, i.e. optimisation uses 6 terms
-        instead of 9 and rows summation is constrained to 1.
 
     Returns
     -------
@@ -252,13 +232,7 @@ def optimisation_factory_IPT(whitepoint_preservation: bool = True):
     def objective_function(M, RGB, Jab):
         """*IPT* colourspace based objective function."""
 
-        M = (
-            whitepoint_preserving_matrix(
-                np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
-            )
-            if whitepoint_preservation
-            else np.reshape(M, (3, 3))
-        )
+        M = np.reshape(M, [3, 3])
 
         XYZ_t = vector_dot(
             RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)

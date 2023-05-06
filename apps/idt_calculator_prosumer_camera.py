@@ -276,22 +276,6 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupText("Whitepoint Preservation"),
-                                    Select(
-                                        id=_uid(
-                                            "whitepoint-preservation-select"
-                                        ),
-                                        options=[
-                                            {"label": "1", "value": "1"},
-                                            {"label": "0", "value": "0"},
-                                        ],
-                                        value="0",
-                                    ),
-                                ],
-                                className="mb-1",
-                            ),
-                            InputGroup(
-                                [
                                     InputGroupText("Illuminant Interpolator"),
                                     Select(
                                         id=_uid(
@@ -729,7 +713,6 @@ def download_idt_zip(n_clicks):
         State(_uid("illuminant-datatable"), "data"),
         State(_uid("chromatic-adaptation-transform-select"), "value"),
         State(_uid("optimisation-space-select"), "value"),
-        State(_uid("whitepoint-preservation-select"), "value"),
         State(_uid("illuminant-interpolator-select"), "value"),
         State(_uid("decoding-method-select"), "value"),
         State(_uid("ev-range-input"), "value"),
@@ -747,7 +730,6 @@ def compute_idt_prosumer_camera(
     illuminant_data,
     chromatic_adaptation_transform,
     optimisation_space,
-    whitepoint_preservation,
     illuminant_interpolator,
     decoding_method,
     EV_range,
@@ -775,9 +757,6 @@ def compute_idt_prosumer_camera(
     optimisation_space : str
         Name of the optimisation space used to select the corresponding
         optimisation factory.
-    whitepoint_preservation : str
-        Whether to use whitepoint preservation, i.e. optimisation uses 6 terms
-        instead of 9 and rows summation is constrained to 1.
     illuminant_interpolator : str
         Name of the illuminant interpolator.
     decoding_method : str
@@ -843,7 +822,6 @@ def compute_idt_prosumer_camera(
             "EV_range": np.loadtxt([EV_range]),
             "training_data": reference_colour_checker,
             "optimisation_factory": OPTIMISATION_FACTORIES[optimisation_space],
-            "whitepoint_preservation": bool(int(whitepoint_preservation)),
         },
         additional_data=True,
     )
@@ -917,7 +895,6 @@ def compute_idt_prosumer_camera(
             "IlluminantData": parsed_illuminant_data,
             "ChromaticAdaptationTransform": chromatic_adaptation_transform,
             "OptimisationSpace": optimisation_space,
-            "WhitePreservation": whitepoint_preservation,
             "IlluminantInterpolator": illuminant_interpolator,
             "DecodingMethod": decoding_method,
             "EVRange": EV_range,
