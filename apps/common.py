@@ -194,8 +194,8 @@ INTERPOLATORS : dict
 
 OPTIMISATION_FACTORIES = {
     "Oklab": optimisation_factory_Oklab,
-    "IPT": optimisation_factory_IPT,
     "JzAzBz": optimisation_factory_Jzazbz,
+    "IPT": optimisation_factory_IPT,
     "CIE Lab": optimisation_factory_rawtoaces_v1,
 }
 """

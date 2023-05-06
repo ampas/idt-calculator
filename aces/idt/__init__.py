@@ -8,7 +8,6 @@ from .common import (
 from .prosumer_camera import (
     generate_reference_colour_checker,
     archive_to_idt,
-    apply_idt,
     zip_idt,
     png_colour_checker_segmentation,
     png_grey_card_sampling,
@@ -26,7 +25,6 @@ __all__ = [
 __all__ += [
     "generate_reference_colour_checker",
     "archive_to_idt",
-    "apply_idt",
     "zip_idt",
     "png_colour_checker_segmentation",
     "png_grey_card_sampling",

@@ -1033,13 +1033,8 @@ def compute_idt_p2013_001(
             apply_cctf_encoding=True,
         )
 
-    samples_idt = camera_RGB_to_ACES2065_1(RGB, M, np.ones(3))
-    samples_reference = XYZ_to_RGB(
-        XYZ,
-        RGB_COLOURSPACE_ACES2065_1.whitepoint,
-        RGB_COLOURSPACE_ACES2065_1.whitepoint,
-        RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
-    )
+    samples_idt = camera_RGB_to_ACES2065_1(RGB / RGB_w, M, RGB_w)
+    samples_reference = XYZ_to_RGB(XYZ, RGB_COLOURSPACE_ACES2065_1)
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_idt),

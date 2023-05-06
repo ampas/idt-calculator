@@ -19,6 +19,7 @@ from colour import (
     sd_CIE_illuminant_D_series,
     sd_blackbody,
 )
+from colour.characterisation import camera_RGB_to_ACES2065_1
 from colour.models import RGB_COLOURSPACE_ACES2065_1
 from colour.temperature import CCT_to_xy_CIE_D
 from colour.utilities import as_float, as_int_scalar
@@ -50,7 +51,6 @@ from dash_uploader import Upload, callback, configure_upload
 from datetime import datetime
 
 from aces.idt import (
-    apply_idt,
     archive_to_idt,
     error_delta_E,
     generate_reference_colour_checker,
@@ -849,11 +849,15 @@ def compute_idt_prosumer_camera(
         "colour_checker"
     ][0]["samples_median"]
 
-    samples_idt = apply_idt(
-        samples_median,
-        data_archive_to_idt.data_decode_samples.LUT_decoding,
+    samples_idt = camera_RGB_to_ACES2065_1(
+        data_archive_to_idt.data_decode_samples.LUT_decoding.apply(
+            samples_median
+        ),
         data_archive_to_idt.data_matrix_idt.M,
+        data_archive_to_idt.data_matrix_idt.RGB_w,
+        data_archive_to_idt.data_matrix_idt.k,
     )
+
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_idt),
         RGB_working_to_RGB_display(reference_colour_checker),

@@ -92,7 +92,6 @@ __all__ = [
     "archive_to_samples",
     "DataArchiveToIdt",
     "archive_to_idt",
-    "apply_idt",
     "idt_to_clf",
     "zip_idt",
     "png_colour_checker_segmentation",
@@ -941,7 +940,7 @@ def decode_samples(
 
     decoding_method = validate_method(
         decoding_method,
-        ["Median", "Average", "Per Channel", "ACES"],
+        ("Median", "Average", "Per Channel", "ACES"),
     )
 
     grey_card_reflectance = as_float_array(grey_card_reflectance)
@@ -953,12 +952,13 @@ def decode_samples(
     elif decoding_method == "per channel":
         LUT_decoding = LUT.copy()
     elif decoding_method == "aces":
-        channel_weights = RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[1, ...]
         LUT_decoding = LUT_to_LUT(
             LUT,
             LUT1D,
             force_conversion=True,
-            channel_weights=channel_weights,
+            channel_weights=RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[
+                1, ...
+            ],
         )
 
     LUT_decoding.name = "LUT - Decoding"
@@ -1010,11 +1010,18 @@ class DataMatrixIdt(MixinDataclassIterable):
     ----------
     M : NDArray
         *Input Device Transform* (IDT) matrix.
+    RGB_w : NDArray
+         White balance multipliers :math:`RGB_w`.
+    k : float
+        Exposure factor :math:`k` that results in a nominally "18% gray" object
+        in the scene producing ACES values [0.18, 0.18, 0.18].
     samples_weighted : NDArray
         Weighted samples according to their median or the given weights.
     """
 
     M: NDArray
+    RGB_w: NDArray
+    k: float
     samples_weighted: NDArray
 
 
@@ -1052,9 +1059,11 @@ def matrix_idt(
 
     Returns
     -------
-    NDArray or DataMatrixIdt
-        *IDT* matrix or data from the *Input Device Transform* (IDT) matrix
-        generation process.
+    :class:`tuple` or DataMatrixIdt
+        Tuple of *IDT* matrix, white balance multipliers :math:`RGB_w` and
+        exposure factor :math:`k` that results in a nominally "18% gray" object
+        in the scene producing ACES values [0.18, 0.18, 0.18].
+        data from the *Input Device Transform* (IDT) matrix generation process.
     """
 
     EV_range = as_float_array(EV_range)
@@ -1079,9 +1088,19 @@ def matrix_idt(
     XYZ = vector_dot(
         RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data
     )
+
+    RGB_w = 1 / samples_weighted[21]
+    k = RGB_w * XYZ[21]
+    samples_weighted *= k
+
+    RGB_w /= RGB_w[1]
+    k = np.mean(k)
+
     (
+        x_0,
         objective_function,
         XYZ_to_optimization_colour_model,
+        finaliser_function,
     ) = optimisation_factory()
     optimisation_settings = {
         "method": "BFGS",
@@ -1092,15 +1111,17 @@ def matrix_idt(
 
     M = minimize(
         objective_function,
-        np.ravel(np.identity(3)),
+        x_0,
         (samples_weighted, XYZ_to_optimization_colour_model(XYZ)),
         **optimisation_settings,
-    ).x.reshape([3, 3])
+    ).x
+
+    M = finaliser_function(M)
 
     if additional_data:
-        return DataMatrixIdt(M, samples_weighted)
+        return DataMatrixIdt(M, RGB_w, k, samples_weighted)
     else:
-        return M
+        return M, RGB_w, k
 
 
 def archive_to_specification(
@@ -1412,29 +1433,6 @@ def archive_to_idt(
         return data_decode_samples.LUT_decoding, data_matrix_idt.M
 
 
-def apply_idt(RGB, LUT, M):
-    """
-    Apply the given linearisation *LUT* for the camera samples and *IDT*
-    matrix on given *RGB* colourspace array.
-
-    Parameters
-    ----------
-    RGB : array_like
-        *RGB* colourspace array.
-    LUT : LUT1D or LUT3x1D
-        Linearisation *LUT* for the camera samples.
-    M : array_like
-        *IDT* matrix.
-
-    Returns
-    -------
-    NDArray
-        *RGB* colourspace array with *IDT* applied.
-    """
-
-    return vector_dot(M, LUT.apply(RGB))
-
-
 def idt_to_clf(data_archive_to_idt, output_directory, information):
     """
     Convert the *IDT* matrix generation process data to *Common LUT Format*
@@ -1509,15 +1507,44 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         interpolation="linear",
     )
     LUT_decoding = data_archive_to_idt.data_decode_samples.LUT_decoding
+    et_description = ET.SubElement(et_lut1d, "Description")
+    et_description.text = "Linearisation *LUT*."
     et_array = ET.SubElement(et_lut1d, "Array", dim=f"{LUT_decoding.size} 1")
     et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
-    et_matrix = ET.SubElement(
+    RGB_w = data_archive_to_idt.data_matrix_idt.RGB_w
+    et_RGB_w = ET.SubElement(
         root, "Matrix", inBitDepth="32f", outBitDepth="32f"
     )
+    et_description = ET.SubElement(et_RGB_w, "Description")
+    et_description.text = "White balance multipliers *b*."
+    et_array = ET.SubElement(et_RGB_w, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(np.diag(RGB_w))}"
+
     M = data_archive_to_idt.data_matrix_idt.M
-    et_array = ET.SubElement(et_matrix, "Array", dim="3 3")
+    et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = ET.SubElement(et_M, "Description")
+    et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+    et_array = ET.SubElement(et_M, "Array", dim="3 3")
     et_array.text = f"\n{format_array(M)}"
+
+    k = data_archive_to_idt.data_matrix_idt.k
+    et_k = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = ET.SubElement(et_k, "Description")
+    et_description.text = (
+        'Exposure factor *k* that results in a nominally "18% gray" object in '
+        "the scene producing ACES values [0.18, 0.18, 0.18]."
+    )
+    et_array = ET.SubElement(et_k, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(np.diag([k] * 3))}"
+
+    et_range = ET.SubElement(
+        root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
+    )
+    et_max_in_value = ET.SubElement(et_range, "maxInValue")
+    et_max_in_value.text = "1"
+    et_max_out_value = ET.SubElement(et_range, "maxOutValue")
+    et_max_out_value.text = "1"
 
     clf_path = (
         f"{output_directory}/"
@@ -1559,24 +1586,6 @@ def zip_idt(data_archive_to_idt, output_directory, information):
         "header"
     ]["manufacturer"]
 
-    spi1d_path = (
-        f"{output_directory}/"
-        f"{manufacturer}.Input.{camera_name}_to_Linear.spi1d"
-    )
-    colour.write_LUT(
-        data_archive_to_idt.data_decode_samples.LUT_decoding,
-        spi1d_path,
-    )
-
-    spimtx_path = (
-        f"{output_directory}/"
-        f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.spimtx"
-    )
-    colour.write_LUT(
-        colour.LUTOperatorMatrix(data_archive_to_idt.data_matrix_idt.M),
-        spimtx_path,
-    )
-
     clf_path = idt_to_clf(data_archive_to_idt, output_directory, information)
 
     json_path = f"{output_directory}/{manufacturer}.{camera_name}.json"
@@ -1587,8 +1596,6 @@ def zip_idt(data_archive_to_idt, output_directory, information):
 
     os.chdir(output_directory)
     with ZipFile(zip_file, "w") as zip_archive:
-        zip_archive.write(spi1d_path.replace(output_directory, "")[1:])
-        zip_archive.write(spimtx_path.replace(output_directory, "")[1:])
         zip_archive.write(clf_path.replace(output_directory, "")[1:])
         zip_archive.write(json_path.replace(output_directory, "")[1:])
 

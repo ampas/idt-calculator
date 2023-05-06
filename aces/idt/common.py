@@ -12,7 +12,9 @@ import re
 import unicodedata
 
 from colour.algebra import euclidean_distance, vector_dot
+from colour.characterisation import whitepoint_preserving_matrix
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
+from colour.utilities import as_float_array, zeros
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa
@@ -173,22 +175,29 @@ def optimisation_factory_Oklab():
     Returns
     -------
     :class:`tuple`
-        Objective function and *CIE XYZ* colourspace to *Oklab* colourspace
-        function.
+        :math:`x_0` initial values, objective function, *CIE XYZ* colourspace
+        to *Oklab* colourspace function and finaliser function.
 
     Examples
     --------
     >>> optimisation_factory_Oklab()  # doctest: +SKIP
-    (<function optimisation_factory_Oklab.<locals>\
+    (array([ 1.,  0.,  0.,  1.,  0.,  0.]), \
+<function optimisation_factory_Oklab.<locals>\
 .objective_function at 0x...>, \
 <function optimisation_factory_Oklab.<locals>\
-.XYZ_to_optimization_colour_model at 0x...>)
+.XYZ_to_optimization_colour_model at 0x...>, \
+<function optimisation_factory_Oklab.<locals>.\
+finaliser_function at 0x...>)
     """
+
+    x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
     def objective_function(M, RGB, Jab):
         """*Oklab* colourspace based objective function."""
 
-        M = np.reshape(M, [3, 3])
+        M = whitepoint_preserving_matrix(
+            np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
+        )
 
         XYZ_t = vector_dot(
             RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
@@ -202,7 +211,19 @@ def optimisation_factory_Oklab():
 
         return XYZ_to_Oklab(XYZ)
 
-    return objective_function, XYZ_to_optimization_colour_model
+    def finaliser_function(M):
+        """Finaliser function."""
+
+        return whitepoint_preserving_matrix(
+            np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
+        )
+
+    return (
+        x_0,
+        objective_function,
+        XYZ_to_optimization_colour_model,
+        finaliser_function,
+    )
 
 
 def optimisation_factory_IPT():
@@ -217,22 +238,29 @@ def optimisation_factory_IPT():
     Returns
     -------
     :class:`tuple`
-        Objective function and *CIE XYZ* colourspace to *IPT* colourspace
-        function.
+        :math:`x_0` initial values, objective function, *CIE XYZ* colourspace
+        to *IPT* colourspace function and finaliser function.
 
     Examples
     --------
     >>> optimisation_factory_IPT()  # doctest: +SKIP
-    (<function optimisation_factory_IPT.<locals>\
+    (array([ 1.,  0.,  0.,  1.,  0.,  0.]), \
+<function optimisation_factory_IPT.<locals>\
 .objective_function at 0x...>, \
 <function optimisation_factory_IPT.<locals>\
-.XYZ_to_optimization_colour_model at 0x...>)
+.XYZ_to_optimization_colour_model at 0x...>, \
+<function optimisation_factory_IPT.<locals>.\
+finaliser_function at 0x...>)
     """
+
+    x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
     def objective_function(M, RGB, Jab):
         """*IPT* colourspace based objective function."""
 
-        M = np.reshape(M, [3, 3])
+        M = whitepoint_preserving_matrix(
+            np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
+        )
 
         XYZ_t = vector_dot(
             RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
@@ -246,4 +274,16 @@ def optimisation_factory_IPT():
 
         return XYZ_to_IPT(XYZ)
 
-    return objective_function, XYZ_to_optimization_colour_model
+    def finaliser_function(M):
+        """Finaliser function."""
+
+        return whitepoint_preserving_matrix(
+            np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
+        )
+
+    return (
+        x_0,
+        objective_function,
+        XYZ_to_optimization_colour_model,
+        finaliser_function,
+    )
