@@ -1471,7 +1471,7 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
     def format_array(a):
         """Format given array :math:`a`."""
 
-        return "\n".join(map(str, np.ravel(a).tolist()))
+        return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
 
     et_input_descriptor = ET.SubElement(root, "InputDescriptor")
     et_input_descriptor.text = f"{manufacturer} {camera_name}"
@@ -1499,7 +1499,7 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         sub_element = ET.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
-    et_lut1d = ET.SubElement(
+    et_lut = ET.SubElement(
         root,
         "LUT1D",
         inBitDepth="32f",
@@ -1507,9 +1507,12 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         interpolation="linear",
     )
     LUT_decoding = data_archive_to_idt.data_decode_samples.LUT_decoding
-    et_description = ET.SubElement(et_lut1d, "Description")
-    et_description.text = "Linearisation *LUT*."
-    et_array = ET.SubElement(et_lut1d, "Array", dim=f"{LUT_decoding.size} 1")
+    channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
+    et_description = ET.SubElement(et_lut, "Description")
+    et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
+    et_array = ET.SubElement(
+        et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
+    )
     et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
     RGB_w = data_archive_to_idt.data_matrix_idt.RGB_w
@@ -1519,14 +1522,14 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
     et_description = ET.SubElement(et_RGB_w, "Description")
     et_description.text = "White balance multipliers *b*."
     et_array = ET.SubElement(et_RGB_w, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.diag(RGB_w))}"
+    et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
 
     M = data_archive_to_idt.data_matrix_idt.M
     et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
     et_description = ET.SubElement(et_M, "Description")
     et_description.text = "*Input Device Transform* (IDT) matrix *B*."
     et_array = ET.SubElement(et_M, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(M)}"
+    et_array.text = f"\n{format_array(np.ravel(M))}"
 
     k = data_archive_to_idt.data_matrix_idt.k
     et_k = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
@@ -1536,7 +1539,7 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         "the scene producing ACES values [0.18, 0.18, 0.18]."
     )
     et_array = ET.SubElement(et_k, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.diag([k] * 3))}"
+    et_array.text = f"\n{format_array(np.ravel(np.diag([k] * 3)))}"
 
     et_range = ET.SubElement(
         root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
