@@ -1089,8 +1089,8 @@ def matrix_idt(
         RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data
     )
 
-    RGB_w = 1 / samples_weighted[21]
-    k = RGB_w * XYZ[21]
+    RGB_w = 1 / np.mean(samples_weighted[18:], axis=0)
+    k = RGB_w * np.mean(XYZ[18:], axis=0)
     samples_weighted *= k
 
     RGB_w /= RGB_w[1]
