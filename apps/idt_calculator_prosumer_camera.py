@@ -43,6 +43,7 @@ from dash_bootstrap_components import (
     Spinner,
     Tab,
     Tabs,
+    Tooltip,
 )
 
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
@@ -163,6 +164,15 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         ],
         className="mb-1",
     ),
+    Tooltip(
+        "Illuminant used to produce the incident reflectance training and "
+        'test datasets. Selecting "Daylight" and "Blackbody" displays a new '
+        "input field allowing to define a custom colour temperature. External "
+        'tabular data, e.g. from "Excel" or "Google Docs" can be pasted '
+        "directly.",
+        delay={"show": 500, "hide": 500},
+        target=_uid("illuminant-select"),
+    ),
     Row(
         Col(
             [
@@ -248,6 +258,12 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "RGB colourspace used to display images in "
+                                "the app. It does not affect the computations.",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("rgb-display-colourspace-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("CAT"),
@@ -261,6 +277,15 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Chromatic adaptation transform used to "
+                                'convert the "ColorChecker Classic" '
+                                'reflectances under the "ACES" whitepoint.',
+                                delay={"show": 500, "hide": 500},
+                                target=_uid(
+                                    "chromatic-adaptation-transform-select"
+                                ),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Optimisation Space"),
@@ -273,6 +298,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     ),
                                 ],
                                 className="mb-1",
+                            ),
+                            Tooltip(
+                                "Colour model used to compute the error "
+                                "during the optimisation process. Recent "
+                                'models such as "Oklab" and "JzAzBz" tend to '
+                                "produce a lower error.",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("optimisation-space-select"),
                             ),
                             InputGroup(
                                 [
@@ -289,6 +322,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Interpolator used to align the illuminant "
+                                "to the working spectral shape, i.e. "
+                                "`colour.SpectralShape(360, 830, 1)`",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("illuminant-interpolator-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Decoding Method"),
@@ -302,6 +342,18 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Method used to merge the per-channel "
+                                '"LUT3x1D" produced during the sampling '
+                                'process into a "LUT1D". "Median" computes the'
+                                'median of the 3 channels of the "LUT3x1D", '
+                                '"Average" computes the average, '
+                                '"Per Channel" passes the "LUT3x1D" as is, '
+                                'and, "ACES" sums the 3 channels using the '
+                                '"ACES" weights.',
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("decoding-method-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("EV Range"),
@@ -313,6 +365,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Range of exposure series used to compute the "
+                                '"IDT" matrix: Rather that using a single '
+                                "exposure series to compute the matrix, the "
+                                "median of given range is used.",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("ev-range-input"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Grey Card Reflectance"),
@@ -323,6 +383,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     ),
                                 ],
                                 className="mb-1",
+                            ),
+                            Tooltip(
+                                "Optional measure grey card reflectance to "
+                                'set the exposure factor "k" that results in '
+                                'a nominally "18% gray" object in the scene '
+                                "producing ACES values [0.18, 0.18, 0.18].",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("ev-range-input"),
                             ),
                         ],
                         id=_uid("advanced-options-collapse"),
@@ -342,6 +410,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         ],
                         className="mb-1",
                     ),
+                    Tooltip(
+                        'Size of the linearisation "LUT1D" (or "LUT3x1D").',
+                        delay={"show": 500, "hide": 500},
+                        target=_uid("lut-size-select"),
+                    ),
                     InputGroup(
                         [
                             InputGroupText("LUT Smoothing"),
@@ -355,6 +428,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             ),
                         ],
                         className="mb-1",
+                    ),
+                    Tooltip(
+                        "Standard deviation of the gaussian convolution "
+                        'kernel used when smoothing the linearisation "LUT1D" '
+                        '(or "LUT3x1D").',
+                        delay={"show": 500, "hide": 500},
+                        target=_uid("lut-smoothing-input-number"),
                     ),
                 ]
             ),

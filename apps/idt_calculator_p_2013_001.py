@@ -48,6 +48,7 @@ from dash_bootstrap_components import (
     Select,
     Tab,
     Tabs,
+    Tooltip,
 )
 
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
@@ -191,6 +192,13 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
         ],
         className="mb-1",
     ),
+    Tooltip(
+        "Camera sensitivities used to integrate the incident reflectance "
+        'training datasets. External tabular data, e.g. from "Excel" or '
+        '"Google Docs" can be pasted directly.',
+        delay={"show": 500, "hide": 500},
+        target=_uid("camera-sensitivities-select"),
+    ),
     Row(
         Col(
             DataTable(
@@ -224,6 +232,14 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
             ),
         ],
         className="mb-1",
+    ),
+    Tooltip(
+        "Illuminant used to produce the incident reflectance training and "
+        'test datasets. Selecting "Daylight" and "Blackbody" displays a new '
+        "input field allowing to define a custom colour temperature. It is "
+        "possible to paste external tabular data.",
+        delay={"show": 500, "hide": 500},
+        target=_uid("illuminant-select"),
     ),
     Row(
         Col(
@@ -293,6 +309,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "RGB colourspace used to display images "
+                                "in the app. It does not affect the "
+                                "computations.",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("rgb-display-colourspace-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Training Data"),
@@ -308,6 +331,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Reflectance training dataset used for the "
+                                "computations. A larger and varied training "
+                                'dataset produces a better "IDT".',
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("training-data-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("CAT"),
@@ -321,6 +351,15 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Chromatic adaptation transform used to convert "
+                                "the reflectance training dataset under the "
+                                '"ACES" whitepoint.',
+                                delay={"show": 500, "hide": 500},
+                                target=_uid(
+                                    "chromatic-adaptation-transform-select"
+                                ),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Optimisation Space"),
@@ -333,6 +372,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     ),
                                 ],
                                 className="mb-1",
+                            ),
+                            Tooltip(
+                                "Colour model used to compute the error "
+                                "during the optimisation process. Recent "
+                                'models such as "Oklab" and "JzAzBz" tend to '
+                                "produce a lower error.",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("optimisation-space-select"),
                             ),
                             InputGroup(
                                 [
@@ -351,6 +398,15 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Interpolator used to align the camera "
+                                "sensitivities to the working spectral shape, "
+                                "i.e. `colour.SpectralShape(380, 780, 5)`",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid(
+                                    "camera-sensitivities-interpolator-select"
+                                ),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Illuminant Interpolator"),
@@ -366,6 +422,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 ],
                                 className="mb-1",
                             ),
+                            Tooltip(
+                                "Interpolator used to align the illuminant "
+                                "to the working spectral shape, i.e. "
+                                "`colour.SpectralShape(380, 780, 5)`",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("illuminant-interpolator-select"),
+                            ),
                             InputGroup(
                                 [
                                     InputGroupText("Exposure Factor"),
@@ -376,6 +439,13 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                     ),
                                 ],
                                 className="mb-1",
+                            ),
+                            Tooltip(
+                                'Exposure factor "k" that results in a '
+                                'nominally "18% gray" object in the scene '
+                                "producing ACES values [0.18, 0.18, 0.18].",
+                                delay={"show": 500, "hide": 500},
+                                target=_uid("exposure-factor-select"),
                             ),
                         ],
                         id=_uid("advanced-options-collapse"),
@@ -392,6 +462,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         ],
                         className="mb-1",
                     ),
+                    Tooltip(
+                        'Formatter used to generate the "IDT".',
+                        delay={"show": 500, "hide": 500},
+                        target=_uid("formatter-select"),
+                    ),
                     InputGroup(
                         [
                             InputGroupText("Decimals"),
@@ -406,6 +481,11 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         ],
                         className="mb-1",
                     ),
+                    Tooltip(
+                        'Decimals used in the formatted "IDT".',
+                        delay={"show": 500, "hide": 500},
+                        target=_uid("decimals-select"),
+                    ),
                 ]
             ),
         ],
@@ -413,15 +493,15 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
     ),
     Card(
         [
-            CardHeader("Input Device Transform Matrix"),
+            CardHeader("Input Device Transform"),
             CardBody(
                 [
                     Row(
                         [
                             Col(
                                 Button(
-                                    "Compute IDT Matrix",
-                                    id=_uid("compute-idt-matrix-button"),
+                                    "Compute IDT",
+                                    id=_uid("compute-idt-button"),
                                     style={"width": "100%"},
                                 )
                             ),
@@ -754,7 +834,7 @@ def toggle_advanced_options(n_clicks, is_open):
         Output(_uid("idt-calculator-pre"), "style"),
     ],
     [
-        Input(_uid("compute-idt-matrix-button"), "n_clicks"),
+        Input(_uid("compute-idt-button"), "n_clicks"),
         Input(_uid("formatter-select"), "value"),
         Input(_uid("decimals-select"), "value"),
         Input(_uid("exposure-factor-select"), "value"),
