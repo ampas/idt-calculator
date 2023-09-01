@@ -13,10 +13,10 @@
 This repository contains the source for the Academy Input Device Transform (IDT)
 online Apps:
 
-[Academy Input Device Transform (IDT) Calculator - P-2013-001](https://www.oscars.org/science-technology/sci-tech-projects/aces)
+[Academy Input Device Transform (IDT) Calculator - P-2013-001](https://beta.devtools.acescentral.com/apps/idt_calculator_p_2013_001)
 ![Academy Input Device Transform (IDT) Calculator - P-2013-001](docs/_static/idt_calculator_p_2013_001.png)
 
-[Academy Input Device Transform (IDT) Calculator - Prosumer Camera](https://www.oscars.org/science-technology/sci-tech-projects/aces)
+[Academy Input Device Transform (IDT) Calculator - Prosumer Camera](https://beta.devtools.acescentral.com/apps/idt_calculator_prosumer_camera)
 ![Academy Input Device Transform (IDT) Calculator - Prosumer Camera](docs/_static/idt_calculator_prosumer_camera.png)
 
 ## Package Contents
@@ -298,8 +298,6 @@ The implicit specification of the IDT archive requires that the image sequences 
 The implicit specification cannot represent some of the metadata that the explicit specification supports, e.g. `manufacture` or `exposure_settings`.
 
 ## License
-
-__For 3rd party license details see [LICENSES.md](LICENSES.md)__
 
 The Input Device Transform Calculators are provided by the Academy under the following terms and conditions:
 
