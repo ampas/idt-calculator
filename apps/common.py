@@ -4,10 +4,10 @@ Common Apps Utilities
 """
 
 import colour
-import colour_checker_detection  # noqa
+import colour_checker_detection  # noqa: F401
 import colour_datasets
 import numpy as np
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as Et
 from colour import (
     CubicSplineInterpolator,
     LinearInterpolator,
@@ -78,12 +78,12 @@ def _print_colour_environment(describe):
     strings.
     """
 
-    global COLOUR_ENVIRONMENT
+    global COLOUR_ENVIRONMENT  # noqa: PLW0603
 
     if COLOUR_ENVIRONMENT is None:
         COLOUR_ENVIRONMENT = ""
 
-    print(describe)
+    print(describe)  # noqa: T201
 
     COLOUR_ENVIRONMENT += describe
     COLOUR_ENVIRONMENT += "\n"
@@ -110,7 +110,7 @@ Datatable decimals.
 DATATABLE_DECIMALS : int
 """
 
-CUSTOM_WAVELENGTHS = list(range(380, 395, 5)) + ["..."]
+CUSTOM_WAVELENGTHS = [*list(range(380, 395, 5)), "..."]
 """
 Custom wavelengths list.
 
@@ -215,7 +215,7 @@ OPTIONS_DISPLAY_COLOURSPACES : list
 
 
 OPTIONS_OPTIMISATION_SPACES = [
-    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES.keys()
+    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
 ]
 """
 Optimisation colourspaces.
@@ -301,7 +301,7 @@ Input Device Transform (IDT)\
   ypos 75
  }}
 end_group
-""".strip()  # noqa
+""".strip()  # noqa: E501
 """
 *The Foundry Nuke* *Input Device Transform* group template.
 
@@ -392,7 +392,7 @@ __DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p
     const float bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
 
     return make_float3(rOut , gOut, bOut);
-}}""".strip()  # noqa
+}}""".strip()  # noqa: E501
 """
 DaVinci Color Transform Language (DCTL) Module template.
 
@@ -440,12 +440,12 @@ def format_matrix_nuke(M, decimals=10, padding=6):
         *The Foundry Nuke* formatted matrix.
     """
 
-    def pretty(x):
+    def pretty(V):
         """
-        Prettify given number.
+        Prettify given vector.
         """
 
-        return " ".join(map(lambda x: format_float(x, decimals), x))
+        return " ".join(format_float(x, decimals) for x in V)
 
     pad = " " * padding
 
@@ -474,7 +474,7 @@ def format_vector_nuke(V, decimals=10):
         *The Foundry Nuke* formatted vector.
     """
 
-    return " ".join(map(lambda x: format_float(x, decimals), V))
+    return " ".join(format_float(x, decimals) for x in V)
 
 
 def format_matrix_ctl(M, decimals=10, padding=4):
@@ -496,12 +496,12 @@ def format_matrix_ctl(M, decimals=10, padding=4):
         *CTL* formatted matrix.
     """
 
-    def pretty(x):
+    def pretty(V):
         """
         Prettify given number.
         """
 
-        return ", ".join(map(lambda x: format_float(x, decimals), x))
+        return ", ".join(format_float(x, decimals) for x in V)
 
     pad = " " * padding
 
@@ -529,7 +529,7 @@ def format_vector_ctl(V, decimals=10):
         *CTL* formatted vector.
     """
 
-    return ", ".join(map(lambda x: format_float(x, decimals), V))
+    return ", ".join(format_float(x, decimals) for x in V)
 
 
 def format_float_dctl(a, decimals=10):
@@ -569,7 +569,7 @@ def format_vector_dctl(V, decimals=10):
         *DCTL* formatted vector.
     """
 
-    return ", ".join(map(lambda x: format_float_dctl(x, decimals), V))
+    return ", ".join(format_float_dctl(x, decimals) for x in V)
 
 
 def format_matrix_dctl(M, decimals=10, padding=4):
@@ -591,12 +591,12 @@ def format_matrix_dctl(M, decimals=10, padding=4):
         *DCTL* formatted matrix.
     """
 
-    def pretty(x):
+    def pretty(V):
         """
-        Prettify given number.
+        Prettify given vector.
         """
 
-        return ", ".join(map(lambda x: format_float_dctl(x, decimals), x))
+        return ", ".join(format_float_dctl(x, decimals) for x in V)
 
     pad = " " * padding
 
@@ -626,7 +626,7 @@ def format_idt_clf(camera_name, matrix, multipliers, information):
         *CLF* file path.
     """
 
-    root = ET.Element(
+    root = Et.Element(
         "ProcessList",
         compCLFversion="3",
         id=f"urn:ampas:aces:transformId:v1.5:IDT.{camera_name}.a1.v1",
@@ -638,48 +638,48 @@ def format_idt_clf(camera_name, matrix, multipliers, information):
 
         return "\n".join(map(str, np.ravel(a).tolist()))
 
-    et_input_descriptor = ET.SubElement(root, "InputDescriptor")
+    et_input_descriptor = Et.SubElement(root, "InputDescriptor")
     et_input_descriptor.text = camera_name
 
-    et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
+    et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
     et_output_descriptor.text = "ACES2065-1"
 
-    et_info = ET.SubElement(root, "Info")
-    et_metadata = ET.SubElement(et_info, "Archive")
+    et_info = Et.SubElement(root, "Info")
+    et_metadata = Et.SubElement(et_info, "Archive")
     for key, value in {
         "CameraName": camera_name,
     }.items():
-        sub_element = ET.SubElement(et_metadata, key)
+        sub_element = Et.SubElement(et_metadata, key)
         sub_element.text = str(value)
-    et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
+    et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
-        sub_element = ET.SubElement(et_academy_idt_calculator, key)
+        sub_element = Et.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
-    et_multipliers = ET.SubElement(
+    et_multipliers = Et.SubElement(
         root, "Matrix", inBitDepth="32f", outBitDepth="32f"
     )
-    et_array = ET.SubElement(et_multipliers, "Array", dim="3 3")
+    et_array = Et.SubElement(et_multipliers, "Array", dim="3 3")
     et_array.text = f"\n{format_array(np.diag(multipliers))}"
 
-    et_range = ET.SubElement(
+    et_range = Et.SubElement(
         root,
         "Range",
         inBitDepth="32f",
         outBitDepth="32f",
     )
-    et_max_out_value = ET.SubElement(et_range, "maxOutValue")
+    et_max_out_value = Et.SubElement(et_range, "maxOutValue")
     et_max_out_value.text = "1"
 
-    et_matrix = ET.SubElement(
+    et_matrix = Et.SubElement(
         root, "Matrix", inBitDepth="32f", outBitDepth="32f"
     )
-    et_array = ET.SubElement(et_matrix, "Array", dim="3 3")
+    et_array = Et.SubElement(et_matrix, "Array", dim="3 3")
     et_array.text = f"\n{format_array(matrix)}"
 
-    ET.indent(root)
+    Et.indent(root)
 
     clf_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    clf_content += ET.tostring(root, encoding="UTF-8").decode("utf8")
+    clf_content += Et.tostring(root, encoding="UTF-8").decode("utf8")
 
     return clf_content

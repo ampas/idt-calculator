@@ -6,6 +6,7 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 import os.path
 
 import colour
+import datetime
 import tempfile
 import urllib.parse
 import uuid
@@ -49,7 +50,6 @@ from dash_bootstrap_components import (
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import Input as Field
 from dash_uploader import Upload, callback, configure_upload
-from datetime import datetime
 
 from aces.idt import (
     archive_to_idt,
@@ -546,7 +546,6 @@ LAYOUT = Container(
                                         Row(
                                             Col(
                                                 _LAYOUT_COLUMN_IDT_COMPUTATION_CHILDREN,
-                                                # noqa
                                             ),
                                         ),
                                     ],
@@ -614,7 +613,7 @@ def set_uploaded_idt_archive_location(filename):
         *CSS* stylesheet for *Dash* components.
     """
 
-    global _PATH_UPLOADED_IDT_ARCHIVE
+    global _PATH_UPLOADED_IDT_ARCHIVE  # noqa: PLW0603
 
     _PATH_UPLOADED_IDT_ARCHIVE = filename[0]
 
@@ -732,7 +731,7 @@ def set_illuminant_datable(illuminant, CCT):
     [Input(_uid("illuminant-select"), "value")],
     [State(_uid("illuminant-options-collapse"), "is_open")],
 )
-def toggle_options_illuminant(illuminant, is_open):
+def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
     """
     Collapse the *Illuminant Options* `Collapse` panel according to the
     selected illuminant type.
@@ -758,7 +757,7 @@ def toggle_options_illuminant(illuminant, is_open):
     Input(_uid("download-idt-button"), "n_clicks"),
     prevent_initial_call=True,
 )
-def download_idt_zip(n_clicks):
+def download_idt_zip(n_clicks):  # noqa: ARG001
     """
     Download the *IDT* zip file.
 
@@ -804,7 +803,7 @@ def download_idt_zip(n_clicks):
     prevent_initial_call=True,
 )
 def compute_idt_prosumer_camera(
-    n_clicks,
+    n_clicks,  # noqa: ARG001
     RGB_display_colourspace,
     illuminant_name,
     illuminant_data,
@@ -965,7 +964,7 @@ def compute_idt_prosumer_camera(
         error_delta_E(samples_decoded, reference_colour_checker)
     )
 
-    global _PATH_IDT_ZIP
+    global _PATH_IDT_ZIP  # noqa: PLW0603
 
     _PATH_IDT_ZIP = zip_idt(
         data_archive_to_idt,
@@ -973,7 +972,9 @@ def compute_idt_prosumer_camera(
         {
             "Application": f"{APP_NAME} - {__version__}",
             "Url": href,
-            "Date": datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+            "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%b %d, %Y %H:%M:%S"
+            ),
             "RGBDisplayColourspace": RGB_display_colourspace,
             "IlluminantName": illuminant_name,
             "IlluminantData": parsed_illuminant_data,

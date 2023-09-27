@@ -3,6 +3,7 @@ Invoke - Tasks
 ==============
 """
 
+import contextlib
 import platform
 
 from colour.hints import Boolean
@@ -120,9 +121,9 @@ def requirements(ctx):
 
     message_box('Exporting "requirements.txt" file...')
     ctx.run(
-        "poetry run pip list --format=freeze | "
-        'egrep -v "idt-calculator=" '
-        "> requirements.txt"
+        "poetry export -f requirements.txt "
+        "--without-hashes "
+        "--output requirements.txt"
     )
 
 
@@ -160,16 +161,12 @@ def docker_remove(ctx: Context):
     """
 
     message_box('Stopping "docker" container...')
-    try:
+    with contextlib.suppress(Failure):
         ctx.run(f"docker stop {CONTAINER}")
-    except Failure:
-        pass
 
     message_box('Removing "docker" container...')
-    try:
+    with contextlib.suppress(Failure):
         ctx.run(f"docker rm {CONTAINER}")
-    except Failure:
-        pass
 
 
 @task(docker_remove, docker_build)

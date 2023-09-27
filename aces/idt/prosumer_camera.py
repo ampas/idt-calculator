@@ -10,7 +10,7 @@ import cv2
 import json
 import jsonpickle
 import io
-import matplotlib
+import matplotlib as mpl
 import numpy as np
 import os
 import re
@@ -20,7 +20,7 @@ import scipy.optimize
 import scipy.stats
 import shutil
 import tempfile
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as Et
 from copy import deepcopy
 from colour import (
     Extrapolator,
@@ -52,8 +52,8 @@ from pathlib import Path
 from scipy.optimize import minimize
 from zipfile import ZipFile
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa
+mpl.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -351,13 +351,13 @@ def is_colour_checker_flipped(swatch_colours):
         swatch_std_mean /= swatch_std_mean[..., 1][..., np.newaxis]
         std_means.append(np.mean(np.std(swatch_std_mean, 0)))
 
-    is_flipped = True if std_means[0] < std_means[1] else False
+    is_flipped = bool(std_means[0] < std_means[1])
 
     if is_flipped:
-        print("Colour checker was seemingly flipped!")
+        print("Colour checker was seemingly flipped!")  # noqa: T201
         return True
     else:
-        False
+        return False
 
 
 def flip_image(image):
@@ -381,7 +381,7 @@ def flip_image(image):
 def list_sub_directories(
     directory,
     filterers=(
-        lambda path: False if "__MACOSX" in path.name else True,
+        lambda path: "__MACOSX" not in path.name,
         lambda path: path.is_dir(),
     ),
 ):
@@ -407,7 +407,7 @@ def list_sub_directories(
     sub_directories = [
         path
         for path in Path(directory).iterdir()
-        if all([filterer(path) for filterer in filterers])
+        if all(filterer(path) for filterer in filterers)
     ]
 
     return sub_directories
@@ -474,7 +474,8 @@ def specification_to_samples(specification, additional_data=False):
             **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
         ).values
 
-        assert len(colour_checkers), "Colour checker was not detected at EV 0!"
+        if not len(colour_checkers):
+            raise RuntimeError("Colour checker was not detected at EV 0!")
 
         colour_checker_rectangle = colour_checkers[0]
 
@@ -605,7 +606,7 @@ def specification_to_samples(specification, additional_data=False):
 
     # ColourChecker Classic Samples per EV
     samples_analysis["data"]["colour_checker"] = {}
-    for EV in specification["data"]["colour_checker"].keys():
+    for EV in specification["data"]["colour_checker"]:
         samples_analysis["data"]["colour_checker"][EV] = {}
         samples_analysis["data"]["colour_checker"][EV]["samples_sequence"] = []
         for path in specification["data"]["colour_checker"][EV]:
@@ -854,7 +855,7 @@ def filter_LUT3x1D(LUT, sigma=16):
         Filtered linearisation *LUT* for the camera samples.
     """
 
-    filter = scipy.ndimage.gaussian_filter1d
+    filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
     filter_kwargs = {"sigma": sigma}
 
     LUT_filtered = LUT.copy()
@@ -1461,7 +1462,7 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         "header"
     ]["manufacturer"]
 
-    root = ET.Element(
+    root = Et.Element(
         "ProcessList",
         compCLFversion="3",
         id=f"urn:ampas:aces:transformId:v1.5:IDT.{manufacturer}.{camera_name}.a1.v1",
@@ -1473,14 +1474,14 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
 
         return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
 
-    et_input_descriptor = ET.SubElement(root, "InputDescriptor")
+    et_input_descriptor = Et.SubElement(root, "InputDescriptor")
     et_input_descriptor.text = f"{manufacturer} {camera_name}"
 
-    et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
+    et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
     et_output_descriptor.text = "ACES2065-1"
 
-    et_info = ET.SubElement(root, "Info")
-    et_metadata = ET.SubElement(et_info, "Archive")
+    et_info = Et.SubElement(root, "Info")
+    et_metadata = Et.SubElement(et_info, "Archive")
     for (
         key,
         value,
@@ -1490,16 +1491,16 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
         if key == "schema_version":
             continue
 
-        sub_element = ET.SubElement(
+        sub_element = Et.SubElement(
             et_metadata, key.replace("_", " ").title().replace(" ", "")
         )
         sub_element.text = str(value)
-    et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
+    et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
-        sub_element = ET.SubElement(et_academy_idt_calculator, key)
+        sub_element = Et.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
-    et_lut = ET.SubElement(
+    et_lut = Et.SubElement(
         root,
         "LUT1D",
         inBitDepth="32f",
@@ -1508,56 +1509,56 @@ def idt_to_clf(data_archive_to_idt, output_directory, information):
     )
     LUT_decoding = data_archive_to_idt.data_decode_samples.LUT_decoding
     channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-    et_description = ET.SubElement(et_lut, "Description")
+    et_description = Et.SubElement(et_lut, "Description")
     et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-    et_array = ET.SubElement(
+    et_array = Et.SubElement(
         et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
     )
     et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
     RGB_w = data_archive_to_idt.data_matrix_idt.RGB_w
-    et_RGB_w = ET.SubElement(
+    et_RGB_w = Et.SubElement(
         root, "Matrix", inBitDepth="32f", outBitDepth="32f"
     )
-    et_description = ET.SubElement(et_RGB_w, "Description")
+    et_description = Et.SubElement(et_RGB_w, "Description")
     et_description.text = "White balance multipliers *b*."
-    et_array = ET.SubElement(et_RGB_w, "Array", dim="3 3")
+    et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
     et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
 
     M = data_archive_to_idt.data_matrix_idt.M
-    et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = ET.SubElement(et_M, "Description")
+    et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = Et.SubElement(et_M, "Description")
     et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-    et_array = ET.SubElement(et_M, "Array", dim="3 3")
+    et_array = Et.SubElement(et_M, "Array", dim="3 3")
     et_array.text = f"\n{format_array(np.ravel(M))}"
 
     k = data_archive_to_idt.data_matrix_idt.k
-    et_k = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = ET.SubElement(et_k, "Description")
+    et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = Et.SubElement(et_k, "Description")
     et_description.text = (
         'Exposure factor *k* that results in a nominally "18% gray" object in '
         "the scene producing ACES values [0.18, 0.18, 0.18]."
     )
-    et_array = ET.SubElement(et_k, "Array", dim="3 3")
+    et_array = Et.SubElement(et_k, "Array", dim="3 3")
     et_array.text = f"\n{format_array(np.ravel(np.diag([k] * 3)))}"
 
-    et_range = ET.SubElement(
+    et_range = Et.SubElement(
         root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
     )
-    et_max_in_value = ET.SubElement(et_range, "maxInValue")
+    et_max_in_value = Et.SubElement(et_range, "maxInValue")
     et_max_in_value.text = "1"
-    et_max_out_value = ET.SubElement(et_range, "maxOutValue")
+    et_max_out_value = Et.SubElement(et_range, "maxOutValue")
     et_max_out_value.text = "1"
 
     clf_path = (
         f"{output_directory}/"
         f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.clf"
     )
-    ET.indent(root)
+    Et.indent(root)
 
     with open(clf_path, "w") as clf_file:
         clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-        clf_file.write(ET.tostring(root, encoding="UTF-8").decode("utf8"))
+        clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
 
     return clf_path
 
@@ -1627,7 +1628,7 @@ def png_colour_checker_segmentation(data_archive_to_idt):
 
     colour.plotting.plot_image(
         data_specification_to_samples.image_colour_checker_segmentation,
-        standalone=False,
+        show=False,
     )
 
     buffer = io.BytesIO()
@@ -1659,7 +1660,7 @@ def png_grey_card_sampling(data_archive_to_idt):
     )
     colour.plotting.plot_image(
         data_specification_to_samples.image_grey_card_sampling,
-        standalone=False,
+        show=False,
     )
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png")
@@ -1692,7 +1693,7 @@ def png_measured_camera_samples(data_archive_to_idt):
     )
     colour.plotting.render(
         **{
-            "standalone": False,
+            "show": False,
             "x_label": "Camera Code Value",
             "y_label": "Log(ACES Reference)",
         }
@@ -1740,7 +1741,7 @@ def png_extrapolated_camera_samples(data_archive_to_idt):
         axes.axvline(edge_right, color="r", alpha=0.25)
     colour.plotting.render(
         **{
-            "standalone": False,
+            "show": False,
             "x_label": "Camera Code Value",
             "y_label": "Log(ACES Reference)",
         }

@@ -43,8 +43,8 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">= 3.9, < 3.12"
 colour-datasets = ">= 0.2.1"
-colour-checker-detection = ">= 0.1.4"
-colour = { git = "https://github.com/colour-science/colour.git", branch = "develop" }
+colour-checker-detection = ">= 0.1.5"
+colour_science = ">= 0.4.3"
 dash = "*"
 dash-bootstrap-components = "*"
 dash-renderer = "*"
@@ -52,64 +52,139 @@ dash-uploader = "*"
 gunicorn = "*"
 imageio = ">= 2, < 3"
 jsonpickle = ">= 2, < 3"
-matplotlib = ">= 3.2, != 3.5.0, != 3.5.1"
-networkx = ">= 2.6, < 3"
-numpy = ">= 1.20, < 2"
-scipy = ">= 1.7, < 2"
+matplotlib = ">= 3.5, != 3.5.0, != 3.5.1"
+networkx = ">= 2.7, < 3"
+numpy = ">= 1.22, < 2"
+scipy = ">= 1.8, < 2"
 plotly = "*"
 typing-extensions = ">= 4, < 5"
 
 packaging = "<= 21.3"  # Later versions currently break with Dash Uploader.
 
-black = { version = "*", optional = true }  # Development dependency.
-coverage = { version = "*", optional = true }  # Development dependency.
-flake8 = { version = "*", optional = true }  # Development dependency.
-invoke = { version = "*", optional = true }  # Development dependency.
-nose = { version = "*", optional = true }  # Development dependency.
-pre-commit = { version = "*", optional = true }  # Development dependency.
-pytest = { version = "*", optional = true }  # Development dependency.
-
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "*"
-coverage = "*"
-flake8 = "*"
+blackdoc = "*"
+coverage = "!= 6.3"
+coveralls = "*"
+flynt = "*"
 invoke = "*"
-nose = "*"
 pre-commit = "*"
+pyright = "*"
 pytest = "*"
-
-[tool.poetry.extras]
-development = [
-    "black",
-    "coverage",
-    "flake8",
-    "invoke",
-    "nose",
-    "pre-commit",
-    "pytest",
-]
+pytest-cov = "*"
+pytest-xdist = "*"
+ruff = "*"
+toml = "*"
 
 [tool.black]
 line-length = 79
 exclude = '''
 /(
     \.git
-  | \.mypy_cache
   | build
   | dist
 )/
 '''
 
 [tool.flynt]
-line_length=999
+line_length = 999
 
-[tool.mypy]
-plugins = "numpy.typing.mypy_plugin"
-ignore_missing_imports = true
+[tool.pyright]
+reportMissingImports = false
+reportMissingModuleSource = false
+reportUnboundVariable = false
+reportUnnecessaryCast = true
+reportUnnecessaryTypeIgnoreComment = true
+reportUnsupportedDunderAll = false
+reportUnusedExpression = false
 
-[tool.pydocstyle]
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+select = [
+    "A", # flake8-builtins
+    "ARG", # flake8-unused-arguments
+    # "ANN", # flake8-annotations
+    "B", # flake8-bugbear
+    # "BLE", # flake8-blind-except
+    "C4", # flake8-comprehensions
+    # "C90", # mccabe
+    # "COM", # flake8-commas
+    "DTZ", # flake8-datetimez
+    "D", # pydocstyle
+    "E", # pydocstyle
+    # "ERA", # eradicate
+    # "EM", # flake8-errmsg
+    "EXE", # flake8-executable
+    "F", # flake8
+    # "FBT", # flake8-boolean-trap
+    "G", # flake8-logging-format
+    "I", # isort
+    "ICN", # flake8-import-conventions
+    "INP", # flake8-no-pep420
+    "ISC", # flake8-implicit-str-concat
+    "N", # pep8-naming
+    # "PD", # pandas-vet
+    "PIE", # flake8-pie
+    "PGH", # pygrep-hooks
+    "PL", # pylint
+    # "PT", # flake8-pytest-style
+    # "PTH", # flake8-use-pathlib [Enable]
+    "Q", # flake8-quotes
+    "RET", # flake8-return
+    "RUF", # Ruff
+    "S", # flake8-bandit
+    "SIM", # flake8-simplify
+    "T10", # flake8-debugger
+    "T20", # flake8-print
+    # "TCH", # flake8-type-checking
+    "TID", # flake8-tidy-imports
+    "TRY", # tryceratops
+    "UP", # pyupgrade
+    "W", # pydocstyle
+    "YTT" # flake8-2020
+]
+ignore = [
+    "B008",
+    "B905",
+    "D104",
+    "D200",
+    "D202",
+    "D205",
+    "D301",
+    "D400",
+    "I001",
+    "N801",
+    "N802",
+    "N803",
+    "N806",
+    "N813",
+    "N815",
+    "N816",
+    "PGH003",
+    "PIE804",
+    "PLE0605",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR2004",
+    "RET504",
+    "RET505",
+    "RET506",
+    "RET507",
+    "RET508",
+    "TRY003",
+    "TRY300",
+]
+typing-modules = ["colour.hints"]
+fixable = ["B", "C", "E", "F", "PIE", "RUF", "SIM", "UP", "W"]
+
+[tool.ruff.pydocstyle]
 convention = "numpy"
-add-ignore = "D104,D200,D202,D205,D301,D400"
+
+[tool.ruff.per-file-ignores]
+"tasks.py" = ["INP"]
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

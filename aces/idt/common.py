@@ -6,7 +6,7 @@ Common IDT Utilities
 import base64
 import colour
 import io
-import matplotlib
+import matplotlib as mpl
 import numpy as np
 import re
 import unicodedata
@@ -16,8 +16,8 @@ from colour.characterisation import whitepoint_preserving_matrix
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
 from colour.utilities import as_float_array, zeros
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa
+mpl.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -152,7 +152,7 @@ def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
     )
     colour.plotting.render(
         **{
-            "standalone": False,
+            "show": False,
         }
     )
     buffer = io.BytesIO()

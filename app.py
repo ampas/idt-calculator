@@ -43,8 +43,10 @@ SERVER_URL : str
 APP = dash.Dash(
     __application_name__,
     external_scripts=os.environ.get("AMPAS_APPS_JS", "").split(","),
-    external_stylesheets=[dash_bootstrap_components.themes.DARKLY]
-    + os.environ.get("AMPAS_APPS_CSS", "").split(","),
+    external_stylesheets=[
+        dash_bootstrap_components.themes.DARKLY,
+        *os.environ.get("AMPAS_APPS_CSS", "").split(","),
+    ],
     server=SERVER,
 )
 """

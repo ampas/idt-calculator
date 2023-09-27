@@ -4,6 +4,7 @@ Input Device Transform (IDT) Calculator - P-2013-001
 """
 
 import colour
+import datetime
 import numpy as np
 import sys
 import urllib.parse
@@ -53,7 +54,6 @@ from dash_bootstrap_components import (
 
 # "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import Input as Field
-from datetime import datetime
 
 from aces.idt import png_compare_colour_checkers, error_delta_E, slugify
 from app import APP, SERVER_URL, __version__
@@ -776,7 +776,7 @@ def set_illuminant_datable(illuminant, CCT):
     [Input(_uid("illuminant-select"), "value")],
     [State(_uid("illuminant-options-collapse"), "is_open")],
 )
-def toggle_options_illuminant(illuminant, is_open):
+def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
     """
     Collapse the *Illuminant Options* `Collapse` panel according to the
     selected illuminant type.
@@ -855,7 +855,7 @@ def toggle_advanced_options(n_clicks, is_open):
     prevent_initial_call=True,
 )
 def compute_idt_p2013_001(
-    n_clicks,
+    n_clicks,  # noqa: ARG001
     formatter,
     decimals,
     exposure_factor,
@@ -919,13 +919,11 @@ def compute_idt_p2013_001(
         camera_name,
         hash(
             tuple(
-                tuple(
-                    [
-                        data.get("wavelength"),
-                        data.get("R"),
-                        data.get("G"),
-                        data.get("B"),
-                    ]
+                (
+                    data.get("wavelength"),
+                    data.get("R"),
+                    data.get("G"),
+                    data.get("B"),
                 )
                 for data in sensitivities_data
             )
@@ -933,11 +931,9 @@ def compute_idt_p2013_001(
         illuminant_name,
         hash(
             tuple(
-                tuple(
-                    [
-                        data.get("wavelength"),
-                        data.get("irradiance"),
-                    ]
+                (
+                    data.get("wavelength"),
+                    data.get("irradiance"),
                 )
                 for data in illuminant_data
             )
@@ -1027,7 +1023,9 @@ def compute_idt_p2013_001(
         formatter={"float": f"{{: 0.{decimals}f}}".format},
         threshold=sys.maxsize,
     ):
-        now = datetime.now().strftime("%b %d, %Y %H:%M:%S")
+        now = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%b %d, %Y %H:%M:%S"
+        )
 
         if formatter == "str":
             output = TEMPLATE_DEFAULT_OUTPUT.format(str(M), str(RGB_w))
@@ -1041,7 +1039,9 @@ def compute_idt_p2013_001(
                 {
                     "Application": f"{APP_NAME} - {__version__}",
                     "Url": href,
-                    "Date": datetime.now().strftime("%b %d, %Y %H:%M:%S"),
+                    "Date": datetime.datetime.now(
+                        datetime.timezone.utc
+                    ).strftime("%b %d, %Y %H:%M:%S"),
                     "ExposureFactor": exposure_factor,
                     "CameraName": camera_name,
                     "SensitivitiesData": str(parsed_sensitivities_data)
@@ -1076,7 +1076,7 @@ def compute_idt_p2013_001(
                 # ampas/idt-calculator#26. Ideally, there should not be any
                 # math in the GUI besides the computation of the IDT itself.
                 b_min=format_float(
-                    min(RGB_w[0], min(RGB_w[1], RGB_w[2])), decimals
+                    min(RGB_w[0], RGB_w[1], RGB_w[2]), decimals
                 ),
                 k_factor=format_float(exposure_factor, decimals),
                 camera=camera_name,

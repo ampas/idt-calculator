@@ -45,7 +45,7 @@ It is also possible to use the [`requirements.txt`](./requirements.txt) file to 
 ```bash
 $ docker build --platform=linux/amd64 \
 -t ampas/ampas-apps:latest \
--t ampas/ampas-apps:latest-amd64
+-t ampas/ampas-apps:latest-amd64 .
 ```
 
 The apps can then be launched locally as follows:
