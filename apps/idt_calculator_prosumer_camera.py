@@ -1020,49 +1020,48 @@ def compute_idt_prosumer_camera(
     ]
 
     # Segmentation
-    components += [
-        H3("Segmentation", style={"textAlign": "center"}),
-        Img(
-            src=(
-                f"data:image/png;base64,"
-                f"{png_colour_checker_segmentation(data_archive_to_idt)}"
-            ),
-            style={"width": "100%"},
-        ),
-    ]
-    if (
-        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
-        is not None
-    ):
+    colour_checker_segmentation = png_colour_checker_segmentation(
+        data_archive_to_idt
+    )
+    if colour_checker_segmentation is not None:
         components += [
+            H3("Segmentation", style={"textAlign": "center"}),
             Img(
                 src=(
-                    f"data:image/png;base64,"
-                    f"{png_grey_card_sampling(data_archive_to_idt)}"
+                    f"data:image/png;base64," f"{colour_checker_segmentation}"
                 ),
+                style={"width": "100%"},
+            ),
+        ]
+    grey_card_sampling = png_grey_card_sampling(data_archive_to_idt)
+    if grey_card_sampling is not None:
+        components += [
+            Img(
+                src=(f"data:image/png;base64," f"{grey_card_sampling}"),
                 style={"width": "100%"},
             ),
         ]
 
     # Camera Samples
-    components += [
-        H3("Measured Camera Samples", style={"textAlign": "center"}),
-        Img(
-            src=(
-                f"data:image/png;base64,"
-                f"{png_measured_camera_samples(data_archive_to_idt)}"
+    measured_camera_samples = png_measured_camera_samples(data_archive_to_idt)
+    extrapolated_camera_samples = png_extrapolated_camera_samples(
+        data_archive_to_idt
+    )
+    if None not in (measured_camera_samples, extrapolated_camera_samples):
+        components += [
+            H3("Measured Camera Samples", style={"textAlign": "center"}),
+            Img(
+                src=(f"data:image/png;base64," f"{measured_camera_samples}"),
+                style={"width": "100%"},
             ),
-            style={"width": "100%"},
-        ),
-        H3("Filtered Camera Samples", style={"textAlign": "center"}),
-        Img(
-            src=(
-                f"data:image/png;base64,"
-                f"{png_extrapolated_camera_samples(data_archive_to_idt)}"
+            H3("Filtered Camera Samples", style={"textAlign": "center"}),
+            Img(
+                src=(
+                    f"data:image/png;base64," f"{extrapolated_camera_samples}"
+                ),
+                style={"width": "100%"},
             ),
-            style={"width": "100%"},
-        ),
-    ]
+        ]
 
     return (
         "",

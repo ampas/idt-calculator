@@ -173,7 +173,7 @@ DATA_SPECIFICATION = {
         "manufacturer": "Undefined",
     },
     "data": {
-        "colour_checker": None,
+        "colour_checker": {},
         "flatfield": None,
         "grey_card": None,
     },
@@ -474,8 +474,9 @@ def specification_to_samples(specification, additional_data=False):
             **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
         ).values
 
-        if not len(colour_checkers):
-            raise RuntimeError("Colour checker was not detected at EV 0!")
+        attest(
+            len(colour_checkers), "Colour checker was not detected at EV 0!"
+        )
 
         colour_checker_rectangle = colour_checkers[0]
 
@@ -1170,6 +1171,7 @@ def archive_to_specification(
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
+
                 specification["data"]["colour_checker"][EV] = list(
                     (colour_checker_directory / exposure_directory).glob(
                         f"*.{image_format}"
@@ -1618,13 +1620,16 @@ def png_colour_checker_segmentation(data_archive_to_idt):
 
     Returns
     -------
-    str
+    str or None
         *PNG* data.
     """
 
     data_specification_to_samples = (
         data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
     )
+
+    if data_specification_to_samples.image_colour_checker_segmentation is None:
+        return None
 
     colour.plotting.plot_image(
         data_specification_to_samples.image_colour_checker_segmentation,
@@ -1651,13 +1656,17 @@ def png_grey_card_sampling(data_archive_to_idt):
 
     Returns
     -------
-    str
+    str or None
         *PNG* data.
     """
 
     data_specification_to_samples = (
         data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
     )
+
+    if data_specification_to_samples.image_grey_card_sampling is None:
+        return None
+
     colour.plotting.plot_image(
         data_specification_to_samples.image_grey_card_sampling,
         show=False,
@@ -1682,9 +1691,15 @@ def png_measured_camera_samples(data_archive_to_idt):
 
     Returns
     -------
-    str
+    str or None
         *PNG* data.
     """
+
+    samples_camera = data_archive_to_idt.samples_camera
+    samples_reference = data_archive_to_idt.samples_reference
+
+    if samples_camera is None or samples_reference is None:
+        return None
 
     figure, axes = colour.plotting.artist()
     axes.plot(
@@ -1718,7 +1733,7 @@ def png_extrapolated_camera_samples(data_archive_to_idt):
 
     Returns
     -------
-    str
+    str or None
         *PNG* data.
     """
 
@@ -1726,6 +1741,14 @@ def png_extrapolated_camera_samples(data_archive_to_idt):
     samples_reference = data_archive_to_idt.samples_reference
     LUT_filtered = data_archive_to_idt.LUT_filtered
     edge_left, edge_right = data_archive_to_idt.data_generate_LUT3x1D.edges
+
+    if (
+        samples_camera is None
+        or samples_reference is None
+        or LUT_filtered is None
+    ):
+        return None
+
     samples = np.linspace(0, 1, LUT_filtered.size)
     figure, axes = colour.plotting.artist()
     for i, RGB in enumerate(("r", "g", "b")):
