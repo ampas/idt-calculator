@@ -3,8 +3,10 @@ Common IDT Utilities
 ====================
 """
 
+import contextlib
 import matplotlib as mpl
 import numpy as np
+import os
 import re
 import scipy.stats
 import unicodedata
@@ -26,6 +28,7 @@ __all__ = [
     "flip_image",
     "list_sub_directories",
     "mask_outliers",
+    "working_directory",
 ]
 
 
@@ -153,3 +156,23 @@ def mask_outliers(a, axis=None, z_score=3):
     """
 
     return np.abs(scipy.stats.zscore(a, axis=axis)) > z_score
+
+
+@contextlib.contextmanager
+def working_directory(directory):
+    """
+    Define a context manager that temporarily sets the current working
+    directory.
+
+    Parameters
+    ----------
+    directory : str
+        Current working directory to set.
+    """
+
+    current_working_directory = os.getcwd()
+    try:
+        os.chdir(directory)
+        yield
+    finally:
+        os.chdir(current_working_directory)

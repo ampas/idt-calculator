@@ -3,10 +3,10 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 =========================================================
 """
 
-import os.path
-
 import colour
 import datetime
+import logging
+import os
 import tempfile
 import urllib.parse
 import uuid
@@ -52,7 +52,7 @@ from dash_bootstrap_components import Input as Field
 from dash_uploader import Upload, callback, configure_upload
 
 from aces.idt import (
-    ProsumerCameraIDT,
+    IDTGeneratorProsumerCamera,
     error_delta_E,
     generate_reference_colour_checker,
     png_compare_colour_checkers,
@@ -91,6 +91,8 @@ __all__ = [
     "toggle_options_illuminant",
     "compute_idt_prosumer_camera",
 ]
+
+logger = logging.getLogger(__name__)
 
 colour.plotting.colour_style()
 
@@ -612,6 +614,8 @@ def set_uploaded_idt_archive_location(filename):
         *CSS* stylesheet for *Dash* components.
     """
 
+    logging.debug('Setting uploaded "IDT" archive location to "%s".', filename)
+
     global _PATH_UPLOADED_IDT_ARCHIVE  # noqa: PLW0603
 
     _PATH_UPLOADED_IDT_ARCHIVE = filename[0]
@@ -642,6 +646,8 @@ def toggle_advanced_options(n_clicks, is_open):
     bool
         Whether to open or collapse the *Advanced Options* `Collapse` panel.
     """
+
+    logging.debug("Toggling advanced options...")
 
     if n_clicks:
         return not is_open
@@ -682,6 +688,12 @@ def set_illuminant_datable(illuminant, CCT):
     tuple
         Tuple of data and columns.
     """
+
+    logging.debug(
+        'Setting illuminant datatable for "%s" illuminant and "%s" CCT...',
+        illuminant,
+        CCT,
+    )
 
     labels = ["Wavelength", "Irradiance"]
     ids = ["wavelength", "irradiance"]
@@ -748,6 +760,8 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         Whether to open or collapse the *Illuminant Options* `Collapse` panel.
     """
 
+    logging.debug("Toggling illuminant options...")
+
     return illuminant in ("Daylight", "Blackbody")
 
 
@@ -772,6 +786,8 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
         Dict of file content (base64 encoded) and metadata used by the
         Download component.
     """
+
+    logging.debug('Sending "IDT" archive...')
 
     return send_file(_PATH_IDT_ZIP)
 
@@ -858,6 +874,32 @@ def compute_idt_prosumer_camera(
         Tuple of *Dash* components.
     """
 
+    logging.debug(
+        'Computing "IDT" for "Prosumer Camera" with parameters:\n'
+        '\tRGB Display Colourspace : "%s"\n'
+        '\tIlluminant Name : "%s"\n'
+        '\tIlluminant Data : "%s"\n'
+        '\tChromatic Adaptation Transform : "%s"\n'
+        '\tOptimisation Space : "%s"\n'
+        '\tIlluminant Interpolator : "%s"\n'
+        '\tDecoding Method : "%s"\n'
+        '\tEV Range : "%s"\n'
+        '\tGrey Card Reflectance : "%s"\n'
+        '\tLUT Size : "%s"\n'
+        '\tLUT Smoothing : "%s"\n',
+        RGB_display_colourspace,
+        illuminant_name,
+        illuminant_data,
+        chromatic_adaptation_transform,
+        optimisation_space,
+        illuminant_interpolator,
+        decoding_method,
+        EV_range,
+        grey_card_reflectance,
+        LUT_size,
+        LUT_smoothing,
+    )
+
     parsed_illuminant_data = {}
     for data in illuminant_data:
         irradiance = data.get("irradiance")
@@ -884,29 +926,29 @@ def compute_idt_prosumer_camera(
         chromatic_adaptation_transform=chromatic_adaptation_transform,
     )
 
-    prosumer_camera_idt = ProsumerCameraIDT(_PATH_UPLOADED_IDT_ARCHIVE)
+    idt_generator = IDTGeneratorProsumerCamera(
+        _PATH_UPLOADED_IDT_ARCHIVE, cleanup=True
+    )
 
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_PATH_UPLOADED_IDT_ARCHIVE) is None:
-        prosumer_camera_idt.extract()
+        idt_generator.extract()
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
-        prosumer_camera_idt.sample()
+        idt_generator.sample()
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE] = (
-            prosumer_camera_idt.specification,
-            prosumer_camera_idt.samples_analysis,
+            idt_generator.specification,
+            idt_generator.samples_analysis,
         )
     else:
         (
-            prosumer_camera_idt._specification,
-            prosumer_camera_idt._samples_analysis,
+            idt_generator._specification,
+            idt_generator._samples_analysis,
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE]
 
-    prosumer_camera_idt.sort(reference_colour_checker)
-    prosumer_camera_idt.generate_LUT(as_int_scalar(LUT_size))
-    prosumer_camera_idt.filter_LUT(as_int_scalar(LUT_smoothing))
-    prosumer_camera_idt.decode(
-        decoding_method, np.loadtxt([grey_card_reflectance])
-    )
-    prosumer_camera_idt.optimise(
+    idt_generator.sort(reference_colour_checker)
+    idt_generator.generate_LUT(as_int_scalar(LUT_size))
+    idt_generator.filter_LUT(as_int_scalar(LUT_smoothing))
+    idt_generator.decode(decoding_method, np.loadtxt([grey_card_reflectance]))
+    idt_generator.optimise(
         np.loadtxt([EV_range]),
         training_data=reference_colour_checker,
         optimisation_factory=OPTIMISATION_FACTORIES[optimisation_space],
@@ -925,15 +967,15 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    samples_median = prosumer_camera_idt.samples_analysis["data"][
-        "colour_checker"
-    ][0]["samples_median"]
+    samples_median = idt_generator.samples_analysis["data"]["colour_checker"][
+        0
+    ]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
-        prosumer_camera_idt.LUT_decoding.apply(samples_median),
-        prosumer_camera_idt.M,
-        prosumer_camera_idt.RGB_w,
-        prosumer_camera_idt.k,
+        idt_generator.LUT_decoding.apply(samples_median),
+        idt_generator.M,
+        idt_generator.RGB_w,
+        idt_generator.k,
     )
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
@@ -941,7 +983,7 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    samples_decoded = prosumer_camera_idt.LUT_decoding.apply(samples_median)
+    samples_decoded = idt_generator.LUT_decoding.apply(samples_median)
     compare_colour_checkers_LUT_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_decoded),
         RGB_working_to_RGB_display(reference_colour_checker),
@@ -961,7 +1003,7 @@ def compute_idt_prosumer_camera(
 
     global _PATH_IDT_ZIP  # noqa: PLW0603
 
-    _PATH_IDT_ZIP = prosumer_camera_idt.zip(
+    _PATH_IDT_ZIP = idt_generator.zip(
         os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
         {
             "Application": f"{APP_NAME} - {__version__}",
@@ -1015,7 +1057,7 @@ def compute_idt_prosumer_camera(
 
     # Segmentation
     colour_checker_segmentation = (
-        prosumer_camera_idt.png_colour_checker_segmentation()
+        idt_generator.png_colour_checker_segmentation()
     )
     if colour_checker_segmentation is not None:
         components += [
@@ -1025,7 +1067,7 @@ def compute_idt_prosumer_camera(
                 style={"width": "100%"},
             ),
         ]
-    grey_card_sampling = prosumer_camera_idt.png_grey_card_sampling()
+    grey_card_sampling = idt_generator.png_grey_card_sampling()
     if grey_card_sampling is not None:
         components += [
             Img(
@@ -1035,9 +1077,9 @@ def compute_idt_prosumer_camera(
         ]
 
     # Camera Samples
-    measured_camera_samples = prosumer_camera_idt.png_measured_camera_samples()
+    measured_camera_samples = idt_generator.png_measured_camera_samples()
     extrapolated_camera_samples = (
-        prosumer_camera_idt.png_extrapolated_camera_samples()
+        idt_generator.png_extrapolated_camera_samples()
     )
     if None not in (measured_camera_samples, extrapolated_camera_samples):
         components += [

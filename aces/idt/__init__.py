@@ -5,7 +5,7 @@ from .common import (
     optimisation_factory_Oklab,
     optimisation_factory_IPT,
 )
-from .prosumer_camera import ProsumerCameraIDT
+from .prosumer_camera import IDTGeneratorProsumerCamera
 from .utilities import slugify
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "optimisation_factory_Oklab",
     "optimisation_factory_IPT",
 ]
-__all__ += ["ProsumerCameraIDT"]
+__all__ += ["IDTGeneratorProsumerCamera"]
 __all__ += ["slugify"]

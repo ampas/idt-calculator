@@ -1,0 +1,26 @@
+{
+    "header": {
+        "schema_version": "0.1.0",
+        "camera": "Synthetic",
+        "manufacturer": "colour-science",
+        "exposure_index": 100,
+        "white_balance": 6500,
+        "tint": 0,
+        "debayering_information": null,
+        "encoding_information": null,
+        "lens_information": null,
+        "lighting_information": "D65"
+    },
+    "data": {
+        "colour_checker": {
+            "-3": ["data/colour_checker/-3/colour_checker_0001.tif", "data/colour_checker/-3/colour_checker_0002.tif", "data/colour_checker/-3/colour_checker_0003.tif"],
+            "-2": ["data/colour_checker/-2/colour_checker_0001.tif", "data/colour_checker/-2/colour_checker_0002.tif", "data/colour_checker/-2/colour_checker_0003.tif"],
+            "-1": ["data/colour_checker/-1/colour_checker_0001.tif", "data/colour_checker/-1/colour_checker_0002.tif", "data/colour_checker/-1/colour_checker_0003.tif"],
+            "0": ["data/colour_checker/0/colour_checker_0001.tif", "data/colour_checker/0/colour_checker_0002.tif", "data/colour_checker/0/colour_checker_0003.tif"],
+            "+1": ["data/colour_checker/1/colour_checker_0001.tif", "data/colour_checker/1/colour_checker_0002.tif", "data/colour_checker/1/colour_checker_0003.tif"],
+            "+2": ["data/colour_checker/2/colour_checker_0001.tif", "data/colour_checker/2/colour_checker_0002.tif", "data/colour_checker/2/colour_checker_0003.tif"],
+            "+3": ["data/colour_checker/3/colour_checker_0001.tif", "data/colour_checker/3/colour_checker_0002.tif", "data/colour_checker/3/colour_checker_0003.tif"]
+        },
+        "grey_card": ["data/grey_card/grey_card_0001.tif", "data/grey_card/grey_card_0002.tif", "data/grey_card/grey_card_0002.tif"]
+    }
+}

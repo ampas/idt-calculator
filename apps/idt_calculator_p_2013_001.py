@@ -5,6 +5,7 @@ Input Device Transform (IDT) Calculator - P-2013-001
 
 import colour
 import datetime
+import logging
 import numpy as np
 import sys
 import urllib.parse
@@ -104,6 +105,8 @@ __all__ = [
     "toggle_advanced_options",
     "compute_idt_p2013_001",
 ]
+
+logger = logging.getLogger(__name__)
 
 APP_NAME = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
 """
@@ -657,6 +660,11 @@ def set_camera_sensitivities_datable(camera_sensitivities):
         Tuple of data and columns.
     """
 
+    logging.debug(
+        'Setting camera sensitivities datatable with "%s"...',
+        camera_sensitivities,
+    )
+
     labels = ["Wavelength", "Red", "Green", "Blue"]
     ids = ["wavelength", "R", "G", "B"]
     precision = [None] + [
@@ -729,6 +737,12 @@ def set_illuminant_datable(illuminant, CCT):
         Tuple of data and columns.
     """
 
+    logging.debug(
+        'Setting illuminant datatable for "%s" illuminant and "%s" CCT...',
+        illuminant,
+        CCT,
+    )
+
     labels = ["Wavelength", "Irradiance"]
     ids = ["wavelength", "irradiance"]
     precision = [
@@ -794,6 +808,8 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         Whether to open or collapse the *Illuminant Options* `Collapse` panel.
     """
 
+    logging.debug("Toggling illuminant options...")
+
     return illuminant in ("Daylight", "Blackbody")
 
 
@@ -820,6 +836,8 @@ def toggle_advanced_options(n_clicks, is_open):
     bool
         Whether to open or collapse the *Advanced Options* `Collapse` panel.
     """
+
+    logging.debug("Toggling advanced options...")
 
     if n_clicks:
         return not is_open
@@ -872,7 +890,7 @@ def compute_idt_p2013_001(
     href,
 ):
     """
-    Compute the *Input Device Transform* (IDT).
+    Compute the *Input Device Transform* (IDT) according to *P2013-001*.
 
     Parameters
     ----------
@@ -914,6 +932,36 @@ def compute_idt_p2013_001(
     tuple
         Tuple of *Dash* components.
     """
+
+    logging.debug(
+        'Computing "IDT" according to "P2013-001" with parameters:\n'
+        '\tFormatter : "%s"\n'
+        '\tDecimals : "%s"\n'
+        '\tExposure Factor : "%s"\n'
+        '\tCamera Name : "%s"\n'
+        '\tSensitivities Data : "%s"\n'
+        '\tIlluminant Name : "%s"\n'
+        '\tIlluminant Data : "%s"\n'
+        '\tRgb Display Colourspace : "%s"\n'
+        '\tTraining Data : "%s"\n'
+        '\tChromatic Adaptation Transform : "%s"\n'
+        '\tOptimisation Space : "%s"\n'
+        '\tSensitivities Interpolator : "%s"\n'
+        '\tIlluminant Interpolator : "%s"\n',
+        formatter,
+        decimals,
+        exposure_factor,
+        camera_name,
+        sensitivities_data,
+        illuminant_name,
+        illuminant_data,
+        RGB_display_colourspace,
+        training_data,
+        chromatic_adaptation_transform,
+        optimisation_space,
+        sensitivities_interpolator,
+        illuminant_interpolator,
+    )
 
     key = (
         camera_name,

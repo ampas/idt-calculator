@@ -3,6 +3,8 @@ Index
 =====
 """
 
+import logging
+
 from dash.dcc import Link, Location, Markdown
 from dash.dependencies import Input, Output
 from dash.html import A, Div, H3, Main, P
@@ -20,6 +22,7 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = ["load_app"]
+
 
 APP.layout = Container([Location(id="url", refresh=False), Div(id="apps")])
 
@@ -111,4 +114,7 @@ def load_app(app):
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
+
     APP.run_server(debug=True)
