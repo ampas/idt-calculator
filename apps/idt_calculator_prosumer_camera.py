@@ -23,7 +23,7 @@ from colour import (
 from colour.characterisation import camera_RGB_to_ACES2065_1
 from colour.models import RGB_COLOURSPACE_ACES2065_1
 from colour.temperature import CCT_to_xy_CIE_D
-from colour.utilities import as_float, as_int_scalar
+from colour.utilities import CACHE_REGISTRY, as_float, as_int_scalar
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Download, Link, Location, Markdown, send_file
@@ -52,15 +52,10 @@ from dash_bootstrap_components import Input as Field
 from dash_uploader import Upload, callback, configure_upload
 
 from aces.idt import (
-    archive_to_idt,
+    ProsumerCameraIDT,
     error_delta_E,
     generate_reference_colour_checker,
-    png_colour_checker_segmentation,
     png_compare_colour_checkers,
-    png_extrapolated_camera_samples,
-    png_grey_card_sampling,
-    png_measured_camera_samples,
-    zip_idt,
 )
 from app import APP, SERVER_URL, __version__
 from apps.common import (
@@ -137,6 +132,10 @@ configure_upload(APP, _ROOT_UPLOADED_IDT_ARCHIVE)
 
 _PATH_UPLOADED_IDT_ARCHIVE = None
 _PATH_IDT_ZIP = None
+
+_CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
+    f"{__name__}._CACHE_DATA_ARCHIVE_TO_SAMPLES"
+)
 
 _OPTIONS_DECODING_METHOD = [
     {"label": key, "value": key}
@@ -770,7 +769,7 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
     Returns
     -------
     dict
-        Dict of file content (base64 encoded) and meta data used by the
+        Dict of file content (base64 encoded) and metadata used by the
         Download component.
     """
 
@@ -885,28 +884,33 @@ def compute_idt_prosumer_camera(
         chromatic_adaptation_transform=chromatic_adaptation_transform,
     )
 
-    data_archive_to_idt = archive_to_idt(
-        _PATH_UPLOADED_IDT_ARCHIVE,
-        archive_to_samples_kwargs={},
-        sort_samples_kwargs={
-            "reference_colour_checker": reference_colour_checker
-        },
-        generate_LUT3x1D_kwargs={"size": as_int_scalar(LUT_size)},
-        filter_LUT3x1D_kwargs={"sigma": as_int_scalar(LUT_smoothing)},
-        decode_samples_kwargs={
-            "decoding_method": decoding_method,
-            "grey_card_reflectance": np.loadtxt([grey_card_reflectance]),
-        },
-        matrix_idt_kwargs={
-            "EV_range": np.loadtxt([EV_range]),
-            "training_data": reference_colour_checker,
-            "optimisation_factory": OPTIMISATION_FACTORIES[optimisation_space],
-        },
-        additional_data=True,
-    )
+    prosumer_camera_idt = ProsumerCameraIDT(_PATH_UPLOADED_IDT_ARCHIVE)
 
-    if os.path.exists(_PATH_UPLOADED_IDT_ARCHIVE):
+    if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_PATH_UPLOADED_IDT_ARCHIVE) is None:
+        prosumer_camera_idt.extract()
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
+        prosumer_camera_idt.sample()
+        _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE] = (
+            prosumer_camera_idt.specification,
+            prosumer_camera_idt.samples_analysis,
+        )
+    else:
+        (
+            prosumer_camera_idt._specification,
+            prosumer_camera_idt._samples_analysis,
+        ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE]
+
+    prosumer_camera_idt.sort(reference_colour_checker)
+    prosumer_camera_idt.generate_LUT(as_int_scalar(LUT_size))
+    prosumer_camera_idt.filter_LUT(as_int_scalar(LUT_smoothing))
+    prosumer_camera_idt.decode(
+        decoding_method, np.loadtxt([grey_card_reflectance])
+    )
+    prosumer_camera_idt.optimise(
+        np.loadtxt([EV_range]),
+        training_data=reference_colour_checker,
+        optimisation_factory=OPTIMISATION_FACTORIES[optimisation_space],
+    )
 
     def RGB_working_to_RGB_display(RGB):
         """
@@ -921,20 +925,15 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    data_specification_to_samples = (
-        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
-    )
-    samples_median = data_specification_to_samples.samples_analysis["data"][
+    samples_median = prosumer_camera_idt.samples_analysis["data"][
         "colour_checker"
     ][0]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
-        data_archive_to_idt.data_decode_samples.LUT_decoding.apply(
-            samples_median
-        ),
-        data_archive_to_idt.data_matrix_idt.M,
-        data_archive_to_idt.data_matrix_idt.RGB_w,
-        data_archive_to_idt.data_matrix_idt.k,
+        prosumer_camera_idt.LUT_decoding.apply(samples_median),
+        prosumer_camera_idt.M,
+        prosumer_camera_idt.RGB_w,
+        prosumer_camera_idt.k,
     )
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
@@ -942,11 +941,7 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    samples_decoded = (
-        data_archive_to_idt.data_decode_samples.LUT_decoding.apply(
-            samples_median
-        )
-    )
+    samples_decoded = prosumer_camera_idt.LUT_decoding.apply(samples_median)
     compare_colour_checkers_LUT_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_decoded),
         RGB_working_to_RGB_display(reference_colour_checker),
@@ -966,8 +961,7 @@ def compute_idt_prosumer_camera(
 
     global _PATH_IDT_ZIP  # noqa: PLW0603
 
-    _PATH_IDT_ZIP = zip_idt(
-        data_archive_to_idt,
+    _PATH_IDT_ZIP = prosumer_camera_idt.zip(
         os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
         {
             "Application": f"{APP_NAME} - {__version__}",
@@ -1020,45 +1014,41 @@ def compute_idt_prosumer_camera(
     ]
 
     # Segmentation
-    colour_checker_segmentation = png_colour_checker_segmentation(
-        data_archive_to_idt
+    colour_checker_segmentation = (
+        prosumer_camera_idt.png_colour_checker_segmentation()
     )
     if colour_checker_segmentation is not None:
         components += [
             H3("Segmentation", style={"textAlign": "center"}),
             Img(
-                src=(
-                    f"data:image/png;base64," f"{colour_checker_segmentation}"
-                ),
+                src=(f"data:image/png;base64,{colour_checker_segmentation}"),
                 style={"width": "100%"},
             ),
         ]
-    grey_card_sampling = png_grey_card_sampling(data_archive_to_idt)
+    grey_card_sampling = prosumer_camera_idt.png_grey_card_sampling()
     if grey_card_sampling is not None:
         components += [
             Img(
-                src=(f"data:image/png;base64," f"{grey_card_sampling}"),
+                src=(f"data:image/png;base64,{grey_card_sampling}"),
                 style={"width": "100%"},
             ),
         ]
 
     # Camera Samples
-    measured_camera_samples = png_measured_camera_samples(data_archive_to_idt)
-    extrapolated_camera_samples = png_extrapolated_camera_samples(
-        data_archive_to_idt
+    measured_camera_samples = prosumer_camera_idt.png_measured_camera_samples()
+    extrapolated_camera_samples = (
+        prosumer_camera_idt.png_extrapolated_camera_samples()
     )
     if None not in (measured_camera_samples, extrapolated_camera_samples):
         components += [
             H3("Measured Camera Samples", style={"textAlign": "center"}),
             Img(
-                src=(f"data:image/png;base64," f"{measured_camera_samples}"),
+                src=(f"data:image/png;base64,{measured_camera_samples}"),
                 style={"width": "100%"},
             ),
             H3("Filtered Camera Samples", style={"textAlign": "center"}),
             Img(
-                src=(
-                    f"data:image/png;base64," f"{extrapolated_camera_samples}"
-                ),
+                src=(f"data:image/png;base64,{extrapolated_camera_samples}"),
                 style={"width": "100%"},
             ),
         ]

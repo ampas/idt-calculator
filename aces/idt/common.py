@@ -5,16 +5,20 @@ Common IDT Utilities
 
 import base64
 import colour
+import colour_checker_detection
+import cv2
 import io
 import matplotlib as mpl
 import numpy as np
-import re
-import unicodedata
-
+from colour import (
+    SDS_COLOURCHECKERS,
+    SDS_ILLUMINANTS,
+    sd_to_aces_relative_exposure_values,
+)
 from colour.algebra import euclidean_distance, vector_dot
 from colour.characterisation import whitepoint_preserving_matrix
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
-from colour.utilities import as_float_array, zeros
+from colour.utilities import as_float_array, zeros, orient
 
 mpl.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -27,140 +31,222 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "slugify",
-    "error_delta_E",
-    "png_compare_colour_checkers",
+    "SDS_COLORCHECKER_CLASSIC",
+    "SD_ILLUMINANT_ACES",
+    "SAMPLES_COUNT_DEFAULT",
+    "SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC",
+    "swatch_colours_from_image",
+    "generate_reference_colour_checker",
+    "RGB_COLORCHECKER_CLASSIC_ACES",
+    "is_colour_checker_flipped",
     "optimisation_factory_Oklab",
     "optimisation_factory_IPT",
+    "error_delta_E",
+    "png_compare_colour_checkers",
 ]
 
+SDS_COLORCHECKER_CLASSIC = tuple(SDS_COLOURCHECKERS["ISO 17321-1"].values())
+"""
+Reference reflectances for the *ColorChecker Classic*.
 
-def slugify(object_, allow_unicode=False):
+SDS_COLORCHECKER_CLASSIC : tuple
+"""
+
+SD_ILLUMINANT_ACES = SDS_ILLUMINANTS["D60"]
+"""
+*ACES* reference illuminant spectral distribution,
+i.e. ~*CIE Illuminant D Series D60*.
+
+SD_ILLUMINANT_ACES : SpectralDistribution
+"""
+
+SAMPLES_COUNT_DEFAULT = 24
+"""
+Default samples count.
+
+SAMPLES_COUNT_DEFAULT : int
+"""
+
+SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC = (
+    colour_checker_detection.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.copy()
+)
+"""
+Settings for the segmentation of the *X-Rite* *ColorChecker Classic* and
+*X-Rite* *ColorChecker Passport* for a typical *Prosumer Camera* shoot.
+
+SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC : dict
+"""
+
+SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
+    {
+        "working_width": 1600,
+        "swatches_count_minimum": 24 / 2,
+        "fast_non_local_means_denoising_kwargs": {
+            "h": 3,
+            "templateWindowSize": 5,
+            "searchWindowSize": 11,
+        },
+        "adaptive_threshold_kwargs": {
+            "maxValue": 255,
+            "adaptiveMethod": cv2.ADAPTIVE_THRESH_MEAN_C,
+            "thresholdType": cv2.THRESH_BINARY,
+            "blockSize": int(1600 * 0.015) - int(1600 * 0.015) % 2 + 1,
+            "C": 2,
+        },
+    }
+)
+
+
+def swatch_colours_from_image(
+    image,
+    colour_checker_rectangle,
+    samples=SAMPLES_COUNT_DEFAULT,
+    swatches_h=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
+        "swatches_horizontal"
+    ],
+    swatches_v=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_vertical"],
+):
     """
-    Generate a *SEO* friendly and human-readable slug from given object.
-
-    Convert to ASCII if ``allow_unicode`` is *False*. Convert spaces or
-    repeated dashes to single dashes. Remove characters that aren't
-    alphanumerics, underscores, or hyphens. Convert to lowercase. Also strip
-    leading and trailing whitespace, dashes, and underscores.
+    Extract the swatch colours for given image using given rectifying rectangle.
 
     Parameters
     ----------
-    object_ : object
-        Object to convert to a slug.
-    allow_unicode : bool
-        Whether to allow unicode characters in the generated slug.
-
-    Returns
-    -------
-    :class:`str`
-        Generated slug.
-
-    References
-    ----------
-    -   https://github.com/django/django/blob/\
-0dd29209091280ccf34e07c9468746c396b7778e/django/utils/text.py#L400
-
-    Examples
-    --------
-    >>> slugify(
-    ...     " Jack & Jill like numbers 1,2,3 and 4 and silly characters ?%.$!/"
-    ... )
-    'jack-jill-like-numbers-123-and-4-and-silly-characters'
-    """
-
-    value = str(object_)
-
-    if allow_unicode:
-        value = unicodedata.normalize("NFKC", value)
-    else:
-        value = (
-            unicodedata.normalize("NFKD", value)
-            .encode("ascii", "ignore")
-            .decode("ascii")
-        )
-
-    value = re.sub(r"[^\w\s-]", "", value.lower())
-
-    return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
-def error_delta_E(samples_test, samples_reference):
-    """
-    Compute the difference :math:`\\Delta E_{00}` between two given *RGB*
-    colourspace arrays.
-
-    Parameters
-    ----------
-    samples_test : array_like
-        Test samples.
-    samples_reference : array_like
-        Reference samples.
+    image : array_like
+        Image to extract the swatch colours of.
+    colour_checker_rectangle : array_like
+        Rectifying rectangle.
+    samples : integer, optional
+        Samples count to use to compute the swatches colours. The effective
+        samples count is :math:`samples^2`.
+    swatches_h : int, optional
+        Horizontal swatches.
+    swatches_v : int, optional
+        Vertical swatches.
 
     Returns
     -------
     NDArray
-        :math:`\\Delta E_{00}`.
+        Swatch colours.
     """
 
-    XYZ_to_RGB_kargs = {
-        "illuminant_XYZ": RGB_COLOURSPACE_ACES2065_1.whitepoint,
-        "illuminant_RGB": RGB_COLOURSPACE_ACES2065_1.whitepoint,
-        "matrix_XYZ_to_RGB": RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
-    }
-
-    Lab_test = (
-        colour.convert(
-            samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
-        )
-        * 100
-    )
-    Lab_reference = (
-        colour.convert(
-            samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
-        )
-        * 100
+    image = colour_checker_detection.detection.segmentation.adjust_image(
+        image, SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"]
     )
 
-    return colour.delta_E(Lab_test, Lab_reference)
+    colour_checker = (
+        colour_checker_detection.detection.segmentation
+    ).crop_and_level_image_with_rectangle(
+        image,
+        cv2.minAreaRect(colour_checker_rectangle),
+        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["interpolation_method"],
+    )
+    # TODO: Release new "colour-checker-detection" package.
+    if colour_checker.shape[0] > colour_checker.shape[1]:
+        colour_checker = orient(colour_checker, "90 CW")
+
+    width, height = colour_checker.shape[1], colour_checker.shape[0]
+    masks = colour_checker_detection.detection.segmentation.swatch_masks(
+        width, height, swatches_h, swatches_v, samples
+    )
+
+    swatch_colours = []
+    masks_i = np.zeros(colour_checker.shape)
+    for mask in masks:
+        swatch_colours.append(
+            np.mean(
+                colour_checker[mask[0] : mask[1], mask[2] : mask[3], ...],
+                axis=(0, 1),
+            )
+        )
+        masks_i[mask[0] : mask[1], mask[2] : mask[3], ...] = 1
+
+    swatch_colours = as_float_array(swatch_colours)
+
+    return swatch_colours
 
 
-def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
+def generate_reference_colour_checker(
+    sds=SDS_COLORCHECKER_CLASSIC,
+    illuminant=SD_ILLUMINANT_ACES,
+    chromatic_adaptation_transform="CAT02",
+):
     """
-    Return the colour checkers comparison as *PNG* data.
+    Generate the reference *ACES* *RGB* values for the *ColorChecker Classic*.
 
     Parameters
     ----------
-    samples_test : array_like
-        Test samples.
-    samples_reference : array_like
-        Reference samples.
-    columns : integer, optional
-        Number of columns for the colour checkers comparison.
+    sds : tuple, optional
+        *ColorChecker Classic* reflectances.
+    illuminant : SpectralDistribution, optional
+        Spectral distribution of the illuminant to compute the reference
+        *ACES* *RGB* values.
+    chromatic_adaptation_transform : str
+        *Chromatic adaptation* transform.
 
     Returns
     -------
-    str
-        *PNG* data.
+    NDArray
+        Reference *ACES* *RGB* values.
     """
 
-    colour.plotting.plot_multi_colour_swatches(
-        list(zip(samples_reference, samples_test)),
-        columns=columns,
-        compare_swatches="Stacked",
-        direction="-y",
+    return as_float_array(
+        [
+            sd_to_aces_relative_exposure_values(
+                sd,
+                illuminant,
+                chromatic_adaptation_transform=chromatic_adaptation_transform,
+            )
+            for sd in sds
+        ]
     )
-    colour.plotting.render(
-        **{
-            "show": False,
-        }
-    )
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-    plt.close()
 
-    return data_png
+
+RGB_COLORCHECKER_CLASSIC_ACES = generate_reference_colour_checker()
+"""
+Reference *ACES* *RGB* values for the *ColorChecker Classic*.
+
+RGB_COLORCHECKER_CLASSIC_ACES : NDArray
+"""
+
+
+def is_colour_checker_flipped(swatch_colours):
+    """
+    Return whether the colour checker is flipped.
+
+    The colour checker might be flipped: The mean standard deviation
+    of some expected normalised chromatic and achromatic neutral
+    swatches is computed. If the chromatic mean is lesser than the
+    achromatic mean, it means that the colour checker is flipped.
+
+    Parameters
+    ----------
+    swatch_colours : array_like
+        Swatch colours.
+
+    Returns
+    -------
+    bool
+        Whether the colour checker is flipped.
+    """
+
+    std_means = []
+    for slice_ in [
+        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_chromatic_slice"],
+        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
+            "swatches_achromatic_slice"
+        ],
+    ]:
+        swatch_std_mean = as_float_array(swatch_colours[slice_])
+        swatch_std_mean /= swatch_std_mean[..., 1][..., np.newaxis]
+        std_means.append(np.mean(np.std(swatch_std_mean, 0)))
+
+    is_flipped = bool(std_means[0] < std_means[1])
+
+    if is_flipped:
+        print("Colour checker was seemingly flipped!")  # noqa: T201
+        return True
+    else:
+        return False
 
 
 def optimisation_factory_Oklab():
@@ -287,3 +373,81 @@ finaliser_function at 0x...>)
         XYZ_to_optimization_colour_model,
         finaliser_function,
     )
+
+
+def error_delta_E(samples_test, samples_reference):
+    """
+    Compute the difference :math:`\\Delta E_{00}` between two given *RGB*
+    colourspace arrays.
+
+    Parameters
+    ----------
+    samples_test : array_like
+        Test samples.
+    samples_reference : array_like
+        Reference samples.
+
+    Returns
+    -------
+    NDArray
+        :math:`\\Delta E_{00}`.
+    """
+
+    XYZ_to_RGB_kargs = {
+        "illuminant_XYZ": RGB_COLOURSPACE_ACES2065_1.whitepoint,
+        "illuminant_RGB": RGB_COLOURSPACE_ACES2065_1.whitepoint,
+        "matrix_XYZ_to_RGB": RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
+    }
+
+    Lab_test = (
+        colour.convert(
+            samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
+        )
+        * 100
+    )
+    Lab_reference = (
+        colour.convert(
+            samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
+        )
+        * 100
+    )
+
+    return colour.delta_E(Lab_test, Lab_reference)
+
+
+def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
+    """
+    Return the colour checkers comparison as *PNG* data.
+
+    Parameters
+    ----------
+    samples_test : array_like
+        Test samples.
+    samples_reference : array_like
+        Reference samples.
+    columns : integer, optional
+        Number of columns for the colour checkers comparison.
+
+    Returns
+    -------
+    str
+        *PNG* data.
+    """
+
+    colour.plotting.plot_multi_colour_swatches(
+        list(zip(samples_reference, samples_test)),
+        columns=columns,
+        compare_swatches="Stacked",
+        direction="-y",
+    )
+    colour.plotting.render(
+        **{
+            "show": False,
+        }
+    )
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+    plt.close()
+
+    return data_png

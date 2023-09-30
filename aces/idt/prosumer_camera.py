@@ -27,30 +27,35 @@ from colour import (
     LinearInterpolator,
     LUT1D,
     LUT3x1D,
-    SDS_COLOURCHECKERS,
-    SDS_ILLUMINANTS,
     read_image,
-    sd_to_aces_relative_exposure_values,
 )
 from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.io import LUT_to_LUT
-from colour.hints import Dict, NDArray, Optional, Union
 from colour.utilities import (
-    CACHE_REGISTRY,
-    MixinDataclassIterable,
     as_float_array,
     as_int_array,
     attest,
-    optional,
-    orient,
     validate_method,
 )
-from dataclasses import dataclass
 from pathlib import Path
 from scipy.optimize import minimize
 from zipfile import ZipFile
+
+from aces.idt.common import (
+    SAMPLES_COUNT_DEFAULT,
+    SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+    RGB_COLORCHECKER_CLASSIC_ACES,
+    is_colour_checker_flipped,
+    swatch_colours_from_image,
+)
+from aces.idt.utilities import (
+    flip_image,
+    mask_outliers,
+    list_sub_directories,
+)
+
 
 mpl.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -63,108 +68,11 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "SDS_COLORCHECKER_CLASSIC",
-    "SD_ILLUMINANT_ACES",
-    "generate_reference_colour_checker",
-    "RGB_COLORCHECKER_CLASSIC_ACES",
-    "SAMPLES_COUNT_DEFAULT",
     "DATA_SPECIFICATION",
     "DATA_SAMPLES_ANALYSIS",
-    "EXTENSION_DEFAULT",
-    "SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC",
-    "mask_outliers",
-    "swatch_colours_from_image",
-    "is_colour_checker_flipped",
-    "flip_image",
-    "list_sub_directories",
-    "DataSpecificationSamples",
-    "specification_to_samples",
-    "sort_samples",
-    "DataGenerateLUT3x1D",
-    "generate_LUT3x1D",
-    "filter_LUT3x1D",
-    "DataDecodeSamples",
-    "decode_samples",
-    "DataMatrixIdt",
-    "matrix_idt",
-    "archive_to_specification",
-    "DataArchiveToSamples",
-    "archive_to_samples",
-    "DataArchiveToIdt",
-    "archive_to_idt",
-    "idt_to_clf",
-    "zip_idt",
-    "png_colour_checker_segmentation",
-    "png_grey_card_sampling",
-    "png_measured_camera_samples",
-    "png_extrapolated_camera_samples",
+    "ProsumerCameraIDT",
 ]
 
-SDS_COLORCHECKER_CLASSIC = tuple(SDS_COLOURCHECKERS["ISO 17321-1"].values())
-"""
-Reference reflectances for the *ColorChecker Classic*.
-
-SDS_COLORCHECKER_CLASSIC : tuple
-"""
-
-SD_ILLUMINANT_ACES = SDS_ILLUMINANTS["D60"]
-"""
-*ACES* reference illuminant spectral distribution,
-i.e. ~*CIE Illuminant D Series D60*.
-
-SD_ILLUMINANT_ACES : SpectralDistribution
-"""
-
-
-def generate_reference_colour_checker(
-    sds=SDS_COLORCHECKER_CLASSIC,
-    illuminant=SD_ILLUMINANT_ACES,
-    chromatic_adaptation_transform="CAT02",
-):
-    """
-    Generate the reference *ACES* *RGB* values for the *ColorChecker Classic*.
-
-    Parameters
-    ----------
-    sds : tuple, optional
-        *ColorChecker Classic* reflectances.
-    illuminant : SpectralDistribution, optional
-        Spectral distribution of the illuminant to compute the reference
-        *ACES* *RGB* values.
-    chromatic_adaptation_transform : str
-        *Chromatic adaptation* transform.
-
-    Returns
-    -------
-    NDArray
-        Reference *ACES* *RGB* values.
-    """
-
-    return as_float_array(
-        [
-            sd_to_aces_relative_exposure_values(
-                sd,
-                illuminant,
-                chromatic_adaptation_transform=chromatic_adaptation_transform,
-            )
-            for sd in sds
-        ]
-    )
-
-
-RGB_COLORCHECKER_CLASSIC_ACES = generate_reference_colour_checker()
-"""
-Reference *ACES* *RGB* values for the *ColorChecker Classic*.
-
-RGB_COLORCHECKER_CLASSIC_ACES : NDArray
-"""
-
-SAMPLES_COUNT_DEFAULT = 24
-"""
-Default samples count.
-
-SAMPLES_COUNT_DEFAULT : int
-"""
 
 DATA_SPECIFICATION = {
     "header": {
@@ -191,1587 +99,1258 @@ Template specification for the image sampling process.
 DATA_SAMPLES_ANALYSIS : dict
 """
 
-EXTENSION_DEFAULT = "tif"
-"""
-Default file format extension to search for in the *IDT* archive.
 
-EXTENSION_DEFAULT : str
-"""
-
-SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC = (
-    colour_checker_detection.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.copy()
-)
-"""
-Settings for the segmentation of the *X-Rite* *ColorChecker Classic* and
-*X-Rite* *ColorChecker Passport* for a typical *Prosumer Camera* shoot.
-
-SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC : dict
-"""
-
-SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
-    {
-        "working_width": 1600,
-        "swatches_count_minimum": 24 / 2,
-        "fast_non_local_means_denoising_kwargs": {
-            "h": 3,
-            "templateWindowSize": 5,
-            "searchWindowSize": 11,
-        },
-        "adaptive_threshold_kwargs": {
-            "maxValue": 255,
-            "adaptiveMethod": cv2.ADAPTIVE_THRESH_MEAN_C,
-            "thresholdType": cv2.THRESH_BINARY,
-            "blockSize": int(1600 * 0.015) - int(1600 * 0.015) % 2 + 1,
-            "C": 2,
-        },
-    }
-)
-
-
-def mask_outliers(a, axis=None, z_score=3):
+class ProsumerCameraIDT:
     """
-    Return the mask for the outliers of given array :math:`a` using the
-    z-score.
+    Define a *Prosumer Camera* *IDT* generator.
 
     Parameters
     ----------
-    a : array_like
-        Array :math:`a` to return the outliers mask of.
-    axis : int or None, optional
-        Axis along which to operate. Default is 0. If None, compute over
-        the whole array `a`.
-    z_score : numeric
-        z-score threshold to mask the outliers.
-
-    Returns
-    -------
-    NDArray
-        Mask for the outliers of given array :math:`a`.
-    """
-
-    return np.abs(scipy.stats.zscore(a, axis=axis)) > z_score
-
-
-def swatch_colours_from_image(
-    image,
-    colour_checker_rectangle,
-    samples=SAMPLES_COUNT_DEFAULT,
-    swatches_h=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
-        "swatches_horizontal"
-    ],
-    swatches_v=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_vertical"],
-):
-    """
-    Extract the swatch colours for given image using given rectifying rectangle.
-
-    Parameters
-    ----------
-    image : array_like
-        Image to extract the swatch colours of.
-    colour_checker_rectangle : array_like
-        Rectifying rectangle.
-    samples : integer, optional
-        Samples count to use to compute the swatches colours. The effective
-        samples count is :math:`samples^2`.
-    swatches_h : int, optional
-        Horizontal swatches.
-    swatches_v : int, optional
-        Vertical swatches.
-
-    Returns
-    -------
-    NDArray
-        Swatch colours.
-    """
-
-    image = colour_checker_detection.detection.segmentation.adjust_image(
-        image, SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"]
-    )
-
-    colour_checker = (
-        colour_checker_detection.detection.segmentation
-    ).crop_and_level_image_with_rectangle(
-        image,
-        cv2.minAreaRect(colour_checker_rectangle),
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["interpolation_method"],
-    )
-    # TODO: Release new "colour-checker-detection" package.
-    if colour_checker.shape[0] > colour_checker.shape[1]:
-        colour_checker = orient(colour_checker, "90 CW")
-
-    width, height = colour_checker.shape[1], colour_checker.shape[0]
-    masks = colour_checker_detection.detection.segmentation.swatch_masks(
-        width, height, swatches_h, swatches_v, samples
-    )
-
-    swatch_colours = []
-    masks_i = np.zeros(colour_checker.shape)
-    for mask in masks:
-        swatch_colours.append(
-            np.mean(
-                colour_checker[mask[0] : mask[1], mask[2] : mask[3], ...],
-                axis=(0, 1),
-            )
-        )
-        masks_i[mask[0] : mask[1], mask[2] : mask[3], ...] = 1
-
-    swatch_colours = as_float_array(swatch_colours)
-
-    return swatch_colours
-
-
-def is_colour_checker_flipped(swatch_colours):
-    """
-    Return whether the colour checker is flipped.
-
-    The colour checker might be flipped: The mean standard deviation
-    of some expected normalised chromatic and achromatic neutral
-    swatches is computed. If the chromatic mean is lesser than the
-    achromatic mean, it means that the colour checker is flipped.
-
-    Parameters
-    ----------
-    swatch_colours : array_like
-        Swatch colours.
-
-    Returns
-    -------
-    bool
-        Whether the colour checker is flipped.
-    """
-
-    std_means = []
-    for slice_ in [
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_chromatic_slice"],
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
-            "swatches_achromatic_slice"
-        ],
-    ]:
-        swatch_std_mean = as_float_array(swatch_colours[slice_])
-        swatch_std_mean /= swatch_std_mean[..., 1][..., np.newaxis]
-        std_means.append(np.mean(np.std(swatch_std_mean, 0)))
-
-    is_flipped = bool(std_means[0] < std_means[1])
-
-    if is_flipped:
-        print("Colour checker was seemingly flipped!")  # noqa: T201
-        return True
-    else:
-        return False
-
-
-def flip_image(image):
-    """
-    Flip given image by rotating it 180 degrees.
-
-    Parameters
-    ----------
-    image : array_like
-        Image to rotate 180 degrees
-
-    Returns
-    -------
-    NDArray
-        Flipped image.
-    """
-
-    return orient(image, "180")
-
-
-def list_sub_directories(
-    directory,
-    filterers=(
-        lambda path: "__MACOSX" not in path.name,
-        lambda path: path.is_dir(),
-    ),
-):
-    """
-    List the sub-directories in given directory.
-
-    Parameters
-    ----------
+    archive : str
+        *IDT* archive path, i.e. a zip file path.
+    image_format : str, optional
+        Image format to filter.
     directory : str
-        Directory to list the sub-directories from.
-    filterers : array_like, optional
-        List of callables used to filter the sub-directories, each callable
-        takes a :class:`Path` class instance as argument and returns whether to
-        include or exclude the sub-directory as a bool.
-        include or exclude the sub-directory as a bool.
+        Working directory to extract the *IDT* archive.
+    cleanup : bool, optional
+        Whether to cleanup the temporary processing directory.
 
-    Returns
-    -------
-    list
-        Sub-directories in given directory.
-    """
-
-    sub_directories = [
-        path
-        for path in Path(directory).iterdir()
-        if all(filterer(path) for filterer in filterers)
-    ]
-
-    return sub_directories
-
-
-@dataclass
-class DataSpecificationSamples(MixinDataclassIterable):
-    """
-    Analysis data from the colour checker sampling process.
-
-    Parameters
+    Attributes
     ----------
-    samples_analysis : dict
-        Samples produced by the colour checker sampling process.
-    image_colour_checker_segmentation : NDArray
-        Image of the colour checker with segmentation contours.
-    image_grey_card_sampling : NDArray
-        Image of the grey card with sampling contours.
-    """
+    -   :attr:`~aces.idt.ProsumerCameraIDT.archive`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.image_format`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.directory`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.specification`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.image_colour_checker_segmentation`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.image_grey_card_sampling`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.samples_analysis`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.samples_camera`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.samples_reference`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.samples_decoded`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.samples_weighted`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.LUT_unfiltered`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.LUT_filtered`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.LUT_decoding`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.M`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.RGB_w`
+    -   :attr:`~aces.idt.ProsumerCameraIDT.k`
 
-    samples_analysis: dict
-    image_colour_checker_segmentation: NDArray
-    image_grey_card_sampling: Optional[NDArray]
-
-
-def specification_to_samples(specification, additional_data=False):
-    """
-    Sample the images for given *IDT* archive specification.
-
-    Parameters
-    ----------
-    specification : dict
-        *IDT* archive specification.
-    additional_data : bool, optional
-        Whether to return additional data.
-
-    Returns
+    Methods
     -------
-    dict or DataSpecificationSamples
-        Samples produced by the image sampling process or data from
-        the image sampling process.
+    -   :meth:`~aces.idt.ProsumerCameraIDT.extract`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.sample`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.sort`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.generate_LUT`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.filter_LUT`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.decode`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.optimise`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.to_clf`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.zip`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.png_colour_checker_segmentation`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.png_grey_card_sampling`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.png_measured_camera_samples`
+    -   :meth:`~aces.idt.ProsumerCameraIDT.png_extrapolated_camera_samples`
     """
 
-    samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
-
-    # Segmentation occurs on EV 0 and is reused on all brackets.
-    paths = specification["data"]["colour_checker"][0]
-
-    # Detecting the colour checker and whether it is flipped.
-    is_flipped, should_flip = False, False
-    while True:
-        should_flip = is_flipped
-        image = read_image(paths[0])
-        image = flip_image(image) if is_flipped else image
-
-        (
-            colour_checkers,
-            clusters,
-            swatches,
-            segmented_image,
-        ) = colour_checker_detection.colour_checkers_coordinates_segmentation(
-            image,
-            additional_data=True,
-            **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-        ).values
-
-        attest(
-            len(colour_checkers), "Colour checker was not detected at EV 0!"
+    def __init__(
+        self,
+        archive=None,
+        image_format="tif",
+        directory=None,
+        cleanup=True,
+    ):
+        self._archive = archive
+        self._image_format = image_format
+        self._directory = (
+            tempfile.TemporaryDirectory().name
+            if directory is None
+            else directory
         )
+        self._cleanup = cleanup
 
-        colour_checker_rectangle = colour_checkers[0]
+        self._specification = None
 
-        swatch_colours = swatch_colours_from_image(
-            image, colour_checker_rectangle
-        )
+        self._image_colour_checker_segmentation = None
+        self._image_grey_card_sampling = None
+        self._blending_edge_left = None
+        self._blending_edge_right = None
 
-        is_flipped = is_colour_checker_flipped(swatch_colours)
+        self._samples_analysis = None
+        self._samples_camera = None
+        self._samples_reference = None
+        self._samples_decoded = None
+        self._samples_weighted = None
 
-        if not is_flipped:
-            break
+        self._LUT_unfiltered = None
+        self._LUT_filtered = None
+        self._LUT_decoding = None
 
-    is_flipped = should_flip
+        self._M = None
+        self._RGB_w = None
+        self._k = None
 
-    image_colour_checker_segmentation = (
-        colour_checker_detection.detection.segmentation.adjust_image(
-            image, SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"]
-        )
-    )
-    cv2.drawContours(
-        image_colour_checker_segmentation, swatches, -1, (1, 0, 1), 3
-    )
-    cv2.drawContours(
-        image_colour_checker_segmentation, clusters, -1, (0, 1, 1), 3
-    )
+    @property
+    def archive(self):
+        """
+        Getter property for the *IDT* archive path.
 
-    # Flatfield
-    if specification["data"].get("flatfield") is not None:
-        samples_analysis["data"]["flatfield"] = {"samples_sequence": []}
-        for path in specification["data"]["flatfield"]:
-            image = read_image(path)
+        Returns
+        -------
+        :class:`str` or None
+            *IDT* archive path, i.e. a zip file path.
+        """
+
+        return self._archive
+
+    @property
+    def image_format(self):
+        """
+        Getter property for image format to filter.
+
+        Returns
+        -------
+        :class:`str` or None
+            Image format to filter.
+        """
+
+        return self._image_format
+
+    @property
+    def directory(self):
+        """
+        Getter property for the working directory to extract the *IDT* archive.
+
+        Returns
+        -------
+        :class:`str` or None
+            Working directory to extract the *IDT* archive.
+        """
+
+        return self._directory
+
+    @property
+    def specification(self):
+        """
+        Getter property for the *IDT* archive specification.
+
+        Returns
+        -------
+        :class:`str` or None
+            *IDT* archive specification.
+        """
+
+        return self._specification
+
+    @property
+    def image_colour_checker_segmentation(self):
+        """
+        Getter property for the image of the colour checker with segmentation
+        contours.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Image of the colour checker with segmentation contours.
+        """
+
+        return self._image_colour_checker_segmentation
+
+    @property
+    def image_grey_card_sampling(self):
+        """
+        Getter property for the image the grey card with sampling contours.
+        contours.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Image of the grey card with sampling contours.
+        """
+
+        return self._image_grey_card_sampling
+
+    @property
+    def samples_analysis(self):
+        """
+        Getter property for the samples produced by the colour checker sampling
+        process.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Samples produced by the colour checker sampling process.
+        """
+
+        return self._samples_analysis
+
+    @property
+    def samples_camera(self):
+        """
+        Getter property for the samples of the camera produced by the sorting
+        process.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Samples of the camera produced by the sorting process.
+        """
+
+        return self._samples_camera
+
+    @property
+    def samples_reference(self):
+        """
+        Getter property for the reference samples produced by the sorting
+        process.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Reference samples produced by the sorting process.
+        """
+
+        return self._samples_reference
+
+    @property
+    def samples_decoded(self):
+        """
+        Getter property for the samples of the camera decoded by applying the
+        filtered *LUT*.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Samples of the camera decoded by applying the filtered *LUT*.
+        """
+
+        return self._samples_decoded
+
+    @property
+    def samples_weighted(self):
+        """
+        Getter property for the decoded samples of the camera weighted across
+        multiple exposures.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Samples of the decoded samples of the camera weighted across
+            multiple exposures.
+        """
+
+        return self._samples_weighted
+
+    @property
+    def LUT_unfiltered(self):
+        """
+        Getter property for the unfiltered *LUT*.
+
+        Returns
+        -------
+        :class:`LUT3x1D` or None
+            Unfiltered *LUT*.
+        """
+
+        return self._LUT_unfiltered
+
+    @property
+    def LUT_filtered(self):
+        """
+        Getter property for the filtered *LUT*.
+
+        Returns
+        -------
+        :class:`LUT3x1D` or None
+            Filtered *LUT*.
+        """
+
+        return self._LUT_filtered
+
+    @property
+    def LUT_decoding(self):
+        """
+        Getter property for the (final) decoding *LUT*.
+
+        Returns
+        -------
+        :class:`LUT1D` or :class:`LUT3x1D` or None
+            Decoding *LUT*.
+        """
+
+        return self._LUT_decoding
+
+    @property
+    def M(self):
+        """
+        Getter property for the *IDT* matrix :math:`M`,
+
+        Returns
+        -------
+        :class:`NDArray` or None
+           *IDT* matrix :math:`M`.
+        """
+
+        return self._M
+
+    @property
+    def RGB_w(self):
+        """
+        Getter property for the white balance multipliers :math:`RGB_w`.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            White balance multipliers :math:`RGB_w`.
+        """
+
+        return self._RGB_w
+
+    @property
+    def k(self):
+        """
+        Getter property for the exposure factor :math:`k` that results in a
+        nominally "18% gray" object in the scene producing ACES values
+        [0.18, 0.18, 0.18].
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Exposure factor :math:`k`
+        """
+
+        return self._k
+
+    def extract(self):
+        """
+        Extract the specification from the *IDT* archive.
+        """
+
+        shutil.unpack_archive(self._archive, self._directory)
+
+        extracted_directories = list_sub_directories(self._directory)
+
+        attest(len(extracted_directories) == 1)
+
+        root_directory = extracted_directories[0]
+
+        json_files = list(root_directory.glob("*.json"))
+        if len(json_files) == 1:
+            with open(json_files[0]) as json_file:
+                self._specification = json.load(json_file)
+        else:
+            self._specification = deepcopy(DATA_SPECIFICATION)
+
+            self._specification["header"]["camera"] = Path(self._archive).stem
+
+            colour_checker_directory = (
+                root_directory / "data" / "colour_checker"
+            )
+
+            attest(colour_checker_directory.exists())
+
+            for exposure_directory in colour_checker_directory.iterdir():
+                if re.match(r"-?\d", exposure_directory.name):
+                    EV = exposure_directory.name
+
+                    self._specification["data"]["colour_checker"][EV] = list(
+                        (colour_checker_directory / exposure_directory).glob(
+                            f"*.{self._image_format}"
+                        )
+                    )
+
+            flatfield_directory = root_directory / "data" / "flatfield"
+            if flatfield_directory.exists():
+                self._specification["data"]["flatfield"] = list(
+                    flatfield_directory.glob(f"*.{self._image_format}")
+                )
+
+            grey_card_directory = root_directory / "data" / "grey_card"
+            if grey_card_directory.exists():
+                self._specification["data"]["grey_card"] = list(
+                    flatfield_directory.glob(f"*.{self._image_format}")
+                )
+
+        for exposure in list(
+            self._specification["data"]["colour_checker"].keys()
+        ):
+            images = [
+                Path(root_directory) / image
+                for image in self._specification["data"]["colour_checker"].pop(
+                    exposure
+                )
+            ]
+
+            for image in images:
+                attest(image.exists())
+
+            self._specification["data"]["colour_checker"][
+                float(exposure)
+            ] = images
+
+        if self._specification["data"].get("flatfield") is not None:
+            images = [
+                Path(root_directory) / image
+                for image in self._specification["data"]["flatfield"]
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self._specification["data"]["flatfield"] = images
+
+        if self._specification["data"].get("grey_card") is not None:
+            images = [
+                Path(root_directory) / image
+                for image in self._specification["data"]["grey_card"]
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self._specification["data"]["grey_card"] = images
+
+    def sample(self):
+        """
+        Sample the images from the *IDT* archive specification.
+        """
+
+        self._samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
+
+        # Segmentation occurs on EV 0 and is reused on all brackets.
+        paths = self._specification["data"]["colour_checker"][0]
+
+        # Detecting the colour checker and whether it is flipped.
+        is_flipped, should_flip = False, False
+        while True:
+            should_flip = is_flipped
+            image = read_image(paths[0])
             image = flip_image(image) if is_flipped else image
+
+            (
+                colour_checkers,
+                clusters,
+                swatches,
+                segmented_image,
+            ) = colour_checker_detection.colour_checkers_coordinates_segmentation(
+                image,
+                additional_data=True,
+                **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+            ).values
+
+            attest(
+                len(colour_checkers),
+                "Colour checker was not detected at EV 0!",
+            )
+
+            colour_checker_rectangle = colour_checkers[0]
+
             swatch_colours = swatch_colours_from_image(
                 image, colour_checker_rectangle
             )
 
-            samples_analysis["data"]["flatfield"]["samples_sequence"].append(
-                swatch_colours.tolist()
-            )
+            is_flipped = is_colour_checker_flipped(swatch_colours)
 
-        samples_sequence = as_float_array(
-            [
-                samples[0]
-                for samples in samples_analysis["data"]["flatfield"][
-                    "samples_sequence"
-                ]
-            ]
+            if not is_flipped:
+                break
+
+        is_flipped = should_flip
+
+        image_colour_checker_segmentation = (
+            colour_checker_detection.detection.segmentation.adjust_image(
+                image,
+                SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"],
+            )
         )
-        mask = np.all(~mask_outliers(samples_sequence), axis=-1)
-
-        samples_analysis["data"]["flatfield"]["samples_median"] = np.median(
-            as_float_array(
-                samples_analysis["data"]["flatfield"]["samples_sequence"]
-            )[mask],
-            (0, 1),
-        ).tolist()
-
-    # Grey Card
-    image_grey_card_sampling = None
-    if specification["data"].get("grey_card") is not None:
-        samples_analysis["data"]["grey_card"] = {"samples_sequence": []}
-        for path in specification["data"]["grey_card"]:
-            image = read_image(path)
-            height, width, channels = image.shape
-            grey_card_colour = np.mean(
-                image[
-                    height // 2
-                    - SAMPLES_COUNT_DEFAULT : height // 2
-                    + SAMPLES_COUNT_DEFAULT,
-                    width // 2
-                    - SAMPLES_COUNT_DEFAULT : width // 2
-                    + SAMPLES_COUNT_DEFAULT,
-                    0:channels,
-                ],
-                axis=(0, 1),
-            )
-
-            samples_analysis["data"]["grey_card"]["samples_sequence"].append(
-                grey_card_colour.tolist()
-            )
-
-        samples_sequence = as_float_array(
-            [
-                samples[0]
-                for samples in samples_analysis["data"]["grey_card"][
-                    "samples_sequence"
-                ]
-            ]
-        )
-        mask = np.all(~mask_outliers(samples_sequence), axis=-1)
-
-        samples_analysis["data"]["grey_card"]["samples_median"] = np.median(
-            as_float_array(
-                samples_analysis["data"]["grey_card"]["samples_sequence"]
-            )[mask],
-            (0, 1),
-        ).tolist()
-
-        image_grey_card_sampling = image
         cv2.drawContours(
-            image_grey_card_sampling,
-            [
-                as_int_array(
-                    [
+            image_colour_checker_segmentation, swatches, -1, (1, 0, 1), 3
+        )
+        cv2.drawContours(
+            image_colour_checker_segmentation, clusters, -1, (0, 1, 1), 3
+        )
+
+        # Flatfield
+        if self._specification["data"].get("flatfield") is not None:
+            self._samples_analysis["data"]["flatfield"] = {
+                "samples_sequence": []
+            }
+            for path in self._specification["data"]["flatfield"]:
+                image = read_image(path)
+                image = flip_image(image) if is_flipped else image
+                swatch_colours = swatch_colours_from_image(
+                    image, colour_checker_rectangle
+                )
+
+                self._samples_analysis["data"]["flatfield"][
+                    "samples_sequence"
+                ].append(swatch_colours.tolist())
+
+            samples_sequence = as_float_array(
+                [
+                    samples[0]
+                    for samples in self._samples_analysis["data"]["flatfield"][
+                        "samples_sequence"
+                    ]
+                ]
+            )
+            mask = np.all(~mask_outliers(samples_sequence), axis=-1)
+
+            self._samples_analysis["data"]["flatfield"][
+                "samples_median"
+            ] = np.median(
+                as_float_array(
+                    self._samples_analysis["data"]["flatfield"][
+                        "samples_sequence"
+                    ]
+                )[mask],
+                (0, 1),
+            ).tolist()
+
+        # Grey Card
+        if self._specification["data"].get("grey_card") is not None:
+            self._samples_analysis["data"]["grey_card"] = {
+                "samples_sequence": []
+            }
+            for path in self._specification["data"]["grey_card"]:
+                image = read_image(path)
+                height, width, channels = image.shape
+                grey_card_colour = np.mean(
+                    image[
+                        height // 2
+                        - SAMPLES_COUNT_DEFAULT : height // 2
+                        + SAMPLES_COUNT_DEFAULT,
+                        width // 2
+                        - SAMPLES_COUNT_DEFAULT : width // 2
+                        + SAMPLES_COUNT_DEFAULT,
+                        0:channels,
+                    ],
+                    axis=(0, 1),
+                )
+
+                self._samples_analysis["data"]["grey_card"][
+                    "samples_sequence"
+                ].append(grey_card_colour.tolist())
+
+            samples_sequence = as_float_array(
+                [
+                    samples[0]
+                    for samples in self._samples_analysis["data"]["grey_card"][
+                        "samples_sequence"
+                    ]
+                ]
+            )
+            mask = np.all(~mask_outliers(samples_sequence), axis=-1)
+
+            self._samples_analysis["data"]["grey_card"][
+                "samples_median"
+            ] = np.median(
+                as_float_array(
+                    self._samples_analysis["data"]["grey_card"][
+                        "samples_sequence"
+                    ]
+                )[mask],
+                (0, 1),
+            ).tolist()
+
+            self._image_grey_card_sampling = image
+            cv2.drawContours(
+                self._image_grey_card_sampling,
+                [
+                    as_int_array(
                         [
-                            width // 2 - SAMPLES_COUNT_DEFAULT,
-                            height // 2 - SAMPLES_COUNT_DEFAULT,
-                        ],
-                        [
-                            width // 2 + SAMPLES_COUNT_DEFAULT,
-                            height // 2 - SAMPLES_COUNT_DEFAULT,
-                        ],
-                        [
-                            width // 2 + SAMPLES_COUNT_DEFAULT,
-                            height // 2 + SAMPLES_COUNT_DEFAULT,
-                        ],
-                        [
-                            width // 2 - SAMPLES_COUNT_DEFAULT,
-                            height // 2 + SAMPLES_COUNT_DEFAULT,
-                        ],
+                            [
+                                width // 2 - SAMPLES_COUNT_DEFAULT,
+                                height // 2 - SAMPLES_COUNT_DEFAULT,
+                            ],
+                            [
+                                width // 2 + SAMPLES_COUNT_DEFAULT,
+                                height // 2 - SAMPLES_COUNT_DEFAULT,
+                            ],
+                            [
+                                width // 2 + SAMPLES_COUNT_DEFAULT,
+                                height // 2 + SAMPLES_COUNT_DEFAULT,
+                            ],
+                            [
+                                width // 2 - SAMPLES_COUNT_DEFAULT,
+                                height // 2 + SAMPLES_COUNT_DEFAULT,
+                            ],
+                        ]
+                    )
+                ],
+                -1,
+                (1, 0, 1),
+                3,
+            )
+
+        # ColourChecker Classic Samples per EV
+        self._samples_analysis["data"]["colour_checker"] = {}
+        for EV in self._specification["data"]["colour_checker"]:
+            self._samples_analysis["data"]["colour_checker"][EV] = {}
+            self._samples_analysis["data"]["colour_checker"][EV][
+                "samples_sequence"
+            ] = []
+            for path in self._specification["data"]["colour_checker"][EV]:
+                image = read_image(path)
+                image = flip_image(image) if is_flipped else image
+                swatch_colours = swatch_colours_from_image(
+                    image, colour_checker_rectangle
+                )
+
+                self._samples_analysis["data"]["colour_checker"][EV][
+                    "samples_sequence"
+                ].append(swatch_colours.tolist())
+
+            sequence_neutral_5 = as_float_array(
+                [
+                    samples[21]
+                    for samples in self._samples_analysis["data"][
+                        "colour_checker"
+                    ][EV]["samples_sequence"]
+                ]
+            )
+            mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
+
+            self._samples_analysis["data"]["colour_checker"][EV][
+                "samples_median"
+            ] = np.median(
+                as_float_array(
+                    self._samples_analysis["data"]["colour_checker"][EV][
+                        "samples_sequence"
+                    ]
+                )[mask],
+                0,
+            ).tolist()
+
+        if self._cleanup:
+            shutil.rmtree(self._directory)
+
+    def sort(self, reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES):
+        """
+        Sort the samples produced by the image sampling process.
+
+        The *ACES* reference samples are sorted and indexed as a function of the
+        camera samples ordering. This ensures that the camera samples are
+        monotonically increasing.
+
+        Parameters
+        ----------
+        reference_colour_checker : NDArray
+            Reference *ACES* *RGB* values for the *ColorChecker Classic*.
+        """
+
+        samples_camera = []
+        samples_reference = []
+        for EV, images in self._samples_analysis["data"][
+            "colour_checker"
+        ].items():
+            samples_reference.append(
+                reference_colour_checker[-6:, ...] * pow(2, EV)
+            )
+            samples_EV = as_float_array(images["samples_median"])[-6:, ...]
+            samples_camera.append(samples_EV)
+
+        self._samples_camera = np.vstack(samples_camera)
+        self._samples_reference = np.vstack(samples_reference)
+
+        indices = np.argsort(np.median(self._samples_camera, axis=-1), axis=0)
+
+        self._samples_camera = self._samples_camera[indices]
+        self._samples_reference = self._samples_reference[indices]
+
+    def generate_LUT(self, size=1024):
+        """
+        Generate an unfiltered linearisation *LUT* for the camera samples.
+
+        The *LUT* generation process is worth describing, the camera samples are
+        unlikely to cover the [0, 1] domain and thus need to be extrapolated.
+
+        Two extrapolated datasets are generated:
+
+            -   Linearly extrapolated for the left edge missing data whose
+                clipping likelihood is low and thus can be extrapolated safely.
+            -   Constant extrapolated for the right edge missing data whose
+                clipping likelihood is high and thus cannot be extrapolated
+                safely
+
+        Because the camera encoded data response is logarithmic, the slope of
+        the center portion of the data is computed and fitted. The fitted line
+        is used to extrapolate the right edge missing data. It is blended
+        through a smoothstep with the constant extrapolated samples. The blend
+        is fully achieved at the right edge of the camera samples.
+
+        Parameters
+        ----------
+        size : integer, optional
+            *LUT* size.
+
+        Returns
+        -------
+        :class:`LUT3x1D`
+            Unfiltered linearisation *LUT* for the camera samples.
+        """
+
+        self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
+
+        for i in range(3):
+            x = self._samples_camera[..., i] * (size - 1)
+            y = self._samples_reference[..., i]
+
+            samples = np.arange(0, size, 1)
+
+            samples_linear = Extrapolator(LinearInterpolator(x, y))(samples)
+            samples_constant = Extrapolator(
+                LinearInterpolator(x, y), method="Constant"
+            )(samples)
+
+            # Searching for the index of ~middle camera code value * 125%
+            # We are trying to find the logarithmic slope of the camera middle
+            # range.
+            index_middle = np.searchsorted(
+                samples / size, np.max(self._samples_camera) / 2 * 1.25
+            )
+            padding = index_middle // 2
+            samples_middle = np.log(np.copy(samples_linear))
+            samples_middle[: index_middle - padding] = samples_middle[
+                index_middle - padding
+            ]
+            samples_middle[index_middle + padding :] = samples_middle[
+                index_middle + padding
+            ]
+
+            a, b = np.polyfit(
+                samples[index_middle - padding : index_middle + padding],
+                samples_middle[
+                    index_middle - padding : index_middle + padding
+                ],
+                1,
+            )
+
+            # Preparing the mask to blend the logarithmic slope with the
+            # extrapolated data.
+            edge_left = index_middle - padding
+            edge_right = np.searchsorted(
+                samples / size, np.max(self._samples_camera)
+            )
+            mask_samples = smoothstep_function(
+                samples, edge_left, edge_right, clip=True
+            )
+
+            self._LUT_unfiltered.table[..., i] = samples_linear
+            self._LUT_unfiltered.table[index_middle - padding :, i] = (
+                np.exp(a * samples + b) * mask_samples
+                + samples_constant * (1 - mask_samples)
+            )[index_middle - padding :]
+
+            self._blending_edge_left, self._blending_edge_right = (
+                edge_left / size,
+                edge_right / size,
+            )
+
+        return self._LUT_unfiltered
+
+    def filter_LUT(self, sigma=16):
+        """
+        Filter/smooth the linearisation *LUT* for the camera samples.
+
+        The *LUT* filtering is performed with a gaussian convolution, the sigma
+        value represents the window size. To prevent that the edges of the
+        *LUT* are affected by the convolution, the *LUT* is extended, i.e.
+        extrapolated at a safe two sigmas in both directions. The left edge is
+        linearly extrapolated while the right edge is logarithmically
+        extrapolated.
+
+        Parameters
+        ----------
+        sigma : numeric
+            Standard deviation of the gaussian convolution kernel.
+
+        Returns
+        -------
+        :class:`LUT3x1D`
+            Filtered linearisation *LUT* for the camera samples.
+        """
+
+        filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
+        filter_kwargs = {"sigma": sigma}
+
+        self._LUT_filtered = self._LUT_unfiltered.copy()
+        self._LUT_filtered.name = "LUT - Filtered"
+
+        sigma_x2 = int(sigma * 2)
+        x, step = np.linspace(0, 1, self._LUT_unfiltered.size, retstep=True)
+        padding = np.arange(step, sigma_x2 * step + step, step)
+        for i in range(3):
+            y = self._LUT_filtered.table[..., i]
+            x_extended = np.concatenate([-padding[::-1], x, padding + 1])
+
+            # Filtering is performed on extrapolated data.
+            y_linear_extended = Extrapolator(LinearInterpolator(x, y))(
+                x_extended
+            )
+            y_log_extended = np.exp(
+                Extrapolator(LinearInterpolator(x, np.log(y)))(x_extended)
+            )
+
+            y_linear_filtered = filter(y_linear_extended, **filter_kwargs)
+            y_log_filtered = filter(y_log_extended, **filter_kwargs)
+
+            index_middle = len(x_extended) // 2
+            self._LUT_filtered.table[..., i] = np.concatenate(
+                [
+                    y_linear_filtered[sigma_x2:index_middle],
+                    y_log_filtered[index_middle:-sigma_x2],
+                ]
+            )
+
+        return self._LUT_filtered
+
+    def decode(
+        self,
+        decoding_method="Median",
+        grey_card_reflectance=(0.18, 0.18, 0.18),
+    ):
+        """
+        Decode the samples produced by the image sampling process.
+
+        Parameters
+        ----------
+        decoding_method : str, optional
+            {"Median", "Average", "Per Channel", "ACES"},
+            Decoding method.
+        grey_card_reflectance : array_like, optional
+            Measured grey card reflectance.
+        """
+
+        decoding_method = validate_method(
+            decoding_method,
+            ("Median", "Average", "Per Channel", "ACES"),
+        )
+
+        grey_card_reflectance = as_float_array(grey_card_reflectance)
+
+        if decoding_method == "median":
+            self._LUT_decoding = LUT1D(
+                np.median(self._LUT_filtered.table, axis=-1)
+            )
+        elif decoding_method == "average":
+            self._LUT_decoding = LUT_to_LUT(
+                self._LUT_filtered, LUT1D, force_conversion=True
+            )
+        elif decoding_method == "per channel":
+            self._LUT_decoding = self._LUT_filtered.copy()
+        elif decoding_method == "aces":
+            self._LUT_decoding = LUT_to_LUT(
+                self._LUT_filtered,
+                LUT1D,
+                force_conversion=True,
+                channel_weights=RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[
+                    1, ...
+                ],
+            )
+
+        self._LUT_decoding.name = "LUT - Decoding"
+
+        if self._samples_analysis["data"]["grey_card"] is not None:
+            sampled_grey_card_reflectance = self._samples_analysis["data"][
+                "grey_card"
+            ]["samples_median"]
+            linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
+                sampled_grey_card_reflectance
+            )
+            if decoding_method == "median":
+                linear_gain = np.median(linear_gain)
+            elif decoding_method == "average":
+                linear_gain = np.average(linear_gain)
+            elif decoding_method == "per channel":
+                pass
+            elif decoding_method == "aces":
+                linear_gain = RGB_luminance(
+                    linear_gain,
+                    RGB_COLOURSPACE_ACES2065_1.primaries,
+                    RGB_COLOURSPACE_ACES2065_1.whitepoint,
+                )
+
+            self._LUT_decoding.table *= linear_gain
+
+        self._samples_decoded = {}
+        for EV in sorted(self._samples_analysis["data"]["colour_checker"]):
+            self._samples_decoded[EV] = self._LUT_decoding.apply(
+                as_float_array(
+                    self._samples_analysis["data"]["colour_checker"][EV][
+                        "samples_median"
                     ]
                 )
-            ],
-            -1,
-            (1, 0, 1),
-            3,
-        )
-
-    # ColourChecker Classic Samples per EV
-    samples_analysis["data"]["colour_checker"] = {}
-    for EV in specification["data"]["colour_checker"]:
-        samples_analysis["data"]["colour_checker"][EV] = {}
-        samples_analysis["data"]["colour_checker"][EV]["samples_sequence"] = []
-        for path in specification["data"]["colour_checker"][EV]:
-            image = read_image(path)
-            image = flip_image(image) if is_flipped else image
-            swatch_colours = swatch_colours_from_image(
-                image, colour_checker_rectangle
             )
 
-            samples_analysis["data"]["colour_checker"][EV][
-                "samples_sequence"
-            ].append(swatch_colours.tolist())
-
-        sequence_neutral_5 = as_float_array(
-            [
-                samples[21]
-                for samples in samples_analysis["data"]["colour_checker"][EV][
-                    "samples_sequence"
-                ]
-            ]
-        )
-        mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
-
-        samples_analysis["data"]["colour_checker"][EV][
-            "samples_median"
-        ] = np.median(
-            as_float_array(
-                samples_analysis["data"]["colour_checker"][EV][
-                    "samples_sequence"
-                ]
-            )[mask],
-            0,
-        ).tolist()
-
-    if additional_data:
-        return DataSpecificationSamples(
-            samples_analysis,
-            image_colour_checker_segmentation,
-            image_grey_card_sampling,
-        )
-    else:
-        return samples_analysis
-
-
-def sort_samples(
-    samples_analysis, reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES
-):
-    """
-    Sort the samples produced by the image sampling process.
-
-    The *ACES* reference samples are sorted and indexed as a function of the
-    camera samples ordering. This ensures that the camera samples are
-    monotonically increasing.
-
-    Parameters
-    ----------
-    samples_analysis : dict
-        Samples produced by the image sampling process.
-    reference_colour_checker : NDArray
-        Reference *ACES* *RGB* values for the *ColorChecker Classic*.
-
-    Returns
-    -------
-    tuple
-        Tuple of camera and reference *ACES* *RGB* samples.
-    """
-
-    samples_camera = []
-    samples_reference = []
-    for EV, images in samples_analysis["data"]["colour_checker"].items():
-        samples_reference.append(
-            reference_colour_checker[-6:, ...] * pow(2, EV)
-        )
-        samples_EV = as_float_array(images["samples_median"])[-6:, ...]
-        samples_camera.append(samples_EV)
-    samples_camera = np.vstack(samples_camera)
-    samples_reference = np.vstack(samples_reference)
-
-    indices = np.argsort(np.median(samples_camera, axis=-1), axis=0)
-
-    samples_camera = samples_camera[indices]
-    samples_reference = samples_reference[indices]
-
-    return samples_camera, samples_reference
-
-
-@dataclass
-class DataGenerateLUT3x1D(MixinDataclassIterable):
-    """
-    Data from the linearisation *LUT3x1D* generation process.
-
-    Parameters
-    ----------
-    LUT_unfiltered : LUT3x1D
-        Unfiltered linearisation *LUT* for the camera samples.
-    samples_linear : NDArray
-        Samples generated using linear extrapolation.
-    samples_constant : NDArray
-        Samples generated using constant extrapolation.
-    samples_middle : NDArray
-        Samples used for linearly fitting the central slope in logarithmic
-        space.
-    mask_samples : NDArray
-        Mask for blending ``samples_constant`` and the linearly fitted central
-        slope.
-    coefficients : NDArray
-        Coefficients of the line that linearly fits the central slope.
-    edges : NDArray
-        Left and right edges that ``mask_samples`` spans.
-    """
-
-    LUT_unfiltered: LUT3x1D
-    samples_linear: NDArray
-    samples_constant: NDArray
-    samples_middle: NDArray
-    coefficients: NDArray
-    mask_samples: NDArray
-    edges: NDArray
-
-
-def generate_LUT3x1D(
-    samples_camera, samples_reference, size=1024, additional_data=False
-):
-    """
-    Generate an unfiltered linearisation *LUT* for the camera samples.
-
-    The *LUT* generation process is worth describing, the camera samples are
-    unlikely to cover the [0, 1] domain and thus need to be extrapolated.
-
-    Two extrapolated datasets are generated:
-
-        -   Linearly extrapolated for the left edge missing data whose clipping
-            likelihood is low and thus can be extrapolated safely.
-        -   Constant extrapolated for the right edge missing data whose clipping
-            likelihood is high and thus cannot be extrapolated safely
-
-    Because the camera encoded data response is logarithmic, the slope of the
-    center portion of the data is computed and fitted. The fitted line will be
-    used to extrapolate the right edge missing data. It is blended through a
-    smoothstep with the constant extrapolated samples. The blend is fully
-    achieved at the right edge of the camera samples.
-
-    Parameters
-    ----------
-    samples_camera : array_like
-        Samples for the camera.
-    samples_reference : array_like
-        Reference *ACES* *RGB* samples.
-    size : integer, optional
-        *LUT* size.
-    additional_data : bool, optional
-        Whether to return additional data.
-
-    Returns
-    -------
-    LUT3x1D or DataGenerateLUT3x1D
-        Unfiltered linearisation *LUT* for the camera samples or data
-        from the linearisation *LUT3x1D* generation process.
-    """
-
-    samples_camera = as_float_array(samples_camera)
-    samples_reference = as_float_array(samples_reference)
-
-    LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
-
-    for i in range(3):
-        x = samples_camera[..., i] * (size - 1)
-        y = samples_reference[..., i]
-
-        samples = np.arange(0, size, 1)
-
-        samples_linear = Extrapolator(LinearInterpolator(x, y))(samples)
-        samples_constant = Extrapolator(
-            LinearInterpolator(x, y), method="Constant"
-        )(samples)
-
-        # Searching for the index of ~middle camera code value * 125%
-        # We are trying to find the logarithmic slope of the camera middle
-        # range.
-        index_middle = np.searchsorted(
-            samples / size, np.max(samples_camera) / 2 * 1.25
-        )
-        padding = index_middle // 2
-        samples_middle = np.log(np.copy(samples_linear))
-        samples_middle[: index_middle - padding] = samples_middle[
-            index_middle - padding
-        ]
-        samples_middle[index_middle + padding :] = samples_middle[
-            index_middle + padding
-        ]
-
-        a, b = np.polyfit(
-            samples[index_middle - padding : index_middle + padding],
-            samples_middle[index_middle - padding : index_middle + padding],
-            1,
-        )
-
-        # Preparing the mask to blend the logarithmic slope with the
-        # extrapolated data.
-        edge_left = index_middle - padding
-        edge_right = np.searchsorted(samples / size, np.max(samples_camera))
-        mask_samples = smoothstep_function(
-            samples, edge_left, edge_right, clip=True
-        )
-
-        LUT_unfiltered.table[..., i] = samples_linear
-        LUT_unfiltered.table[index_middle - padding :, i] = (
-            np.exp(a * samples + b) * mask_samples
-            + samples_constant * (1 - mask_samples)
-        )[index_middle - padding :]
-
-    if additional_data:
-        return DataGenerateLUT3x1D(
-            LUT_unfiltered,
-            samples_linear,
-            samples_constant,
-            samples_middle,
-            as_float_array([a, b]),
-            mask_samples,
-            as_float_array([edge_left / size, edge_right / size]),
-        )
-    else:
-        return LUT_unfiltered
-
-
-def filter_LUT3x1D(LUT, sigma=16):
-    """
-    Filter/smooth the linearisation *LUT* for the camera samples.
-
-    The LUT filtering is performed with a gaussian convolution, the sigma value
-    represents the window size. To prevent that the edges of the LUT are
-    affected by the convolution, the LUT is extended, i.e. extrapolated at a
-    safe two sigmas in both directions. The left edge is linearly extrapolated
-    while the right edge is logarithmically extrapolated.
-
-    Parameters
-    ----------
-    LUT : LUT3x1D
-        Linearisation *LUT* for the camera samples.
-    sigma : numeric
-        Standard deviation of the gaussian convolution kernel.
-
-    Returns
-    -------
-    LUT3x1D
-        Filtered linearisation *LUT* for the camera samples.
-    """
-
-    filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
-    filter_kwargs = {"sigma": sigma}
-
-    LUT_filtered = LUT.copy()
-    LUT_filtered.name = "LUT - Filtered"
-
-    sigma_x2 = int(sigma * 2)
-    x, step = np.linspace(0, 1, LUT.size, retstep=True)
-    padding = np.arange(step, sigma_x2 * step + step, step)
-    for i in range(3):
-        y = LUT_filtered.table[..., i]
-        x_extended = np.concatenate([-padding[::-1], x, padding + 1])
-
-        # Filtering is performed on extrapolated data.
-        y_linear_extended = Extrapolator(LinearInterpolator(x, y))(x_extended)
-        y_log_extended = np.exp(
-            Extrapolator(LinearInterpolator(x, np.log(y)))(x_extended)
-        )
-
-        y_linear_filtered = filter(y_linear_extended, **filter_kwargs)
-        y_log_filtered = filter(y_log_extended, **filter_kwargs)
-
-        index_middle = len(x_extended) // 2
-        LUT_filtered.table[..., i] = np.concatenate(
-            [
-                y_linear_filtered[sigma_x2:index_middle],
-                y_log_filtered[index_middle:-sigma_x2],
-            ]
-        )
-
-    return LUT_filtered
-
-
-@dataclass
-class DataDecodeSamples(MixinDataclassIterable):
-    """
-    Data from the decoding samples process.
-
-    Parameters
-    ----------
-    samples_decoded : NDArray
-        Decoded samples.
-    LUT_decoding : LUT1D or LUT3x1D
-        Decoding *LUT* for the camera samples, the difference with the
-        linearisation *LUT* is that the former is the final *LUT* used for the
-        camera samples and is the result of transforming the channels of the
-        linearisation *LUT* through a median or averaging operation for
-        example.
-    """
-
-    samples_decoded: NDArray
-    LUT_decoding: Union[LUT1D, LUT3x1D]
-
-
-def decode_samples(
-    samples_analysis,
-    LUT,
-    decoding_method="Median",
-    grey_card_reflectance=(0.18, 0.18, 0.18),
-    additional_data=False,
-):
-    """
-    Decode the samples produced by the image sampling process.
-
-    Parameters
-    ----------
-    samples_analysis : dict
-        Samples produced by the image sampling process.
-    LUT : LUT1D or LUT3x1D
-        Linearisation *LUT* for the camera samples.
-    decoding_method : str, optional
-        {"Median", "Average", "Per Channel", "ACES"},
-        Decoding method.
-    grey_card_reflectance : array_like, optional
-        Measured grey card reflectance.
-    additional_data : bool, optional
-        Whether to return additional data.
-
-    Returns
-    -------
-    dict or DataDecodeSamples
-        Decoded samples or data from the decoding samples process.
-    """
-
-    decoding_method = validate_method(
-        decoding_method,
-        ("Median", "Average", "Per Channel", "ACES"),
-    )
-
-    grey_card_reflectance = as_float_array(grey_card_reflectance)
-
-    if decoding_method == "median":
-        LUT_decoding = LUT1D(np.median(LUT.table, axis=-1))
-    elif decoding_method == "average":
-        LUT_decoding = LUT_to_LUT(LUT, LUT1D, force_conversion=True)
-    elif decoding_method == "per channel":
-        LUT_decoding = LUT.copy()
-    elif decoding_method == "aces":
-        LUT_decoding = LUT_to_LUT(
-            LUT,
-            LUT1D,
-            force_conversion=True,
-            channel_weights=RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[
-                1, ...
-            ],
-        )
-
-    LUT_decoding.name = "LUT - Decoding"
-
-    if samples_analysis["data"]["grey_card"] is not None:
-        sampled_grey_card_reflectance = samples_analysis["data"]["grey_card"][
-            "samples_median"
-        ]
-        linear_gain = grey_card_reflectance / LUT_decoding.apply(
-            sampled_grey_card_reflectance
-        )
-        if decoding_method == "median":
-            linear_gain = np.median(linear_gain)
-        elif decoding_method == "average":
-            linear_gain = np.average(linear_gain)
-        elif decoding_method == "per channel":
-            pass
-        elif decoding_method == "aces":
-            linear_gain = RGB_luminance(
-                linear_gain,
-                RGB_COLOURSPACE_ACES2065_1.primaries,
-                RGB_COLOURSPACE_ACES2065_1.whitepoint,
-            )
-
-        LUT_decoding.table *= linear_gain
-
-    samples_decoded = {}
-    for EV in sorted(samples_analysis["data"]["colour_checker"]):
-        samples_decoded[EV] = LUT_decoding.apply(
-            as_float_array(
-                samples_analysis["data"]["colour_checker"][EV][
-                    "samples_median"
-                ]
-            )
-        )
-
-    if additional_data:
-        return DataDecodeSamples(samples_decoded, LUT_decoding)
-    else:
-        return samples_decoded
-
-
-@dataclass
-class DataMatrixIdt(MixinDataclassIterable):
-    """
-    Data from the *Input Device Transform* (IDT) matrix generation process.
-
-    Parameters
-    ----------
-    M : NDArray
-        *Input Device Transform* (IDT) matrix.
-    RGB_w : NDArray
-         White balance multipliers :math:`RGB_w`.
-    k : float
-        Exposure factor :math:`k` that results in a nominally "18% gray" object
-        in the scene producing ACES values [0.18, 0.18, 0.18].
-    samples_weighted : NDArray
-        Weighted samples according to their median or the given weights.
-    """
-
-    M: NDArray
-    RGB_w: NDArray
-    k: float
-    samples_weighted: NDArray
-
-
-def matrix_idt(
-    samples,
-    EV_range=(-1, 0, 1),
-    EV_weights=None,
-    training_data=RGB_COLORCHECKER_CLASSIC_ACES,
-    optimisation_factory=optimisation_factory_rawtoaces_v1,
-    optimisation_kwargs=None,
-    additional_data=False,
-):
-    """
-    Compute the *IDT* matrix.
-
-    Parameters
-    ----------
-    samples : NDArray
-        Camera samples.
-    EV_range : array_like, optional
-        Exposure values to use when computing the *IDT* matrix.
-    EV_weights : array_like, optional
-        Normalised weights used to sum the exposure values. If not given, the
-        median of the exposure values is used.
-    training_data : NDArray, optional
-        Training data multi-spectral distributions, defaults to using the
-        *RAW to ACES* v1 190 patches.
-    optimisation_factory : callable, optional
-        Callable producing the objective function and the *CIE XYZ* to
-        optimisation colour model function.
-    optimisation_kwargs : dict, optional
-        Parameters for :func:`scipy.optimize.minimize` definition.
-    additional_data : bool, optional
-        Whether to return additional data.
-
-    Returns
-    -------
-    :class:`tuple` or DataMatrixIdt
-        Tuple of *IDT* matrix, white balance multipliers :math:`RGB_w` and
-        exposure factor :math:`k` that results in a nominally "18% gray" object
-        in the scene producing ACES values [0.18, 0.18, 0.18].
-        data from the *Input Device Transform* (IDT) matrix generation process.
-    """
-
-    EV_range = as_float_array(EV_range)
-
-    samples_normalised = as_float_array(
-        [
-            samples[EV] * (1 / pow(2, EV))
-            for EV in np.atleast_1d(EV_range)
-            if EV in samples
-        ]
-    )
-
-    if EV_weights is None:
-        samples_weighted = np.median(samples_normalised, axis=0)
-    else:
-        samples_weighted = np.sum(
-            samples_normalised
-            * as_float_array(EV_weights)[..., np.newaxis, np.newaxis],
-            axis=0,
-        )
-
-    XYZ = vector_dot(
-        RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data
-    )
-
-    RGB_w = 1 / np.mean(samples_weighted[18:], axis=0)
-    k = RGB_w * np.mean(XYZ[18:], axis=0)
-    samples_weighted *= k
-
-    RGB_w /= RGB_w[1]
-    k = np.mean(k)
-
-    (
-        x_0,
-        objective_function,
-        XYZ_to_optimization_colour_model,
-        finaliser_function,
-    ) = optimisation_factory()
-    optimisation_settings = {
-        "method": "BFGS",
-        "jac": "2-point",
-    }
-    if optimisation_kwargs is not None:
-        optimisation_settings.update(optimisation_kwargs)
-
-    M = minimize(
-        objective_function,
-        x_0,
-        (samples_weighted, XYZ_to_optimization_colour_model(XYZ)),
-        **optimisation_settings,
-    ).x
-
-    M = finaliser_function(M)
-
-    if additional_data:
-        return DataMatrixIdt(M, RGB_w, k, samples_weighted)
-    else:
-        return M, RGB_w, k
-
-
-def archive_to_specification(
-    archive, directory, image_format=EXTENSION_DEFAULT
-):
-    """
-    Extract the specification from given *IDT* archive.
-
-    Parameters
-    ----------
-    archive : str
-        *IDT* archive path, i.e. a zip file path.
-    directory : str
-        Directory to extract the *IDT* archive.
-    image_format : str, optional
-        Image format to filter.
-
-    Returns
-    -------
-    dict
-        *IDT* archive specification.
-    """
-
-    shutil.unpack_archive(archive, directory)
-
-    extracted_directories = list_sub_directories(directory)
-
-    attest(len(extracted_directories) == 1)
-
-    root_directory = extracted_directories[0]
-
-    json_files = list(root_directory.glob("*.json"))
-    if len(json_files) == 1:
-        with open(json_files[0]) as json_file:
-            specification = json.load(json_file)
-    else:
-        specification = deepcopy(DATA_SPECIFICATION)
-
-        specification["header"]["camera"] = Path(archive).stem
-
-        colour_checker_directory = root_directory / "data" / "colour_checker"
-
-        attest(colour_checker_directory.exists())
-
-        for exposure_directory in colour_checker_directory.iterdir():
-            if re.match(r"-?\d", exposure_directory.name):
-                EV = exposure_directory.name
-
-                specification["data"]["colour_checker"][EV] = list(
-                    (colour_checker_directory / exposure_directory).glob(
-                        f"*.{image_format}"
-                    )
-                )
-
-        flatfield_directory = root_directory / "data" / "flatfield"
-        if flatfield_directory.exists():
-            specification["data"]["flatfield"] = list(
-                flatfield_directory.glob(f"*.{image_format}")
-            )
-
-        grey_card_directory = root_directory / "data" / "grey_card"
-        if grey_card_directory.exists():
-            specification["data"]["grey_card"] = list(
-                flatfield_directory.glob(f"*.{image_format}")
-            )
-
-    for exposure in list(specification["data"]["colour_checker"].keys()):
-        images = [
-            Path(root_directory) / image
-            for image in specification["data"]["colour_checker"].pop(exposure)
-        ]
-
-        for image in images:
-            attest(image.exists())
-
-        specification["data"]["colour_checker"][float(exposure)] = images
-
-    if specification["data"].get("flatfield") is not None:
-        images = [
-            Path(root_directory) / image
-            for image in specification["data"]["flatfield"]
-        ]
-        for image in images:
-            attest(image.exists())
-
-        specification["data"]["flatfield"] = images
-
-    if specification["data"].get("grey_card") is not None:
-        images = [
-            Path(root_directory) / image
-            for image in specification["data"]["grey_card"]
-        ]
-        for image in images:
-            attest(image.exists())
-
-        specification["data"]["grey_card"] = images
-
-    return specification
-
-
-_CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
-    f"{__name__}._CACHE_DATA_ARCHIVE_TO_SAMPLES"
-)
-
-
-@dataclass
-class DataArchiveToSamples(MixinDataclassIterable):
-    """
-    Data from an *Input Device Transform* (IDT) archive to image sampling
-    process.
-
-    Parameters
-    ----------
-    specification : dict
-        Archive specification.
-    data_specification_to_samples : DataSpecificationSamples
-        Analysis data from the image sampling process.
-    """
-
-    specification: Dict
-    data_specification_to_samples: DataSpecificationSamples
-
-
-def archive_to_samples(
-    archive,
-    image_format=EXTENSION_DEFAULT,
-    additional_data=False,
-    cleanup=True,
-):
-    """
-    Extract the samples from given *IDT* archive.
-
-    Parameters
-    ----------
-    archive : str
-        *IDT* archive path, i.e. a zip file path.
-    image_format : str, optional
-        Image format to filter.
-    additional_data : bool, optional
-        Whether to return additional data.
-    cleanup : bool, optional
-        Whether to cleanup the temporary directory.
-
-    Returns
-    -------
-    DataSpecificationSamples or DataArchiveToSamples
-        Data from the image sampling process or data from an
-        *Input Device Transform* (IDT) archive to image sampling
-        process.
-    """
-
-    key = (archive, image_format, additional_data)
-
-    data_archive_to_samples = _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(key)
-    if data_archive_to_samples is None:
-        temporary_directory = tempfile.TemporaryDirectory()
-        specification = archive_to_specification(
-            archive, temporary_directory.name, image_format
-        )
-
-        data_specification_to_samples = specification_to_samples(
-            specification, additional_data=True
-        )
-
-        data_archive_to_samples = DataArchiveToSamples(
-            specification, data_specification_to_samples
-        )
-
-        if cleanup:
-            temporary_directory.cleanup()
-
-    _CACHE_DATA_ARCHIVE_TO_SAMPLES[key] = data_archive_to_samples
-
-    if additional_data:
-        return data_archive_to_samples
-    else:
-        return data_archive_to_samples.data_specification_to_samples
-
-
-@dataclass
-class DataArchiveToIdt(MixinDataclassIterable):
-    """
-    Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-    generation process.
-
-    Parameters
-    ----------
-    data_archive_to_samples : DataArchiveToSamples
-        Data from an *Input Device Transform* (IDT) archive to image sampling
-        process.
-    samples_camera : NDArray
-        Samples from the camera.
-    samples_reference : NDArray
-        Reference samples from the *ACES* colour checker.
-    data_generate_LUT3x1D : DataGenerateLUT3x1D
-        Data from the *LUT3x1D* generation process.
-    LUT_filtered : LUT3x1D
-        Filtered *LUT3x1D*.
-    data_decode_samples : DataDecodeSamples
-        Data from the decoding samples process.
-    data_matrix_idt : DataMatrixIdt
-        Data from the *Input Device Transform* (IDT) matrix generation process.
-    """
-
-    data_archive_to_samples: DataArchiveToSamples
-    samples_camera: NDArray
-    samples_reference: NDArray
-    data_generate_LUT3x1D: DataGenerateLUT3x1D
-    LUT_filtered: LUT3x1D
-    data_decode_samples: DataDecodeSamples
-    data_matrix_idt: DataMatrixIdt
-
-
-def archive_to_idt(
-    archive,
-    image_format=EXTENSION_DEFAULT,
-    archive_to_samples_kwargs=None,
-    sort_samples_kwargs=None,
-    generate_LUT3x1D_kwargs=None,
-    filter_LUT3x1D_kwargs=None,
-    decode_samples_kwargs=None,
-    matrix_idt_kwargs=None,
-    additional_data=False,
-):
-    """
-    Generate the *Input Device Transform (IDT)* from given *IDT* archive.
-
-    Parameters
-    ----------
-    archive : str
-        *IDT* archive path, i.e. a zip file path.
-    image_format : str, optional
-        Image format to filter.
-    archive_to_samples_kwargs : dict, optional
-        Keyword arguments for the :func:`archive_to_samples` definition.
-    sort_samples_kwargs : dict, optional
-        Keyword arguments for the :func:`sort_samples` definition.
-    generate_LUT3x1D_kwargs : dict, optional
-        Keyword arguments for the :func:`generate_LUT3x1D` definition.
-    filter_LUT3x1D_kwargs : dict, optional
-        Keyword arguments for the :func:`filter_LUT3x1D` definition.
-    decode_samples_kwargs : dict, optional
-        Keyword arguments for the :func:`decode_samples` definition.
-    matrix_idt_kwargs : dict, optional
-        Keyword arguments for the :func:`matrix_idt` definition.
-    additional_data : bool, optional
-        Whether to return additional data.
-
-    Returns
-    -------
-    tuple or DataArchiveToIdt
-        Tuple of decoding *LUT* for the camera samples and *IDT* matrix or data
-        from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-    """
-
-    archive_to_samples_kwargs = optional(archive_to_samples_kwargs, {})
-    sort_samples_kwargs = optional(sort_samples_kwargs, {})
-    generate_LUT3x1D_kwargs = optional(generate_LUT3x1D_kwargs, {})
-    filter_LUT3x1D_kwargs = optional(filter_LUT3x1D_kwargs, {})
-    decode_samples_kwargs = optional(decode_samples_kwargs, {})
-    matrix_idt_kwargs = optional(matrix_idt_kwargs, {})
-
-    data_archive_to_samples = archive_to_samples(
-        archive,
-        image_format,
-        additional_data=True,
-        **archive_to_samples_kwargs,
-    )
-    samples_camera, samples_reference = sort_samples(
-        data_archive_to_samples.data_specification_to_samples.samples_analysis,
-        **sort_samples_kwargs,
-    )
-
-    data_generate_LUT3x1D = generate_LUT3x1D(
-        samples_camera,
-        samples_reference,
-        additional_data=True,
-        **generate_LUT3x1D_kwargs,
-    )
-
-    LUT_filtered = filter_LUT3x1D(
-        data_generate_LUT3x1D.LUT_unfiltered, **filter_LUT3x1D_kwargs
-    )
-
-    data_decode_samples = decode_samples(
-        data_archive_to_samples.data_specification_to_samples.samples_analysis,
-        LUT_filtered,
-        additional_data=True,
-        **decode_samples_kwargs,
-    )
-
-    data_matrix_idt = matrix_idt(
-        data_decode_samples.samples_decoded,
-        additional_data=True,
-        **matrix_idt_kwargs,
-    )
-
-    if additional_data:
-        return DataArchiveToIdt(
-            data_archive_to_samples,
-            samples_camera,
-            samples_reference,
-            data_generate_LUT3x1D,
-            LUT_filtered,
-            data_decode_samples,
-            data_matrix_idt,
-        )
-    else:
-        return data_decode_samples.LUT_decoding, data_matrix_idt.M
-
-
-def idt_to_clf(data_archive_to_idt, output_directory, information):
-    """
-    Convert the *IDT* matrix generation process data to *Common LUT Format*
-    (CLF).
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-    output_directory : str
-        Output directory for the zip file.
-    information : dict
-        Information pertaining to the *IDT* and the computation parameters.
-
-    Returns
-    -------
-    str
-        *CLF* file path.
-    """
-
-    camera_name = data_archive_to_idt.data_archive_to_samples.specification[
-        "header"
-    ]["camera"]
-    manufacturer = data_archive_to_idt.data_archive_to_samples.specification[
-        "header"
-    ]["manufacturer"]
-
-    root = Et.Element(
-        "ProcessList",
-        compCLFversion="3",
-        id=f"urn:ampas:aces:transformId:v1.5:IDT.{manufacturer}.{camera_name}.a1.v1",
-        name=f"{manufacturer} {camera_name} to ACES2065-1",
-    )
-
-    def format_array(a):
-        """Format given array :math:`a`."""
-
-        return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
-
-    et_input_descriptor = Et.SubElement(root, "InputDescriptor")
-    et_input_descriptor.text = f"{manufacturer} {camera_name}"
-
-    et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
-    et_output_descriptor.text = "ACES2065-1"
-
-    et_info = Et.SubElement(root, "Info")
-    et_metadata = Et.SubElement(et_info, "Archive")
-    for (
-        key,
-        value,
-    ) in data_archive_to_idt.data_archive_to_samples.specification[
-        "header"
-    ].items():
-        if key == "schema_version":
-            continue
-
-        sub_element = Et.SubElement(
-            et_metadata, key.replace("_", " ").title().replace(" ", "")
-        )
-        sub_element.text = str(value)
-    et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
-    for key, value in information.items():
-        sub_element = Et.SubElement(et_academy_idt_calculator, key)
-        sub_element.text = str(value)
-
-    et_lut = Et.SubElement(
-        root,
-        "LUT1D",
-        inBitDepth="32f",
-        outBitDepth="32f",
-        interpolation="linear",
-    )
-    LUT_decoding = data_archive_to_idt.data_decode_samples.LUT_decoding
-    channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-    et_description = Et.SubElement(et_lut, "Description")
-    et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-    et_array = Et.SubElement(
-        et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
-    )
-    et_array.text = f"\n{format_array(LUT_decoding.table)}"
-
-    RGB_w = data_archive_to_idt.data_matrix_idt.RGB_w
-    et_RGB_w = Et.SubElement(
-        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-    )
-    et_description = Et.SubElement(et_RGB_w, "Description")
-    et_description.text = "White balance multipliers *b*."
-    et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
-
-    M = data_archive_to_idt.data_matrix_idt.M
-    et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = Et.SubElement(et_M, "Description")
-    et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-    et_array = Et.SubElement(et_M, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.ravel(M))}"
-
-    k = data_archive_to_idt.data_matrix_idt.k
-    et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = Et.SubElement(et_k, "Description")
-    et_description.text = (
-        'Exposure factor *k* that results in a nominally "18% gray" object in '
-        "the scene producing ACES values [0.18, 0.18, 0.18]."
-    )
-    et_array = Et.SubElement(et_k, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.ravel(np.diag([k] * 3)))}"
-
-    et_range = Et.SubElement(
-        root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
-    )
-    et_max_in_value = Et.SubElement(et_range, "maxInValue")
-    et_max_in_value.text = "1"
-    et_max_out_value = Et.SubElement(et_range, "maxOutValue")
-    et_max_out_value.text = "1"
-
-    clf_path = (
-        f"{output_directory}/"
-        f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.clf"
-    )
-    Et.indent(root)
-
-    with open(clf_path, "w") as clf_file:
-        clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-        clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
-
-    return clf_path
-
-
-def zip_idt(data_archive_to_idt, output_directory, information):
-    """
-    Zip the *IDT*.
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-    output_directory : str
-        Output directory for the *zip* file.
-    information : dict
-        Information pertaining to the *IDT* and the computation parameters.
-
-    Returns
-    -------
-    str
-        *Zip* file path.
-    """
-
-    camera_name = data_archive_to_idt.data_archive_to_samples.specification[
-        "header"
-    ]["camera"]
-    manufacturer = data_archive_to_idt.data_archive_to_samples.specification[
-        "header"
-    ]["manufacturer"]
-
-    clf_path = idt_to_clf(data_archive_to_idt, output_directory, information)
-
-    json_path = f"{output_directory}/{manufacturer}.{camera_name}.json"
-    with open(json_path, "w") as json_file:
-        json_file.write(jsonpickle.encode(data_archive_to_idt, indent=2))
-
-    zip_file = Path(output_directory) / f"IDT_{manufacturer}_{camera_name}.zip"
-
-    os.chdir(output_directory)
-    with ZipFile(zip_file, "w") as zip_archive:
-        zip_archive.write(clf_path.replace(output_directory, "")[1:])
-        zip_archive.write(json_path.replace(output_directory, "")[1:])
-
-    return zip_file
-
-
-def png_colour_checker_segmentation(data_archive_to_idt):
-    """
-    Return the colour checker segmentation image as *PNG* data.
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-
-    Returns
-    -------
-    str or None
-        *PNG* data.
-    """
-
-    data_specification_to_samples = (
-        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
-    )
-
-    if data_specification_to_samples.image_colour_checker_segmentation is None:
-        return None
-
-    colour.plotting.plot_image(
-        data_specification_to_samples.image_colour_checker_segmentation,
-        show=False,
-    )
-
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-    plt.close()
-
-    return data_png
-
-
-def png_grey_card_sampling(data_archive_to_idt):
-    """
-    Return the grey card image sampling as *PNG* data.
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-
-    Returns
-    -------
-    str or None
-        *PNG* data.
-    """
-
-    data_specification_to_samples = (
-        data_archive_to_idt.data_archive_to_samples.data_specification_to_samples
-    )
-
-    if data_specification_to_samples.image_grey_card_sampling is None:
-        return None
-
-    colour.plotting.plot_image(
-        data_specification_to_samples.image_grey_card_sampling,
-        show=False,
-    )
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-    plt.close()
-
-    return data_png
-
-
-def png_measured_camera_samples(data_archive_to_idt):
-    """
-    Return the measured camera samples as *PNG* data.
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-
-    Returns
-    -------
-    str or None
-        *PNG* data.
-    """
-
-    samples_camera = data_archive_to_idt.samples_camera
-    samples_reference = data_archive_to_idt.samples_reference
-
-    if samples_camera is None or samples_reference is None:
-        return None
-
-    figure, axes = colour.plotting.artist()
-    axes.plot(
-        data_archive_to_idt.samples_camera,
-        np.log(data_archive_to_idt.samples_reference),
-    )
-    colour.plotting.render(
-        **{
-            "show": False,
-            "x_label": "Camera Code Value",
-            "y_label": "Log(ACES Reference)",
-        }
-    )
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-    plt.close()
-
-    return data_png
-
-
-def png_extrapolated_camera_samples(data_archive_to_idt):
-    """
-    Return the extrapolated camera samples as *PNG* data.
-
-    Parameters
-    ----------
-    data_archive_to_idt : DataArchiveToIdt
-        Data from an *Input Device Transform* (IDT) archive to *IDT* matrix
-        generation process.
-
-    Returns
-    -------
-    str or None
-        *PNG* data.
-    """
-
-    samples_camera = data_archive_to_idt.samples_camera
-    samples_reference = data_archive_to_idt.samples_reference
-    LUT_filtered = data_archive_to_idt.LUT_filtered
-    edge_left, edge_right = data_archive_to_idt.data_generate_LUT3x1D.edges
-
-    if (
-        samples_camera is None
-        or samples_reference is None
-        or LUT_filtered is None
+    def optimise(
+        self,
+        EV_range=(-1, 0, 1),
+        EV_weights=None,
+        training_data=RGB_COLORCHECKER_CLASSIC_ACES,
+        optimisation_factory=optimisation_factory_rawtoaces_v1,
+        optimisation_kwargs=None,
     ):
-        return None
+        """
+        Compute the *IDT* matrix.
 
-    samples = np.linspace(0, 1, LUT_filtered.size)
-    figure, axes = colour.plotting.artist()
-    for i, RGB in enumerate(("r", "g", "b")):
-        axes.plot(
-            samples_camera[..., i],
-            np.log(samples_reference)[..., i],
-            "o",
-            color=RGB,
-            alpha=0.25,
+        Parameters
+        ----------
+        EV_range : array_like, optional
+            Exposure values to use when computing the *IDT* matrix.
+        EV_weights : array_like, optional
+            Normalised weights used to sum the exposure values. If not given, the
+            median of the exposure values is used.
+        training_data : NDArray, optional
+            Training data multi-spectral distributions, defaults to using the
+            *RAW to ACES* v1 190 patches.
+        optimisation_factory : callable, optional
+            Callable producing the objective function and the *CIE XYZ* to
+            optimisation colour model function.
+        optimisation_kwargs : dict, optional
+            Parameters for :func:`scipy.optimize.minimize` definition.
+
+        Returns
+        -------
+        :class:`tuple`
+            Tuple of *IDT* matrix :math:`M`, white balance multipliers
+            :math:`RGB_w` and exposure factor :math:`k` that results in a
+            nominally "18% gray" object in the scene producing ACES values
+            [0.18, 0.18, 0.18].
+        """
+
+        EV_range = as_float_array(EV_range)
+
+        samples_normalised = as_float_array(
+            [
+                self._samples_decoded[EV] * (1 / pow(2, EV))
+                for EV in np.atleast_1d(EV_range)
+                if EV in self._samples_decoded
+            ]
         )
-        axes.plot(samples, np.log(LUT_filtered.table[..., i]), color=RGB)
-        axes.axvline(edge_left, color="r", alpha=0.25)
-        axes.axvline(edge_right, color="r", alpha=0.25)
-    colour.plotting.render(
-        **{
-            "show": False,
-            "x_label": "Camera Code Value",
-            "y_label": "Log(ACES Reference)",
-        }
-    )
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-    plt.close()
 
-    return data_png
+        if EV_weights is None:
+            self._samples_weighted = np.median(samples_normalised, axis=0)
+        else:
+            self._samples_weighted = np.sum(
+                samples_normalised
+                * as_float_array(EV_weights)[..., np.newaxis, np.newaxis],
+                axis=0,
+            )
+
+        XYZ = vector_dot(
+            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data
+        )
+
+        self._RGB_w = 1 / np.mean(self._samples_weighted[18:], axis=0)
+        self._k = self._RGB_w * np.mean(XYZ[18:], axis=0)
+        self._samples_weighted *= self._k
+
+        self._RGB_w /= self._RGB_w[1]
+        self._k = np.mean(self._k)
+
+        (
+            x_0,
+            objective_function,
+            XYZ_to_optimization_colour_model,
+            finaliser_function,
+        ) = optimisation_factory()
+        optimisation_settings = {
+            "method": "BFGS",
+            "jac": "2-point",
+        }
+        if optimisation_kwargs is not None:
+            optimisation_settings.update(optimisation_kwargs)
+
+        self._M = minimize(
+            objective_function,
+            x_0,
+            (self._samples_weighted, XYZ_to_optimization_colour_model(XYZ)),
+            **optimisation_settings,
+        ).x
+
+        self._M = finaliser_function(self._M)
+
+        return self._M, self._RGB_w, self._k
+
+    def to_clf(self, output_directory, information):
+        """
+        Convert the *IDT* matrix generation process data to *Common LUT Format*
+        (CLF).
+
+        Parameters
+        ----------
+        output_directory : str
+            Output directory for the zip file.
+        information : dict
+            Information pertaining to the *IDT* and the computation parameters.
+
+        Returns
+        -------
+        :class:`str`
+            *CLF* file path.
+        """
+
+        camera_name = self._specification["header"]["camera"]
+        manufacturer = self._specification["header"]["manufacturer"]
+
+        root = Et.Element(
+            "ProcessList",
+            compCLFversion="3",
+            id=f"urn:ampas:aces:transformId:v1.5:IDT.{manufacturer}.{camera_name}.a1.v1",
+            name=f"{manufacturer} {camera_name} to ACES2065-1",
+        )
+
+        def format_array(a):
+            """Format given array :math:`a`."""
+
+            return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
+
+        et_input_descriptor = Et.SubElement(root, "InputDescriptor")
+        et_input_descriptor.text = f"{manufacturer} {camera_name}"
+
+        et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
+        et_output_descriptor.text = "ACES2065-1"
+
+        et_info = Et.SubElement(root, "Info")
+        et_metadata = Et.SubElement(et_info, "Archive")
+        for (
+            key,
+            value,
+        ) in self._specification["header"].items():
+            if key == "schema_version":
+                continue
+
+            sub_element = Et.SubElement(
+                et_metadata, key.replace("_", " ").title().replace(" ", "")
+            )
+            sub_element.text = str(value)
+        et_academy_idt_calculator = Et.SubElement(
+            et_info, "AcademyIDTCalculator"
+        )
+        for key, value in information.items():
+            sub_element = Et.SubElement(et_academy_idt_calculator, key)
+            sub_element.text = str(value)
+
+        et_lut = Et.SubElement(
+            root,
+            "LUT1D",
+            inBitDepth="32f",
+            outBitDepth="32f",
+            interpolation="linear",
+        )
+        LUT_decoding = self._LUT_decoding
+        channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
+        et_description = Et.SubElement(et_lut, "Description")
+        et_description.text = (
+            f"Linearisation *{LUT_decoding.__class__.__name__}*."
+        )
+        et_array = Et.SubElement(
+            et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
+        )
+        et_array.text = f"\n{format_array(LUT_decoding.table)}"
+
+        RGB_w = self._RGB_w
+        et_RGB_w = Et.SubElement(
+            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+        )
+        et_description = Et.SubElement(et_RGB_w, "Description")
+        et_description.text = "White balance multipliers *b*."
+        et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+        et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
+
+        et_M = Et.SubElement(
+            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+        )
+        et_description = Et.SubElement(et_M, "Description")
+        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+        et_array = Et.SubElement(et_M, "Array", dim="3 3")
+        et_array.text = f"\n{format_array(np.ravel(self._M))}"
+
+        et_k = Et.SubElement(
+            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+        )
+        et_description = Et.SubElement(et_k, "Description")
+        et_description.text = (
+            'Exposure factor *k* that results in a nominally "18% gray" object in '
+            "the scene producing ACES values [0.18, 0.18, 0.18]."
+        )
+        et_array = Et.SubElement(et_k, "Array", dim="3 3")
+        et_array.text = f"\n{format_array(np.ravel(np.diag([self._k] * 3)))}"
+
+        et_range = Et.SubElement(
+            root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
+        )
+        et_max_in_value = Et.SubElement(et_range, "maxInValue")
+        et_max_in_value.text = "1"
+        et_max_out_value = Et.SubElement(et_range, "maxOutValue")
+        et_max_out_value.text = "1"
+
+        clf_path = (
+            f"{output_directory}/"
+            f"{manufacturer}.Input.{camera_name}_to_ACES2065-1.clf"
+        )
+        Et.indent(root)
+
+        with open(clf_path, "w") as clf_file:
+            clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+            clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
+
+        return clf_path
+
+    def zip(self, output_directory, information):  # noqa: A003
+        """
+        Zip the *IDT*.
+
+        Parameters
+        ----------
+        output_directory : str
+            Output directory for the *zip* file.
+        information : dict
+            Information pertaining to the *IDT* and the computation parameters.
+
+        Returns
+        -------
+        :class:`str`
+            *Zip* file path.
+        """
+
+        camera_name = self._specification["header"]["camera"]
+        manufacturer = self._specification["header"]["manufacturer"]
+
+        clf_path = self.to_clf(output_directory, information)
+
+        json_path = f"{output_directory}/{manufacturer}.{camera_name}.json"
+        with open(json_path, "w") as json_file:
+            json_file.write(jsonpickle.encode(self, indent=2))
+
+        zip_file = (
+            Path(output_directory) / f"IDT_{manufacturer}_{camera_name}.zip"
+        )
+
+        os.chdir(output_directory)
+        with ZipFile(zip_file, "w") as zip_archive:
+            zip_archive.write(clf_path.replace(output_directory, "")[1:])
+            zip_archive.write(json_path.replace(output_directory, "")[1:])
+
+        return zip_file
+
+    def png_colour_checker_segmentation(self):
+        """
+        Return the colour checker segmentation image as *PNG* data.
+
+        Returns
+        -------
+        :class:`str` or None
+            *PNG* data.
+        """
+
+        if self._image_colour_checker_segmentation is None:
+            return None
+
+        colour.plotting.plot_image(
+            self._image_colour_checker_segmentation,
+            show=False,
+        )
+
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+        plt.close()
+
+        return data_png
+
+    def png_grey_card_sampling(self):
+        """
+        Return the grey card image sampling as *PNG* data.
+
+        Returns
+        -------
+        :class:`str` or None
+            *PNG* data.
+        """
+
+        if self._image_grey_card_sampling is None:
+            return None
+
+        colour.plotting.plot_image(
+            self._image_grey_card_sampling,
+            show=False,
+        )
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+        plt.close()
+
+        return data_png
+
+    def png_measured_camera_samples(self):
+        """
+        Return the measured camera samples as *PNG* data.
+
+        Returns
+        -------
+        :class:`str` or None
+            *PNG* data.
+        """
+
+        if self._samples_camera is None or self._samples_reference is None:
+            return None
+
+        figure, axes = colour.plotting.artist()
+        axes.plot(self._samples_camera, np.log(self._samples_reference))
+        colour.plotting.render(
+            **{
+                "show": False,
+                "x_label": "Camera Code Value",
+                "y_label": "Log(ACES Reference)",
+            }
+        )
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+        plt.close()
+
+        return data_png
+
+    def png_extrapolated_camera_samples(self):
+        """
+        Return the extrapolated camera samples as *PNG* data.
+
+        Returns
+        -------
+        :class:`str` or None
+            *PNG* data.
+        """
+
+        if (
+            self._samples_camera is None
+            or self._samples_reference is None
+            or self._LUT_filtered is None
+        ):
+            return None
+
+        samples = np.linspace(0, 1, self._LUT_filtered.size)
+        figure, axes = colour.plotting.artist()
+        for i, RGB in enumerate(("r", "g", "b")):
+            axes.plot(
+                self._samples_camera[..., i],
+                np.log(self._samples_reference)[..., i],
+                "o",
+                color=RGB,
+                alpha=0.25,
+            )
+            axes.plot(
+                samples, np.log(self._LUT_filtered.table[..., i]), color=RGB
+            )
+            axes.axvline(self._blending_edge_left, color="r", alpha=0.25)
+            axes.axvline(self._blending_edge_right, color="r", alpha=0.25)
+        colour.plotting.render(
+            **{
+                "show": False,
+                "x_label": "Camera Code Value",
+                "y_label": "Log(ACES Reference)",
+            }
+        )
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png")
+        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
+        plt.close()
+
+        return data_png
