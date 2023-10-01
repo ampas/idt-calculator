@@ -1,3 +1,53 @@
+#aces-logo {
+    display: inline-block;
+    height: 100px;
+    padding: 1em;
+}
+
+#app-title {
+    display: inline-block;
+}
+
+#app-link {
+    text-decoration: none;
+    position: relative;
+    left: 20px;
+    top: 10px;
+}
+
+a {
+    color: rgb(193, 161, 56) !important;
+}
+
+#apps {
+    background-color: #323232 !important;
+}
+
+.tab-content {
+    background-color: #2f333d !important;
+    padding-bottom: 0.5em !important;
+    padding-left: 1em !important;
+    padding-right: 1em !important;
+    padding-top: 0.5em !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    background-color: #2f333d !important;
+}
+
+.dash-uploader-default, .dash-uploader-complete {
+    background-color: rgb(48, 48, 48) !important;
+}
+
+.btn-primary {
+    background-color: rgb(193, 161, 56) !important;
+    border-color: rgb(193, 161, 56) !important;
+}
+
+.nav-link.active {
+    background-color: #2f333d !important;
+}
+
 .progress-value {
     display: none !important;
 }

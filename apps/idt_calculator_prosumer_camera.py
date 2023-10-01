@@ -525,7 +525,15 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
 
 LAYOUT = Container(
     [
-        H3([Link(APP_NAME, href=APP_PATH)]),
+        Div(
+            [
+                Img(id="aces-logo", src="/assets/aces-logo.png"),
+                H3(
+                    [Link(APP_NAME, href=APP_PATH, id="app-link")],
+                    id="app-title",
+                ),
+            ]
+        ),
         Location(id=_uid("url"), refresh=False),
         Main(
             Tabs(
