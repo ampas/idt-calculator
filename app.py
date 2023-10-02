@@ -44,7 +44,7 @@ APP = dash.Dash(
     __application_name__,
     external_scripts=os.environ.get("AMPAS_APPS_JS", "").split(","),
     external_stylesheets=[
-        dash_bootstrap_components.themes.DARKLY,
+        dash_bootstrap_components.themes.BOOTSTRAP,
         *os.environ.get("AMPAS_APPS_CSS", "").split(","),
     ],
     server=SERVER,

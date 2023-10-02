@@ -35,7 +35,6 @@ __status__ = "Production"
 
 __all__ = [
     "COLOUR_ENVIRONMENT",
-    "STYLE_DATATABLE",
     "DATATABLE_DECIMALS",
     "CUSTOM_WAVELENGTHS",
     "DATASET_RAW_TO_ACES",
@@ -90,18 +89,6 @@ def _print_colour_environment(describe):
 
 
 colour.utilities.describe_environment(print_callable=_print_colour_environment)
-
-STYLE_DATATABLE = {
-    "header_background_colour": "rgb(30, 30, 30)",
-    "header_colour": "rgb(220, 220, 220)",
-    "cell_background_colour": "rgb(50, 50, 50)",
-    "cell_colour": "rgb(220, 220, 220)",
-}
-"""
-Datatable stylesheet.
-
-STYLE_DATATABLE : dict
-"""
 
 DATATABLE_DECIMALS = 7
 """

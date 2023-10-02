@@ -26,9 +26,23 @@ from colour.temperature import CCT_to_xy_CIE_D
 from colour.utilities import CACHE_REGISTRY, as_float, as_int_scalar
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
-from dash.dcc import Download, Link, Location, Markdown, send_file
+from dash.dcc import Download, Link, Location, Markdown, Tab, Tabs, send_file
 from dash.dependencies import Input, Output, State
-from dash.html import A, Br, Code, Div, Footer, H3, Img, Li, Main, Pre, Ul
+from dash.html import (
+    A,
+    Br,
+    Code,
+    Div,
+    Footer,
+    H2,
+    H3,
+    Img,
+    Li,
+    Main,
+    P,
+    Pre,
+    Ul,
+)
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -42,8 +56,6 @@ from dash_bootstrap_components import (
     Row,
     Select,
     Spinner,
-    Tab,
-    Tabs,
     Tooltip,
 )
 
@@ -69,7 +81,6 @@ from apps.common import (
     OPTIONS_ILLUMINANT,
     OPTIONS_INTERPOLATION,
     OPTIONS_OPTIMISATION_SPACES,
-    STYLE_DATATABLE,
 )
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
@@ -80,7 +91,8 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "APP_NAME",
+    "APP_NAME_LONG",
+    "APP_NAME_SHORT",
     "APP_PATH",
     "APP_DESCRIPTION",
     "APP_UID",
@@ -96,11 +108,20 @@ logger = logging.getLogger(__name__)
 
 colour.plotting.colour_style()
 
-APP_NAME = "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
+APP_NAME_LONG = (
+    "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
+)
 """
-App name.
+App long name.
 
-APP_NAME : str
+APP_NAME_LONG : str
+"""
+
+APP_NAME_SHORT = "IDT Calculator - Prosumer Camera"
+"""
+App short name.
+
+APP_NAME_SHORT : str
 """
 
 APP_PATH = f"/apps/{__name__.split('.')[-1]}"
@@ -121,7 +142,7 @@ App description.
 APP_DESCRIPTION : str
 """
 
-APP_UID = hash(APP_NAME)
+APP_UID = hash(APP_NAME_LONG)
 """
 App unique id.
 
@@ -196,17 +217,6 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
                     id=_uid("illuminant-datatable"),
                     editable=True,
                     style_as_list_view=True,
-                    style_header={
-                        "backgroundColor": STYLE_DATATABLE[
-                            "header_background_colour"
-                        ]
-                    },
-                    style_cell={
-                        "backgroundColor": STYLE_DATATABLE[
-                            "cell_background_colour"
-                        ],
-                        "color": STYLE_DATATABLE["cell_colour"],
-                    },
                 ),
             ]
         ),
@@ -525,15 +535,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
 
 LAYOUT = Container(
     [
-        Div(
-            [
-                Img(id="aces-logo", src="/assets/aces-logo.png"),
-                H3(
-                    [Link(APP_NAME, href=APP_PATH, id="app-link")],
-                    id="app-title",
-                ),
-            ]
-        ),
+        Div([H2([P(APP_NAME_LONG, className="text-center")], id="app-title")]),
         Location(id=_uid("url"), refresh=False),
         Main(
             Tabs(
@@ -568,7 +570,7 @@ LAYOUT = Container(
                     Tab(
                         [
                             Markdown(APP_DESCRIPTION),
-                            Markdown(f"{APP_NAME} - {__version__}"),
+                            Markdown(f"{APP_NAME_LONG} - {__version__}"),
                             Pre(
                                 [
                                     Code(
@@ -1014,7 +1016,7 @@ def compute_idt_prosumer_camera(
     _PATH_IDT_ZIP = idt_generator.zip(
         os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
         {
-            "Application": f"{APP_NAME} - {__version__}",
+            "Application": f"{APP_NAME_LONG} - {__version__}",
             "Url": href,
             "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%b %d, %Y %H:%M:%S"

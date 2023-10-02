@@ -7,8 +7,15 @@ import logging
 
 from dash.dcc import Link, Location, Markdown
 from dash.dependencies import Input, Output
-from dash.html import A, Div, H3, Main, P
-from dash_bootstrap_components import Col, Container, Row
+from dash.html import A, Div, H3, Img, Main, P
+from dash_bootstrap_components import (
+    Col,
+    Container,
+    NavItem,
+    NavLink,
+    NavbarSimple,
+    Row,
+)
 
 import apps.idt_calculator_p_2013_001 as app_1
 import apps.idt_calculator_prosumer_camera as app_2
@@ -24,7 +31,37 @@ __status__ = "Production"
 __all__ = ["load_app"]
 
 
-APP.layout = Container([Location(id="url", refresh=False), Div(id="apps")])
+APP.layout = Container(
+    [
+        Location(id="url", refresh=False),
+        NavbarSimple(
+            children=[
+                NavItem(
+                    NavLink(
+                        app_1.APP_NAME_SHORT,
+                        href=app_1.APP_PATH,
+                    )
+                ),
+                NavItem(
+                    NavLink(
+                        app_2.APP_NAME_SHORT,
+                        href=app_2.APP_PATH,
+                    )
+                ),
+            ],
+            brand=Img(
+                id="aces-logo",
+                src="/assets/aces-logo.png",
+            ),
+            brand_href="https://acescentral.com",
+            color="primary",
+            dark=True,
+        ),
+        Div(id="apps"),
+    ],
+    id="apps",
+    fluid=True,
+)
 
 
 @APP.callback(Output("apps", "children"), [Input("url", "pathname")])
@@ -72,9 +109,8 @@ def load_app(app):
                                                 H3(
                                                     [
                                                         Link(
-                                                            app_1.APP_NAME,
+                                                            app_1.APP_NAME_LONG,
                                                             href=app_1.APP_PATH,
-                                                            className="app-link",
                                                         ),
                                                     ]
                                                 ),
@@ -90,9 +126,8 @@ def load_app(app):
                                                 H3(
                                                     [
                                                         Link(
-                                                            app_2.APP_NAME,
+                                                            app_2.APP_NAME_LONG,
                                                             href=app_2.APP_PATH,
-                                                            className="app-link",
                                                         ),
                                                     ]
                                                 ),

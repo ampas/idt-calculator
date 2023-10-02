@@ -1,18 +1,5 @@
-#aces-logo {
-    display: inline-block;
-    height: 100px;
-    padding: 1em;
-}
-
-#app-title {
-    display: inline-block;
-}
-
-#app-link {
-    text-decoration: none;
-    position: relative;
-    left: 20px;
-    top: 10px;
+body {
+    background-color: rgb(252, 252, 251) !important;
 }
 
 a {
@@ -20,23 +7,49 @@ a {
 }
 
 #apps {
+    padding: 0 !important;
+}
+
+#aces-logo {
+    display: inline-block;
+    height: 75px;
+    padding-bottom: 0.5em;
+    padding-top: 0.5em;
+}
+
+#app-title {
+    color: rgb(193, 161, 56) !important;
+    padding-top: 0.5em;
+}
+
+.navbar {
     background-color: #323232 !important;
 }
 
-.tab-content {
-    background-color: #2f333d !important;
-    padding-bottom: 0.5em !important;
-    padding-left: 1em !important;
-    padding-right: 1em !important;
-    padding-top: 0.5em !important;
+.nav-item {
+    font-size: x-large;
 }
 
-.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
-    background-color: #2f333d !important;
+/* Dangerous as it destroys this particular style... */
+.ms-auto {
+    margin-left: 0 !important;
+}
+
+.tab {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+.tab--selected {
+    border-top: 2px solid rgb(193, 161, 56) !important;
+}
+
+.tab-content {
+    padding-top: 1em !important;
 }
 
 .dash-uploader-default, .dash-uploader-complete {
-    background-color: rgb(48, 48, 48) !important;
+    background-color: rgba(33, 37, 41, 0.03) !important;
 }
 
 .btn-primary {
@@ -45,7 +58,6 @@ a {
 }
 
 .nav-link.active {
-    background-color: #2f333d !important;
 }
 
 .progress-value {

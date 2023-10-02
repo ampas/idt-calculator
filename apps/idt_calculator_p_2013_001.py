@@ -33,9 +33,9 @@ from colour.utilities import (
 )
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
-from dash.dcc import Link, Location, Markdown
+from dash.dcc import Link, Location, Markdown, Tab, Tabs
 from dash.dependencies import Input, Output, State
-from dash.html import A, Code, Div, Footer, H3, Img, Li, Main, Pre, Ul
+from dash.html import A, Code, Div, Footer, H2, H3, Img, Li, Main, P, Pre, Ul
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -48,8 +48,6 @@ from dash_bootstrap_components import (
     InputGroupText,
     Row,
     Select,
-    Tab,
-    Tabs,
     Tooltip,
 )
 
@@ -71,7 +69,6 @@ from apps.common import (
     OPTIONS_OPTIMISATION_SPACES,
     INTERPOLATORS,
     MSDS_CAMERA_SENSITIVITIES,
-    STYLE_DATATABLE,
     TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE,
     TEMPLATE_DCTL_MODULE,
@@ -95,7 +92,8 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "APP_NAME",
+    "APP_NAME_LONG",
+    "APP_NAME_SHORT",
     "APP_PATH",
     "APP_DESCRIPTION",
     "APP_UID",
@@ -108,11 +106,18 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
+APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
 """
 App name.
 
-APP_NAME : str
+APP_NAME_LONG : str
+"""
+
+APP_NAME_SHORT = "IDT Calculator - P-2013-001"
+"""
+App short name.
+
+APP_NAME_SHORT : str
 """
 
 APP_PATH = f"/apps/{__name__.split('.')[-1]}"
@@ -133,7 +138,7 @@ App description.
 APP_DESCRIPTION : str
 """
 
-APP_UID = hash(APP_NAME)
+APP_UID = hash(APP_NAME_LONG)
 """
 App unique id.
 
@@ -208,17 +213,6 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
                 id=_uid("camera-sensitivities-datatable"),
                 editable=True,
                 style_as_list_view=True,
-                style_header={
-                    "backgroundColor": STYLE_DATATABLE[
-                        "header_background_colour"
-                    ]
-                },
-                style_cell={
-                    "backgroundColor": STYLE_DATATABLE[
-                        "cell_background_colour"
-                    ],
-                    "color": STYLE_DATATABLE["cell_colour"],
-                },
             ),
         ),
     ),
@@ -266,17 +260,6 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
                     id=_uid("illuminant-datatable"),
                     editable=True,
                     style_as_list_view=True,
-                    style_header={
-                        "backgroundColor": STYLE_DATATABLE[
-                            "header_background_colour"
-                        ]
-                    },
-                    style_cell={
-                        "backgroundColor": STYLE_DATATABLE[
-                            "cell_background_colour"
-                        ],
-                        "color": STYLE_DATATABLE["cell_colour"],
-                    },
                 ),
             ]
         ),
@@ -568,15 +551,7 @@ _LAYOUT_COLUMN_FOOTER_CHILDREN = [
 
 LAYOUT = Container(
     [
-        Div(
-            [
-                Img(id="aces-logo", src="/assets/aces-logo.png"),
-                H3(
-                    [Link(APP_NAME, href=APP_PATH, id="app-link")],
-                    id="app-title",
-                ),
-            ]
-        ),
+        Div([H2([P(APP_NAME_LONG, className="text-center")], id="app-title")]),
         Location(id=_uid("url"), refresh=False),
         Main(
             Tabs(
@@ -604,7 +579,7 @@ LAYOUT = Container(
                     Tab(
                         [
                             Markdown(APP_DESCRIPTION),
-                            Markdown(f"{APP_NAME} - {__version__}"),
+                            Markdown(f"{APP_NAME_LONG} - {__version__}"),
                             Pre(
                                 [
                                     Code(
@@ -1093,7 +1068,7 @@ def compute_idt_p2013_001(
                 M,
                 RGB_w * exposure_factor,
                 {
-                    "Application": f"{APP_NAME} - {__version__}",
+                    "Application": f"{APP_NAME_LONG} - {__version__}",
                     "Url": href,
                     "Date": datetime.datetime.now(
                         datetime.timezone.utc
@@ -1121,7 +1096,7 @@ def compute_idt_p2013_001(
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application=f"{APP_NAME} - {__version__}",
+                application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
             )
         elif formatter == "dctl":
@@ -1138,7 +1113,7 @@ def compute_idt_p2013_001(
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application=f"{APP_NAME} - {__version__}",
+                application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
             )
         elif formatter == "nuke":
@@ -1149,7 +1124,7 @@ def compute_idt_p2013_001(
                 camera=camera_name,
                 illuminant=illuminant_name,
                 date=now,
-                application=f"{APP_NAME} - {__version__}",
+                application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
                 group=slugify(
                     "_".join([camera_name, illuminant_name]).lower()
