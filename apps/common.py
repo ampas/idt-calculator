@@ -177,7 +177,7 @@ def metadata_card_default(_uid, *args):
                         className="mb-1",
                     ),
                     Tooltip(
-                        'Manufacturer of the camera, e.g. "ARRI" or "RED".',
+                        'Manufacturer of the camera, e.g. "ARRI" or "RED"',
                         delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("camera-make-field"),
                     ),
@@ -196,7 +196,7 @@ def metadata_card_default(_uid, *args):
                     Tooltip(
                         (
                             'Model of the camera, e.g. "ALEXA 35" or '
-                            '"V-RAPTOR XL 8K VV".'
+                            '"V-RAPTOR XL 8K VV"'
                         ),
                         delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("camera-model-field"),
@@ -375,7 +375,7 @@ Input Device Transform (IDT)\
 \nCamera Make : {camera_make}\
 \nCamera Model : {camera_model}\
 \nACEStransformID : {aces_transform_id}\
-\nACESuserName : {aces_username}\
+\nACESuserName : {aces_user_name}\
 \nScene adopted white : {illuminant}\
 \nInput : Linear Camera RGB\
 \nOutput : ACES 2065-1\
@@ -425,7 +425,7 @@ TEMPLATE_NUKE_GROUP : str
 
 TEMPLATE_CTL_MODULE = """
 // <ACEStransformID>{aces_transform_id}</ACEStransformID>
-// <ACESuserName>{aces_username}</ACESuserName>
+// <ACESuserName>{aces_user_name}</ACESuserName>
 // Computed with {application}
 // Url : {url}
 // Camera Make: {camera_make}
@@ -482,7 +482,7 @@ DEFINE_ACES_PARAM(IS_PARAMETRIC_ACES_TRANSFORM: 0)
 // Camera Make: {camera_make}
 // Camera Model: {camera_model}
 // ACEStransformID: {aces_transform_id}
-// ACESuserName: {aces_username}
+// ACESuserName: {aces_user_name}
 // Scene adopted white : {illuminant}
 // Input : Linear Camera RGB
 // Output : ACES 2065-1
@@ -730,7 +730,7 @@ def format_matrix_dctl(M, decimals=10, padding=4):
 
 def format_idt_clf(
     aces_transform_id,
-    aces_username,  # noqa: ARG001
+    aces_user_name,  # noqa: ARG001
     camera_make,  # noqa: ARG001
     camera_model,
     matrix,
@@ -745,7 +745,7 @@ def format_idt_clf(
     aces_transform_id : str
         *ACEStransformID* of the IDT, e.g.
         *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
-    aces_username : str
+    aces_user_name : str
         *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
     camera_make : str
         Manufacturer of the camera, e.g. *ARRI* or *RED*.

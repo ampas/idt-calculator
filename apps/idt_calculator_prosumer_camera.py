@@ -23,14 +23,13 @@ from colour import (
 from colour.characterisation import camera_RGB_to_ACES2065_1
 from colour.models import RGB_COLOURSPACE_ACES2065_1
 from colour.temperature import CCT_to_xy_CIE_D
-from colour.utilities import CACHE_REGISTRY, as_float, as_int_scalar
+from colour.utilities import CACHE_REGISTRY, as_float, as_int_scalar, optional
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Download, Link, Location, Markdown, Tab, Tabs, send_file
 from dash.dependencies import Input, Output, State
 from dash.html import (
     A,
-    Br,
     Code,
     Div,
     Footer,
@@ -82,6 +81,7 @@ from apps.common import (
     OPTIONS_ILLUMINANT,
     OPTIONS_INTERPOLATION,
     OPTIONS_OPTIMISATION_SPACES,
+    metadata_card_default,
 )
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
@@ -155,6 +155,7 @@ _ROOT_UPLOADED_IDT_ARCHIVE = tempfile.gettempdir()
 configure_upload(APP, _ROOT_UPLOADED_IDT_ARCHIVE)
 
 _PATH_UPLOADED_IDT_ARCHIVE = None
+_IDT_GENERATOR = None
 _PATH_IDT_ZIP = None
 
 _CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
@@ -240,8 +241,8 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
             "width": "100%",
             "display": "inline-block",
         },
+        className="mb-2",
     ),
-    Div(Br()),
     Card(
         [
             CardHeader("Options"),
@@ -453,6 +454,126 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
         ],
         className="mb-2",
     ),
+    metadata_card_default(
+        _uid,
+        InputGroup(
+            [
+                InputGroupText("ISO"),
+                Field(
+                    id=_uid("iso-field"),
+                    type="number",
+                    value="800",
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            "Camera ISO setting value",
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("iso-field"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Temperature"),
+                Field(
+                    id=_uid("temperature-field"),
+                    type="number",
+                    value="5600",
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            "Camera temperature setting value",
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("temperature-field"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Additional Camera Settings"),
+                Field(
+                    id=_uid("additional-camera-settings-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            "Additional camera settings relevant to the image exposure",
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("additional-camera-settings-field"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Lighting Setup Description"),
+                Field(
+                    id=_uid("lighting-setup-description-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            "Description of the lighting setup.",
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("lighting-setup-description-field"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Debayering Platform"),
+                Field(
+                    id=_uid("debayering-platform-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            'Name of the debayering platform, e.g. "Resolve"',
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("debayering-platform"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Debayering Settings"),
+                Field(
+                    id=_uid("debayering-settings-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            "Debayering platform settings",
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("debayering-settings-platform"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Encoding Colourspace"),
+                Field(
+                    id=_uid("encoding-colourspace-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            'Encoding colourspace, e.g. "ARRI LogC4"',
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("encoding-colourspace-platform"),
+        ),
+    ),
 ]
 
 _LAYOUT_COLUMN_IDT_COMPUTATION_CHILDREN = [
@@ -604,6 +725,14 @@ App layout, i.e. :class:`Container` class instance.
 
 LAYOUT : Div
 """
+
+
+def _attribute_value(attribute, default):
+    """Return given attribute value from the IDT specification."""
+
+    return optional(
+        _IDT_GENERATOR.specification["header"].get(attribute), default
+    )
 
 
 @callback(
@@ -778,10 +907,36 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
 
 @APP.callback(
     Output(_uid("download-idt-download"), "data"),
-    Input(_uid("download-idt-button"), "n_clicks"),
+    [Input(_uid("download-idt-button"), "n_clicks")],
+    [
+        State(_uid("acestransformid-field"), "value"),
+        State(_uid("acesusername-field"), "value"),
+        State(_uid("camera-make-field"), "value"),
+        State(_uid("camera-model-field"), "value"),
+        State(_uid("iso-field"), "value"),
+        State(_uid("temperature-field"), "value"),
+        State(_uid("additional-camera-settings-field"), "value"),
+        State(_uid("lighting-setup-description-field"), "value"),
+        State(_uid("debayering-platform-field"), "value"),
+        State(_uid("debayering-settings-field"), "value"),
+        State(_uid("encoding-colourspace-field"), "value"),
+    ],
     prevent_initial_call=True,
 )
-def download_idt_zip(n_clicks):  # noqa: ARG001
+def download_idt_zip(
+    n_clicks,  # noqa: ARG001
+    aces_transform_id,
+    aces_user_name,
+    camera_make,
+    camera_model,
+    iso,
+    temperature,
+    additional_camera_settings,
+    lighting_setup_description,
+    debayering_platform,
+    debayering_settings,
+    encoding_colourspace,
+):
     """
     Download the *IDT* zip file.
 
@@ -790,6 +945,27 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
     n_clicks : int
         Integer that represents that number of times the button has been
         clicked.
+    aces_transform_id : str
+        *ACEStransformID* of the IDT, e.g.
+        *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
+    aces_user_name : str
+        *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
+    camera_make : str
+        Manufacturer of the camera, e.g. *ARRI* or *RED*.
+    camera_model : str
+        Model of the camera, e.g. *ALEXA 35* or *V-RAPTOR XL 8K VV*.
+    iso : float
+        Camera ISO setting value.
+    temperature : float
+        Camera temperature setting value.
+    additional_camera_settings : str
+        Additional camera settings relevant to the image exposure.
+    lighting_setup_description : str
+        Description of the lighting setup.
+    debayering_platform : str
+        Name of the debayering platform, e.g. "Resolve".
+    debayering_settings : str
+        Debayering platform settings.
 
     Returns
     -------
@@ -798,7 +974,40 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
         Download component.
     """
 
+    _IDT_GENERATOR.specification["header"]["aces_transform_id"] = str(
+        aces_transform_id
+    )
+    _IDT_GENERATOR.specification["header"]["aces_user_name"] = str(
+        aces_user_name
+    )
+    _IDT_GENERATOR.specification["header"]["camera_make"] = str(camera_make)
+    _IDT_GENERATOR.specification["header"]["camera_model"] = str(camera_model)
+    _IDT_GENERATOR.specification["header"]["iso"] = float(iso)
+    _IDT_GENERATOR.specification["header"]["temperature"] = float(temperature)
+    _IDT_GENERATOR.specification["header"]["additional_camera_settings"] = str(
+        additional_camera_settings
+    )
+    _IDT_GENERATOR.specification["header"]["lighting_setup_description"] = str(
+        lighting_setup_description
+    )
+    _IDT_GENERATOR.specification["header"]["debayering_platform"] = str(
+        debayering_platform
+    )
+    _IDT_GENERATOR.specification["header"]["debayering_settings"] = str(
+        debayering_settings
+    )
+    _IDT_GENERATOR.specification["header"]["encoding_colourspace"] = str(
+        encoding_colourspace
+    )
+
     logging.debug('Sending "IDT" archive...')
+
+    global _PATH_IDT_ZIP  # noqa: PLW0603
+
+    _PATH_IDT_ZIP = _IDT_GENERATOR.zip(
+        os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
+        _IDT_GENERATOR.information,
+    )
 
     return send_file(_PATH_IDT_ZIP)
 
@@ -808,11 +1017,31 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
         Output(_uid("loading-div"), "children"),
         Output(_uid("output-data-div"), "children"),
         Output(_uid("download-idt-column"), "style"),
+        Output(_uid("camera-make-field"), "value"),
+        Output(_uid("camera-model-field"), "value"),
+        Output(_uid("iso-field"), "value"),
+        Output(_uid("temperature-field"), "value"),
+        Output(_uid("additional-camera-settings-field"), "value"),
+        Output(_uid("lighting-setup-description-field"), "value"),
+        Output(_uid("debayering-platform-field"), "value"),
+        Output(_uid("debayering-settings-field"), "value"),
+        Output(_uid("encoding-colourspace-field"), "value"),
     ],
     [
         Input(_uid("compute-idt-button"), "n_clicks"),
     ],
     [
+        State(_uid("acestransformid-field"), "value"),
+        State(_uid("acesusername-field"), "value"),
+        State(_uid("camera-make-field"), "value"),
+        State(_uid("camera-model-field"), "value"),
+        State(_uid("iso-field"), "value"),
+        State(_uid("temperature-field"), "value"),
+        State(_uid("additional-camera-settings-field"), "value"),
+        State(_uid("lighting-setup-description-field"), "value"),
+        State(_uid("debayering-platform-field"), "value"),
+        State(_uid("debayering-settings-field"), "value"),
+        State(_uid("encoding-colourspace-field"), "value"),
         State(_uid("rgb-display-colourspace-select"), "value"),
         State(_uid("illuminant-select"), "value"),
         State(_uid("illuminant-datatable"), "data"),
@@ -830,6 +1059,17 @@ def download_idt_zip(n_clicks):  # noqa: ARG001
 )
 def compute_idt_prosumer_camera(
     n_clicks,  # noqa: ARG001
+    aces_transform_id,
+    aces_user_name,
+    camera_make,
+    camera_model,
+    iso,
+    temperature,
+    additional_camera_settings,
+    lighting_setup_description,
+    debayering_platform,
+    debayering_settings,
+    encoding_colourspace,
     RGB_display_colourspace,
     illuminant_name,
     illuminant_data,
@@ -851,6 +1091,29 @@ def compute_idt_prosumer_camera(
     n_clicks : int
         Integer that represents that number of times the button has been
         clicked.
+    aces_transform_id : str
+        *ACEStransformID* of the IDT, e.g.
+        *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
+    aces_user_name : str
+        *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
+    camera_make : str
+        Manufacturer of the camera, e.g. *ARRI* or *RED*.
+    camera_model : str
+        Model of the camera, e.g. *ALEXA 35* or *V-RAPTOR XL 8K VV*.
+    iso : float
+        Camera ISO setting value.
+    temperature : float
+        Camera temperature setting value.
+    additional_camera_settings : str
+        Additional camera settings relevant to the image exposure.
+    lighting_setup_description : str
+        Description of the lighting setup.
+    debayering_platform : str
+        Name of the debayering platform, e.g. "Resolve".
+    debayering_settings : str
+        Debayering platform settings.
+    encoding_colourspace : str
+        Encoding colourspace, e.g. "ARRI LogC4".
     RGB_display_colourspace : str
         *RGB* display colourspace.
     illuminant_name : str
@@ -911,6 +1174,18 @@ def compute_idt_prosumer_camera(
         LUT_smoothing,
     )
 
+    aces_transform_id = str(aces_transform_id)
+    aces_user_name = str(aces_user_name)
+    camera_make = str(camera_make)
+    camera_model = str(camera_model)
+    iso = float(iso)
+    temperature = float(temperature)
+    additional_camera_settings = str(additional_camera_settings)
+    lighting_setup_description = str(lighting_setup_description)
+    debayering_platform = str(debayering_platform)
+    debayering_settings = str(debayering_settings)
+    encoding_colourspace = str(encoding_colourspace)
+
     parsed_illuminant_data = {}
     for data in illuminant_data:
         irradiance = data.get("irradiance")
@@ -937,29 +1212,69 @@ def compute_idt_prosumer_camera(
         chromatic_adaptation_transform=chromatic_adaptation_transform,
     )
 
-    idt_generator = IDTGeneratorProsumerCamera(
+    global _IDT_GENERATOR  # noqa: PLW0603
+
+    _IDT_GENERATOR = IDTGeneratorProsumerCamera(
         _PATH_UPLOADED_IDT_ARCHIVE, cleanup=True
     )
 
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_PATH_UPLOADED_IDT_ARCHIVE) is None:
-        idt_generator.extract()
+        _IDT_GENERATOR.extract()
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
-        idt_generator.sample()
+        _IDT_GENERATOR.sample()
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE] = (
-            idt_generator.specification,
-            idt_generator.samples_analysis,
+            _IDT_GENERATOR.specification,
+            _IDT_GENERATOR.samples_analysis,
         )
     else:
         (
-            idt_generator._specification,
-            idt_generator._samples_analysis,
+            _IDT_GENERATOR._specification,
+            _IDT_GENERATOR._samples_analysis,
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE]
 
-    idt_generator.sort(reference_colour_checker)
-    idt_generator.generate_LUT(as_int_scalar(LUT_size))
-    idt_generator.filter_LUT(as_int_scalar(LUT_smoothing))
-    idt_generator.decode(decoding_method, np.loadtxt([grey_card_reflectance]))
-    idt_generator.optimise(
+    aces_transform_id = _IDT_GENERATOR.specification["header"][
+        "aces_transform_id"
+    ] = _attribute_value("aces_transform_id", aces_transform_id)
+    aces_user_name = _IDT_GENERATOR.specification["header"][
+        "aces_user_name"
+    ] = _attribute_value("aces_user_name", aces_user_name)
+    camera_make = _IDT_GENERATOR.specification["header"][
+        "camera_make"
+    ] = _attribute_value("camera_make", camera_make)
+    camera_model = _IDT_GENERATOR.specification["header"][
+        "camera_model"
+    ] = _attribute_value("camera_model", camera_model)
+    iso = _IDT_GENERATOR.specification["header"]["iso"] = _attribute_value(
+        "iso", iso
+    )
+    temperature = _IDT_GENERATOR.specification["header"][
+        "temperature"
+    ] = _attribute_value("temperature", temperature)
+    additional_camera_settings = _IDT_GENERATOR.specification["header"][
+        "additional_camera_settings"
+    ] = _attribute_value(
+        "additional_camera_settings", additional_camera_settings
+    )
+    lighting_setup_description = _IDT_GENERATOR.specification["header"][
+        "lighting_setup_description"
+    ] = _attribute_value(
+        "lighting_setup_description", lighting_setup_description
+    )
+    debayering_platform = _IDT_GENERATOR.specification["header"][
+        "debayering_platform"
+    ] = _attribute_value("debayering_platform", debayering_platform)
+    debayering_settings = _IDT_GENERATOR.specification["header"][
+        "debayering_settings"
+    ] = _attribute_value("debayering_settings", debayering_settings)
+    encoding_colourspace = _IDT_GENERATOR.specification["header"][
+        "encoding_colourspace"
+    ] = _attribute_value("encoding_colourspace", encoding_colourspace)
+
+    _IDT_GENERATOR.sort(reference_colour_checker)
+    _IDT_GENERATOR.generate_LUT(as_int_scalar(LUT_size))
+    _IDT_GENERATOR.filter_LUT(as_int_scalar(LUT_smoothing))
+    _IDT_GENERATOR.decode(decoding_method, np.loadtxt([grey_card_reflectance]))
+    _IDT_GENERATOR.optimise(
         np.loadtxt([EV_range]),
         training_data=reference_colour_checker,
         optimisation_factory=OPTIMISATION_FACTORIES[optimisation_space],
@@ -978,15 +1293,15 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    samples_median = idt_generator.samples_analysis["data"]["colour_checker"][
+    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][
         0
     ]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
-        idt_generator.LUT_decoding.apply(samples_median),
-        idt_generator.M,
-        idt_generator.RGB_w,
-        idt_generator.k,
+        _IDT_GENERATOR.LUT_decoding.apply(samples_median),
+        _IDT_GENERATOR.M,
+        _IDT_GENERATOR.RGB_w,
+        _IDT_GENERATOR.k,
     )
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
@@ -994,7 +1309,7 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    samples_decoded = idt_generator.LUT_decoding.apply(samples_median)
+    samples_decoded = _IDT_GENERATOR.LUT_decoding.apply(samples_median)
     compare_colour_checkers_LUT_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_decoded),
         RGB_working_to_RGB_display(reference_colour_checker),
@@ -1010,31 +1325,6 @@ def compute_idt_prosumer_camera(
     )
     delta_E_decoded = np.median(
         error_delta_E(samples_decoded, reference_colour_checker)
-    )
-
-    global _PATH_IDT_ZIP  # noqa: PLW0603
-
-    _PATH_IDT_ZIP = idt_generator.zip(
-        os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
-        {
-            "Application": f"{APP_NAME_LONG} - {__version__}",
-            "Url": href,
-            "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
-                "%b %d, %Y %H:%M:%S"
-            ),
-            "RGBDisplayColourspace": RGB_display_colourspace,
-            "IlluminantName": illuminant_name,
-            "IlluminantData": parsed_illuminant_data,
-            "ChromaticAdaptationTransform": chromatic_adaptation_transform,
-            "OptimisationSpace": optimisation_space,
-            "IlluminantInterpolator": illuminant_interpolator,
-            "DecodingMethod": decoding_method,
-            "EVRange": EV_range,
-            "GreyCardReflectance": grey_card_reflectance,
-            "LUTSize": LUT_size,
-            "LUTSmoothing": LUT_smoothing,
-            "DeltaE": delta_E_idt,
-        },
     )
 
     # Delta-E
@@ -1068,7 +1358,7 @@ def compute_idt_prosumer_camera(
 
     # Segmentation
     colour_checker_segmentation = (
-        idt_generator.png_colour_checker_segmentation()
+        _IDT_GENERATOR.png_colour_checker_segmentation()
     )
     if colour_checker_segmentation is not None:
         components += [
@@ -1078,7 +1368,7 @@ def compute_idt_prosumer_camera(
                 style={"width": "100%"},
             ),
         ]
-    grey_card_sampling = idt_generator.png_grey_card_sampling()
+    grey_card_sampling = _IDT_GENERATOR.png_grey_card_sampling()
     if grey_card_sampling is not None:
         components += [
             Img(
@@ -1088,9 +1378,9 @@ def compute_idt_prosumer_camera(
         ]
 
     # Camera Samples
-    measured_camera_samples = idt_generator.png_measured_camera_samples()
+    measured_camera_samples = _IDT_GENERATOR.png_measured_camera_samples()
     extrapolated_camera_samples = (
-        idt_generator.png_extrapolated_camera_samples()
+        _IDT_GENERATOR.png_extrapolated_camera_samples()
     )
     if None not in (measured_camera_samples, extrapolated_camera_samples):
         components += [
@@ -1106,8 +1396,37 @@ def compute_idt_prosumer_camera(
             ),
         ]
 
+    _IDT_GENERATOR.information = {
+        "Application": f"{APP_NAME_LONG} - {__version__}",
+        "Url": href,
+        "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%b %d, %Y %H:%M:%S"
+        ),
+        "RGBDisplayColourspace": RGB_display_colourspace,
+        "IlluminantName": illuminant_name,
+        "IlluminantData": parsed_illuminant_data,
+        "ChromaticAdaptationTransform": chromatic_adaptation_transform,
+        "OptimisationSpace": optimisation_space,
+        "IlluminantInterpolator": illuminant_interpolator,
+        "DecodingMethod": decoding_method,
+        "EVRange": EV_range,
+        "GreyCardReflectance": grey_card_reflectance,
+        "LUTSize": LUT_size,
+        "LUTSmoothing": LUT_smoothing,
+        "DeltaE": delta_E_idt,
+    }
+
     return (
         "",
         components,
         {"display": "block"},
+        camera_make,
+        camera_model,
+        iso,
+        temperature,
+        additional_camera_settings,
+        lighting_setup_description,
+        debayering_platform,
+        debayering_settings,
+        encoding_colourspace,
     )

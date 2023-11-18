@@ -105,28 +105,44 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
                 "schema_version": {
                     "type": "string"
                 },
+                "aces_transform_id": {
+                    "type": "string"
+                },
+                "aces_user_name": {
+                    "type": "string"
+                },
                 "camera_make": {
                     "type": "string"
                 },
-                "camera_manufacturer": {
+                "camera_model": {
                     "type": "string"
                 },
-                "exposure_settings": {
+                "iso": {
+                    "type": "number"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "additional_camera_settings": {
                     "type": "string"
                 },
-                "debayer_settings": {
+                "lighting_setup_description": {
                     "type": "string"
                 },
-                "output_description": {
+                "debayering_platform": {
                     "type": "string"
                 },
-                "lighting_description": {
+                "debayering_settings": {
+                    "type": "string"
+                },
+                "encoding_colourspace": {
                     "type": "string"
                 }
             },
             "required": [
                 "schema_version",
-                "camera_make"
+                "camera_make",
+                "camera_model"
             ]
         },
         "data": {

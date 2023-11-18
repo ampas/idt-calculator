@@ -269,7 +269,6 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
 ]
 
 _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
-    metadata_card_default(_uid),
     Card(
         [
             CardHeader("Options"),
@@ -487,6 +486,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
         ],
         className="mb-2",
     ),
+    metadata_card_default(_uid),
     Card(
         [
             CardHeader("Input Device Transform"),
@@ -892,7 +892,7 @@ def toggle_advanced_options(n_clicks, is_open):
 )
 def compute_idt_p2013_001(
     aces_transform_id,
-    aces_username,
+    aces_user_name,
     camera_make,
     camera_model,
     exposure_normalisation_factor,
@@ -919,7 +919,7 @@ def compute_idt_p2013_001(
     aces_transform_id : str
         *ACEStransformID* of the IDT, e.g.
         *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
-    aces_username : str
+    aces_user_name : str
         *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
     camera_make : str
         Manufacturer of the camera, e.g. *ARRI* or *RED*.
@@ -995,7 +995,7 @@ def compute_idt_p2013_001(
     )
 
     aces_transform_id = str(aces_transform_id)
-    aces_username = str(aces_username)
+    aces_user_name = str(aces_user_name)
     camera_make = str(camera_make)
     camera_model = str(camera_model)
 
@@ -1121,7 +1121,7 @@ def compute_idt_p2013_001(
         elif formatter == "clf":
             output = format_idt_clf(
                 aces_transform_id,
-                aces_username,
+                aces_user_name,
                 camera_make,
                 camera_model,
                 M,
@@ -1133,7 +1133,7 @@ def compute_idt_p2013_001(
                         datetime.timezone.utc
                     ).strftime("%b %d, %Y %H:%M:%S"),
                     "ACEStransformID": aces_transform_id,
-                    "ACESuserName": aces_username,
+                    "ACESuserName": aces_user_name,
                     "CameraMake": camera_make,
                     "CameraModel": camera_model,
                     "ExposureNormalisationFactor": exposure_normalisation_factor,
@@ -1153,7 +1153,7 @@ def compute_idt_p2013_001(
         elif formatter == "ctl":
             output = TEMPLATE_CTL_MODULE.format(
                 aces_transform_id=aces_transform_id,
-                aces_username=aces_username,
+                aces_user_name=aces_user_name,
                 camera_make=camera_make,
                 camera_model=camera_model,
                 matrix=format_matrix_ctl(M, decimals),
@@ -1167,7 +1167,7 @@ def compute_idt_p2013_001(
         elif formatter == "dctl":
             output = TEMPLATE_DCTL_MODULE.format(
                 aces_transform_id=aces_transform_id,
-                aces_username=aces_username,
+                aces_user_name=aces_user_name,
                 camera_make=camera_make,
                 camera_model=camera_model,
                 matrix=format_matrix_dctl(M, decimals),
@@ -1187,7 +1187,7 @@ def compute_idt_p2013_001(
         elif formatter == "nuke":
             output = TEMPLATE_NUKE_GROUP.format(
                 aces_transform_id=aces_transform_id,
-                aces_username=aces_username,
+                aces_user_name=aces_user_name,
                 camera_make=camera_make,
                 camera_model=camera_model,
                 matrix=format_matrix_nuke(M, decimals),

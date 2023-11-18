@@ -79,8 +79,17 @@ logger = logging.getLogger(__name__)
 DATA_SPECIFICATION = {
     "header": {
         "schema_version": "0.1.0",
-        "camera_make": "Undefined",
-        "camera_manufacturer": "Undefined",
+        "aces_transform_id": None,
+        "aces_user_name": None,
+        "camera_make": None,
+        "camera_model": None,
+        "iso": 800,
+        "temperature": 5600,
+        "additional_camera_settings": None,
+        "lighting_setup_description": None,
+        "debayering_platform": None,
+        "debayering_settings": None,
+        "encoding_colourspace": None,
     },
     "data": {
         "colour_checker": {},
@@ -628,7 +637,7 @@ class IDTGeneratorProsumerCamera:
             logger.info('Assuming implicit "IDT" specification...')
             self._specification = deepcopy(DATA_SPECIFICATION)
 
-            self._specification["header"]["camera_make"] = Path(
+            self._specification["header"]["camera_model"] = Path(
                 self._archive
             ).stem
 
@@ -1330,14 +1339,16 @@ class IDTGeneratorProsumerCamera:
             information,
         )
 
-        camera_model = self._specification["header"]["camera_make"]
-        manufacturer = self._specification["header"]["camera_manufacturer"]
+        aces_transform_id = self._specification["header"]["aces_transform_id"]
+        aces_user_name = self._specification["header"]["aces_user_name"]
+        camera_make = self._specification["header"]["camera_make"]
+        camera_model = self._specification["header"]["camera_model"]
 
         root = Et.Element(
             "ProcessList",
             compCLFversion="3",
-            id=f"urn:ampas:aces:transformId:v1.5:IDT.{manufacturer}.{camera_model}.a1.v1",
-            name=f"{manufacturer} {camera_model} to ACES2065-1",
+            id=aces_transform_id,
+            name=aces_user_name,
         )
 
         def format_array(a):
@@ -1346,7 +1357,7 @@ class IDTGeneratorProsumerCamera:
             return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
 
         et_input_descriptor = Et.SubElement(root, "InputDescriptor")
-        et_input_descriptor.text = f"{manufacturer} {camera_model}"
+        et_input_descriptor.text = f"{camera_make} {camera_model}"
 
         et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
         et_output_descriptor.text = "ACES2065-1"
@@ -1427,7 +1438,7 @@ class IDTGeneratorProsumerCamera:
 
         clf_path = (
             f"{output_directory}/"
-            f"{manufacturer}.Input.{camera_model}_to_ACES2065-1.clf"
+            f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
         )
         Et.indent(root)
 
@@ -1437,7 +1448,9 @@ class IDTGeneratorProsumerCamera:
 
         return clf_path
 
-    def zip(self, output_directory, information):  # noqa: A003
+    def zip(  # noqa: A003
+        self, output_directory, information, archive_serialised_generator=False
+    ):
         """
         Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
         process.
@@ -1448,6 +1461,8 @@ class IDTGeneratorProsumerCamera:
             Output directory for the *zip* file.
         information : dict
             Information pertaining to the *IDT* and the computation parameters.
+        archive_serialised_generator : bool
+            Whether to serialise and archive the *IDT* generator.
 
         Returns
         -------
@@ -1462,17 +1477,17 @@ class IDTGeneratorProsumerCamera:
             information,
         )
 
-        camera_model = self._specification["header"]["camera_make"]
-        manufacturer = self._specification["header"]["camera_manufacturer"]
+        camera_make = self._specification["header"]["camera_make"]
+        camera_model = self._specification["header"]["camera_model"]
 
         clf_path = self.to_clf(output_directory, information)
 
-        json_path = f"{output_directory}/{manufacturer}.{camera_model}.json"
+        json_path = f"{output_directory}/{camera_make}.{camera_model}.json"
         with open(json_path, "w") as json_file:
             json_file.write(jsonpickle.encode(self, indent=2))
 
         zip_file = (
-            Path(output_directory) / f"IDT_{manufacturer}_{camera_model}.zip"
+            Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
         )
 
         current_working_directory = os.getcwd()
@@ -1480,7 +1495,10 @@ class IDTGeneratorProsumerCamera:
             os.chdir(output_directory)
             with ZipFile(zip_file, "w") as zip_archive:
                 zip_archive.write(clf_path.replace(output_directory, "")[1:])
-                zip_archive.write(json_path.replace(output_directory, "")[1:])
+                if archive_serialised_generator:
+                    zip_archive.write(
+                        json_path.replace(output_directory, "")[1:]
+                    )
         finally:
             os.chdir(current_working_directory)
 
