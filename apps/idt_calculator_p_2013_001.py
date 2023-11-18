@@ -1251,6 +1251,7 @@ APP.clientside_callback(
     function(n_clicks) {{
         var idtCalculatorOutput = document.getElementById(\
 "{('idt-calculator-output')}");
+        if (idtCalculatorOutput == undefined) return "undefined"
         var content = idtCalculatorOutput.textContent;
         navigator.clipboard.writeText(content).then(function() {{
         }}, function() {{
