@@ -1,8 +1,8 @@
 {
     "header": {
         "schema_version": "0.1.0",
-        "camera": "Synthetic",
-        "manufacturer": "colour-science",
+        "camera_make": "Synthetic",
+        "camera_manufacturer": "colour-science",
         "exposure_index": 100,
         "white_balance": 6500,
         "tint": 0,

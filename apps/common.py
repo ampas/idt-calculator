@@ -18,6 +18,15 @@ from colour.characterisation import (
     optimisation_factory_rawtoaces_v1,
     optimisation_factory_Jzazbz,
 )
+from dash_bootstrap_components import (
+    Card,
+    CardBody,
+    CardHeader,
+    InputGroup,
+    InputGroupText,
+    Tooltip,
+)
+from dash_bootstrap_components import Input as Field
 
 from aces.idt import (
     optimisation_factory_Oklab,
@@ -35,6 +44,7 @@ __status__ = "Production"
 
 __all__ = [
     "COLOUR_ENVIRONMENT",
+    "metadata_card_default",
     "DATATABLE_DECIMALS",
     "CUSTOM_WAVELENGTHS",
     "DATASET_RAW_TO_ACES",
@@ -48,6 +58,7 @@ __all__ = [
     "OPTIONS_OPTIMISATION_SPACES",
     "OPTIMISATION_FACTORIES",
     "OPTIONS_DISPLAY_COLOURSPACES",
+    "DELAY_TOOLTIP_DEFAULT",
     "TEMPLATE_DEFAULT_OUTPUT",
     "TEMPLATE_NUKE_GROUP",
     "TEMPLATE_CTL_MODULE",
@@ -89,6 +100,114 @@ def _print_colour_environment(describe):
 
 
 colour.utilities.describe_environment(print_callable=_print_colour_environment)
+
+
+def metadata_card_default(_uid, *args):
+    """
+    Return the default metadata card for an application.
+
+    Parameters
+    ----------
+    _uid : Callable
+        Callable to generate a unique id for given id by appending the
+        application *UID*.
+
+    Other Parameters
+    ----------------
+    \\*args
+        Optional children.
+
+    Returns
+    -------
+    :class:`dash_bootstrap_components.Card`
+        Metadata card.
+    """
+
+    return Card(
+        [
+            CardHeader("Metadata"),
+            CardBody(
+                [
+                    InputGroup(
+                        [
+                            InputGroupText("ACEStransformID"),
+                            Field(
+                                id=_uid("acestransformid-field"),
+                                type="text",
+                                placeholder="...",
+                                debounce=True,
+                            ),
+                        ],
+                        className="mb-1",
+                    ),
+                    Tooltip(
+                        '"ACEStransformID" of the IDT, e.g. '
+                        '"urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1"',
+                        delay=DELAY_TOOLTIP_DEFAULT,
+                        target=_uid("acestransformid-field"),
+                    ),
+                    InputGroup(
+                        [
+                            InputGroupText("ACESuserName"),
+                            Field(
+                                id=_uid("acesusername-field"),
+                                type="text",
+                                placeholder="...",
+                                debounce=True,
+                            ),
+                        ],
+                        className="mb-1",
+                    ),
+                    Tooltip(
+                        '"ACESuserName" of the IDT, e.g. '
+                        '"ACES 1.0 Input - ARRI LogC4"',
+                        delay=DELAY_TOOLTIP_DEFAULT,
+                        target=_uid("acesusername-field"),
+                    ),
+                    InputGroup(
+                        [
+                            InputGroupText("Camera Make"),
+                            Field(
+                                id=_uid("camera-make-field"),
+                                type="text",
+                                placeholder="...",
+                                debounce=True,
+                            ),
+                        ],
+                        className="mb-1",
+                    ),
+                    Tooltip(
+                        'Manufacturer of the camera, e.g. "ARRI" or "RED".',
+                        delay=DELAY_TOOLTIP_DEFAULT,
+                        target=_uid("camera-make-field"),
+                    ),
+                    InputGroup(
+                        [
+                            InputGroupText("Camera Model"),
+                            Field(
+                                id=_uid("camera-model-field"),
+                                type="text",
+                                placeholder="...",
+                                debounce=True,
+                            ),
+                        ],
+                        className="mb-1",
+                    ),
+                    Tooltip(
+                        (
+                            'Model of the camera, e.g. "ALEXA 35" or '
+                            '"V-RAPTOR XL 8K VV".'
+                        ),
+                        delay=DELAY_TOOLTIP_DEFAULT,
+                        target=_uid("camera-model-field"),
+                    ),
+                    *list(args),
+                ]
+            ),
+        ],
+        className="mb-2",
+    )
+
 
 DATATABLE_DECIMALS = 7
 """
@@ -210,6 +329,12 @@ Optimisation colourspaces.
 OPTIONS_OPTIMISATION_SPACES : list
 """
 
+DELAY_TOOLTIP_DEFAULT = {"show": 500, "hide": 125}
+"""
+Default tooltip delay settings.
+
+DELAY_TOOLTIP_DEFAULT : list
+"""
 
 TEMPLATE_DEFAULT_OUTPUT = """
 IDT Matrix
@@ -247,7 +372,10 @@ T Exposure_White_Balance_Expression.b_RGB_Color_Knob}}
 Input Device Transform (IDT)\
 \n\nComputed with {application}\
 \nUrl : {url}\
-\nCamera : {camera}\
+\nCamera Make : {camera_make}\
+\nCamera Model : {camera_model}\
+\nACEStransformID : {aces_transform_id}\
+\nACESuserName : {aces_username}\
 \nScene adopted white : {illuminant}\
 \nInput : Linear Camera RGB\
 \nOutput : ACES 2065-1\
@@ -296,9 +424,12 @@ TEMPLATE_NUKE_GROUP : str
 """
 
 TEMPLATE_CTL_MODULE = """
+// <ACEStransformID>{aces_transform_id}</ACEStransformID>
+// <ACESuserName>{aces_username}</ACESuserName>
 // Computed with {application}
 // Url : {url}
-// Camera : {camera}
+// Camera Make: {camera_make}
+// Camera Model: {camera_model}
 // Scene adopted white : {illuminant}
 // Input : Linear Camera RGB
 // Output : ACES 2065-1
@@ -348,7 +479,10 @@ DEFINE_ACES_PARAM(IS_PARAMETRIC_ACES_TRANSFORM: 0)
 
 // Computed with {application}
 // Url : {url}
-// Camera : {camera}
+// Camera Make: {camera_make}
+// Camera Model: {camera_model}
+// ACEStransformID: {aces_transform_id}
+// ACESuserName: {aces_username}
 // Scene adopted white : {illuminant}
 // Input : Linear Camera RGB
 // Output : ACES 2065-1
@@ -594,12 +728,29 @@ def format_matrix_dctl(M, decimals=10, padding=4):
     return dctl
 
 
-def format_idt_clf(camera_name, matrix, multipliers, information):
+def format_idt_clf(
+    aces_transform_id,
+    aces_username,  # noqa: ARG001
+    camera_make,  # noqa: ARG001
+    camera_model,
+    matrix,
+    multipliers,
+    information,
+):
     """
     Format the *IDT* matrix and multipliers as a *Common LUT Format* (CLF).
 
     Parameters
     ----------
+    aces_transform_id : str
+        *ACEStransformID* of the IDT, e.g.
+        *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
+    aces_username : str
+        *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
+    camera_make : str
+        Manufacturer of the camera, e.g. *ARRI* or *RED*.
+    camera_model : str
+        Model of the camera, e.g. *ALEXA 35* or *V-RAPTOR XL 8K VV*.
     matrix : ArrayLike
         *IDT* matrix.
     multipliers : ArrayLike
@@ -616,8 +767,8 @@ def format_idt_clf(camera_name, matrix, multipliers, information):
     root = Et.Element(
         "ProcessList",
         compCLFversion="3",
-        id=f"urn:ampas:aces:transformId:v1.5:IDT.{camera_name}.a1.v1",
-        name=f"{camera_name} to ACES2065-1",
+        id=aces_transform_id,
+        name=f"{camera_model} to ACES2065-1",
     )
 
     def format_array(a):
@@ -626,18 +777,12 @@ def format_idt_clf(camera_name, matrix, multipliers, information):
         return "\n".join(map(str, np.ravel(a).tolist()))
 
     et_input_descriptor = Et.SubElement(root, "InputDescriptor")
-    et_input_descriptor.text = camera_name
+    et_input_descriptor.text = camera_model
 
     et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
     et_output_descriptor.text = "ACES2065-1"
 
     et_info = Et.SubElement(root, "Info")
-    et_metadata = Et.SubElement(et_info, "Archive")
-    for key, value in {
-        "CameraName": camera_name,
-    }.items():
-        sub_element = Et.SubElement(et_metadata, key)
-        sub_element.text = str(value)
     et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
         sub_element = Et.SubElement(et_academy_idt_calculator, key)

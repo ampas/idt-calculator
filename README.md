@@ -105,10 +105,10 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
                 "schema_version": {
                     "type": "string"
                 },
-                "camera": {
+                "camera_make": {
                     "type": "string"
                 },
-                "manufacturer": {
+                "camera_manufacturer": {
                     "type": "string"
                 },
                 "exposure_settings": {
@@ -126,7 +126,7 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
             },
             "required": [
                 "schema_version",
-                "camera"
+                "camera_make"
             ]
         },
         "data": {

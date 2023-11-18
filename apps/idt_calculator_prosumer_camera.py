@@ -74,6 +74,7 @@ from apps.common import (
     COLOUR_ENVIRONMENT,
     CUSTOM_WAVELENGTHS,
     DATATABLE_DECIMALS,
+    DELAY_TOOLTIP_DEFAULT,
     INTERPOLATORS,
     OPTIMISATION_FACTORIES,
     OPTIONS_CAT,
@@ -192,7 +193,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         "input field allowing to define a custom colour temperature. External "
         'tabular data, e.g. from "Excel" or "Google Docs" can be pasted '
         "directly.",
-        delay={"show": 500, "hide": 500},
+        delay=DELAY_TOOLTIP_DEFAULT,
         target=_uid("illuminant-select"),
     ),
     Row(
@@ -223,7 +224,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
     ),
 ]
 
-_LAYOUT_COLUMN_OPTIONS_CHILDREN = [
+_LAYOUT_COLUMN_SETTINGS_CHILDREN = [
     Div(
         Upload(
             id=_uid("idt-archive-upload"),
@@ -272,7 +273,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                             Tooltip(
                                 "RGB colourspace used to display images in "
                                 "the app. It does not affect the computations.",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("rgb-display-colourspace-select"),
                             ),
                             InputGroup(
@@ -292,7 +293,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Chromatic adaptation transform used to "
                                 'convert the "ColorChecker Classic" '
                                 'reflectances under the "ACES" whitepoint.',
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid(
                                     "chromatic-adaptation-transform-select"
                                 ),
@@ -315,7 +316,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "during the optimisation process. Recent "
                                 'models such as "Oklab" and "JzAzBz" tend to '
                                 "produce a lower error.",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("optimisation-space-select"),
                             ),
                             InputGroup(
@@ -337,7 +338,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Interpolator used to align the illuminant "
                                 "to the working spectral shape, i.e. "
                                 "`colour.SpectralShape(360, 830, 1)`",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("illuminant-interpolator-select"),
                             ),
                             InputGroup(
@@ -362,7 +363,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 '"Per Channel" passes the "LUT3x1D" as is, '
                                 'and, "ACES" sums the 3 channels using the '
                                 '"ACES" weights.',
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("decoding-method-select"),
                             ),
                             InputGroup(
@@ -381,7 +382,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 '"IDT" matrix: Rather that using a single '
                                 "exposure series to compute the matrix, the "
                                 "median of given range is used.",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("ev-range-input"),
                             ),
                             InputGroup(
@@ -400,7 +401,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 'set the exposure factor "k" that results in '
                                 'a nominally "18% gray" object in the scene '
                                 "producing ACES values [0.18, 0.18, 0.18].",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("ev-range-input"),
                             ),
                         ],
@@ -423,7 +424,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     ),
                     Tooltip(
                         'Size of the linearisation "LUT1D" (or "LUT3x1D").',
-                        delay={"show": 500, "hide": 500},
+                        delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("lut-size-select"),
                     ),
                     InputGroup(
@@ -444,7 +445,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                         "Standard deviation of the gaussian convolution "
                         'kernel used when smoothing the linearisation "LUT1D" '
                         '(or "LUT3x1D").',
-                        delay={"show": 500, "hide": 500},
+                        delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("lut-smoothing-input-number"),
                     ),
                 ]
@@ -551,7 +552,7 @@ LAYOUT = Container(
                                     [
                                         Row(
                                             Col(
-                                                _LAYOUT_COLUMN_OPTIONS_CHILDREN,
+                                                _LAYOUT_COLUMN_SETTINGS_CHILDREN,
                                             ),
                                         ),
                                         Row(

@@ -57,6 +57,7 @@ from dash_bootstrap_components import Input as Field
 from aces.idt import png_compare_colour_checkers, error_delta_E, slugify
 from app import APP, SERVER_URL, __version__
 from apps.common import (
+    DELAY_TOOLTIP_DEFAULT,
     OPTIONS_CAMERA_SENSITIVITIES,
     OPTIONS_CAT,
     COLOUR_ENVIRONMENT,
@@ -82,6 +83,7 @@ from apps.common import (
     format_matrix_nuke,
     format_matrix_dctl,
     format_vector_dctl,
+    metadata_card_default,
 )
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
@@ -204,7 +206,7 @@ _LAYOUT_COLUMN_CAMERA_SENSITIVITIES_CHILDREN = [
         "Camera sensitivities used to integrate the incident reflectance "
         'training datasets. External tabular data, e.g. from "Excel" or '
         '"Google Docs" can be pasted directly.',
-        delay={"show": 500, "hide": 500},
+        delay=DELAY_TOOLTIP_DEFAULT,
         target=_uid("camera-sensitivities-select"),
     ),
     Row(
@@ -235,7 +237,7 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
         'test datasets. Selecting "Daylight" and "Blackbody" displays a new '
         "input field allowing to define a custom colour temperature. It is "
         "possible to paste external tabular data.",
-        delay={"show": 500, "hide": 500},
+        delay=DELAY_TOOLTIP_DEFAULT,
         target=_uid("illuminant-select"),
     ),
     Row(
@@ -266,7 +268,8 @@ _LAYOUT_COLUMN_ILLUMINANT_CHILDREN = [
     ),
 ]
 
-_LAYOUT_COLUMN_OPTIONS_CHILDREN = [
+_LAYOUT_COLUMN_SETTINGS_CHILDREN = [
+    metadata_card_default(_uid),
     Card(
         [
             CardHeader("Options"),
@@ -299,7 +302,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "RGB colourspace used to display images "
                                 "in the app. It does not affect the "
                                 "computations.",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("rgb-display-colourspace-select"),
                             ),
                             InputGroup(
@@ -321,7 +324,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Reflectance training dataset used for the "
                                 "computations. A larger and varied training "
                                 'dataset produces a better "IDT".',
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("training-data-select"),
                             ),
                             InputGroup(
@@ -341,7 +344,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Chromatic adaptation transform used to convert "
                                 "the reflectance training dataset under the "
                                 '"ACES" whitepoint.',
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid(
                                     "chromatic-adaptation-transform-select"
                                 ),
@@ -364,7 +367,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "during the optimisation process. Recent "
                                 'models such as "Oklab" and "JzAzBz" tend to '
                                 "produce a lower error.",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("optimisation-space-select"),
                             ),
                             InputGroup(
@@ -388,7 +391,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Interpolator used to align the camera "
                                 "sensitivities to the working spectral shape, "
                                 "i.e. `colour.SpectralShape(380, 780, 5)`",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid(
                                     "camera-sensitivities-interpolator-select"
                                 ),
@@ -412,14 +415,18 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 "Interpolator used to align the illuminant "
                                 "to the working spectral shape, i.e. "
                                 "`colour.SpectralShape(380, 780, 5)`",
-                                delay={"show": 500, "hide": 500},
+                                delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("illuminant-interpolator-select"),
                             ),
                             InputGroup(
                                 [
-                                    InputGroupText("Exposure Factor"),
+                                    InputGroupText(
+                                        "Exposure Normalisation Factor"
+                                    ),
                                     Field(
-                                        id=_uid("exposure-factor-select"),
+                                        id=_uid(
+                                            "exposure-normalisation-factor-field"
+                                        ),
                                         type="number",
                                         value=1,
                                     ),
@@ -427,11 +434,14 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                                 className="mb-1",
                             ),
                             Tooltip(
-                                'Exposure factor "k" that results in a '
-                                'nominally "18% gray" object in the scene '
-                                "producing ACES values [0.18, 0.18, 0.18].",
-                                delay={"show": 500, "hide": 500},
-                                target=_uid("exposure-factor-select"),
+                                'Exposure normalisation factor "k" that '
+                                'results in a nominally "18% gray" object in '
+                                "the scene producing ACES values "
+                                "[0.18, 0.18, 0.18].",
+                                delay=DELAY_TOOLTIP_DEFAULT,
+                                target=_uid(
+                                    "exposure-normalisation-factor-field"
+                                ),
                             ),
                         ],
                         id=_uid("advanced-options-collapse"),
@@ -450,7 +460,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     ),
                     Tooltip(
                         'Formatter used to generate the "IDT".',
-                        delay={"show": 500, "hide": 500},
+                        delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("formatter-select"),
                     ),
                     InputGroup(
@@ -469,7 +479,7 @@ _LAYOUT_COLUMN_OPTIONS_CHILDREN = [
                     ),
                     Tooltip(
                         'Decimals used in the formatted "IDT".',
-                        delay={"show": 500, "hide": 500},
+                        delay=DELAY_TOOLTIP_DEFAULT,
                         target=_uid("decimals-select"),
                     ),
                 ]
@@ -568,7 +578,7 @@ LAYOUT = Container(
                                     width=3,
                                 ),
                                 Col(
-                                    _LAYOUT_COLUMN_OPTIONS_CHILDREN,
+                                    _LAYOUT_COLUMN_SETTINGS_CHILDREN,
                                     width=5,
                                 ),
                             ]
@@ -617,6 +627,27 @@ LAYOUT : Div
 @APP.callback(
     [
         Output(
+            component_id=_uid("camera-make-field"),
+            component_property="value",
+        ),
+        Output(
+            component_id=_uid("camera-model-field"),
+            component_property="value",
+        ),
+    ],
+    [Input(_uid("camera-sensitivities-select"), "value")],
+)
+def set_camera_make_and_model(sensitivities_name):
+    tokens = sensitivities_name.split(" ", 1)
+    if len(tokens) == 1:
+        tokens.append("")
+
+    return tokens[0], tokens[1]
+
+
+@APP.callback(
+    [
+        Output(
             component_id=_uid("camera-sensitivities-datatable"),
             component_property="data",
         ),
@@ -627,14 +658,14 @@ LAYOUT : Div
     ],
     [Input(_uid("camera-sensitivities-select"), "value")],
 )
-def set_camera_sensitivities_datable(camera_sensitivities):
+def set_camera_sensitivities_datable(sensitivities_name):
     """
     Set the *Camera Sensitivities* `DataTable` content for given camera
     sensitivities name.
 
     Parameters
     ----------
-    camera_sensitivities : str
+    sensitivities_name : str
         Existing camera sensitivities name or *Custom*.
 
     Returns
@@ -645,7 +676,7 @@ def set_camera_sensitivities_datable(camera_sensitivities):
 
     logging.debug(
         'Setting camera sensitivities datatable with "%s"...',
-        camera_sensitivities,
+        sensitivities_name,
     )
 
     labels = ["Wavelength", "Red", "Green", "Blue"]
@@ -663,14 +694,14 @@ def set_camera_sensitivities_datable(camera_sensitivities):
         for i, label in enumerate(labels)
     ]
 
-    if camera_sensitivities == "Custom":
+    if sensitivities_name == "Custom":
         data = [
             dict(wavelength=wavelength, **{column: None for column in labels})
             for wavelength in CUSTOM_WAVELENGTHS
         ]
 
     else:
-        camera_sensitivities = MSDS_CAMERA_SENSITIVITIES[camera_sensitivities]
+        camera_sensitivities = MSDS_CAMERA_SENSITIVITIES[sensitivities_name]
 
         data = [
             dict(
@@ -835,10 +866,14 @@ def toggle_advanced_options(n_clicks, is_open):
         Output(_uid("idt-calculator-pre"), "style"),
     ],
     [
-        Input(_uid("compute-idt-button"), "n_clicks"),
+        Input(_uid("acestransformid-field"), "value"),
+        Input(_uid("acesusername-field"), "value"),
+        Input(_uid("camera-make-field"), "value"),
+        Input(_uid("camera-model-field"), "value"),
+        Input(_uid("exposure-normalisation-factor-field"), "value"),
         Input(_uid("formatter-select"), "value"),
         Input(_uid("decimals-select"), "value"),
-        Input(_uid("exposure-factor-select"), "value"),
+        Input(_uid("compute-idt-button"), "n_clicks"),
     ],
     [
         State(_uid("camera-sensitivities-select"), "value"),
@@ -856,11 +891,15 @@ def toggle_advanced_options(n_clicks, is_open):
     prevent_initial_call=True,
 )
 def compute_idt_p2013_001(
-    n_clicks,  # noqa: ARG001
+    aces_transform_id,
+    aces_username,
+    camera_make,
+    camera_model,
+    exposure_normalisation_factor,
     formatter,
     decimals,
-    exposure_factor,
-    camera_name,
+    n_clicks,  # noqa: ARG001
+    sensitivities_name,
     sensitivities_data,
     illuminant_name,
     illuminant_data,
@@ -877,25 +916,34 @@ def compute_idt_p2013_001(
 
     Parameters
     ----------
-    n_clicks : int
-        Integer that represents that number of times the button has been
-        clicked.
+    aces_transform_id : str
+        *ACEStransformID* of the IDT, e.g.
+        *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
+    aces_username : str
+        *ACESuserName* of the IDT, e.g. *ACES 1.0 Input - ARRI LogC4*.
+    camera_make : str
+        Manufacturer of the camera, e.g. *ARRI* or *RED*.
+    camera_model : str
+        Model of the camera, e.g. *ALEXA 35* or *V-RAPTOR XL 8K VV*.
+    exposure_normalisation_factor : numeric
+        Exposure adjustment factor :math:`k` to normalize 18% grey.
     formatter : str
         Formatter to use, :func:`str`, :func:`repr` or *Nuke*.
     decimals : int
         Decimals to use when formatting the IDT matrix.
-    exposure_factor : numeric
-        Exposure adjustment factor :math:`k` to normalize 18% grey.
-    camera_name : str
+    n_clicks : int
+        Integer that represents that number of times the button has been
+        clicked.
+    camera_model : str
         Name of the camera.
     sensitivities_data : list
         List of wavelength dicts of camera sensitivities data.
     illuminant_name : str
         Name of the illuminant.
-    RGB_display_colourspace : str
-        *RGB* display colourspace.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
+    RGB_display_colourspace : str
+        *RGB* display colourspace.
     training_data : str
         Name of the training data.
     chromatic_adaptation_transform : str
@@ -920,8 +968,8 @@ def compute_idt_p2013_001(
         'Computing "IDT" according to "P2013-001" with parameters:\n'
         '\tFormatter : "%s"\n'
         '\tDecimals : "%s"\n'
-        '\tExposure Factor : "%s"\n'
-        '\tCamera Name : "%s"\n'
+        '\tExposure Normalisation Factor : "%s"\n'
+        '\tSensitivities Name : "%s"\n'
         '\tSensitivities Data : "%s"\n'
         '\tIlluminant Name : "%s"\n'
         '\tIlluminant Data : "%s"\n'
@@ -933,8 +981,8 @@ def compute_idt_p2013_001(
         '\tIlluminant Interpolator : "%s"\n',
         formatter,
         decimals,
-        exposure_factor,
-        camera_name,
+        exposure_normalisation_factor,
+        sensitivities_name,
         sensitivities_data,
         illuminant_name,
         illuminant_data,
@@ -946,8 +994,12 @@ def compute_idt_p2013_001(
         illuminant_interpolator,
     )
 
+    aces_transform_id = str(aces_transform_id)
+    aces_username = str(aces_username)
+    camera_make = str(camera_make)
+    camera_model = str(camera_model)
+
     key = (
-        camera_name,
         hash(
             tuple(
                 (
@@ -969,7 +1021,7 @@ def compute_idt_p2013_001(
                 for data in illuminant_data
             )
         ),
-        exposure_factor,
+        exposure_normalisation_factor,
         training_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -992,13 +1044,15 @@ def compute_idt_p2013_001(
         for data in sensitivities_data:
             red, green, blue = data.get("R"), data.get("G"), data.get("B")
             if None in (red, green, blue):
-                return "Please define all the camera sensitivities values!"
+                logging.warning("Camera sensitivities values are undefined!")
+                return "", [], {}
 
             wavelength = data["wavelength"]
             if wavelength == "...":
-                return (
-                    "Please define all the camera sensitivities wavelengths!"
+                logging.warning(
+                    "Camera sensitivities wavelengths are undefined!"
                 )
+                return "", [], {}
 
             parsed_sensitivities_data[wavelength] = as_float_array(
                 [red, green, blue]
@@ -1012,11 +1066,13 @@ def compute_idt_p2013_001(
         for data in illuminant_data:
             irradiance = data.get("irradiance")
             if irradiance is None:
-                return "Please define all the illuminant values!"
+                logging.warning("Illuminant values are undefined!")
+                return "", [], {}
 
             wavelength = data["wavelength"]
             if wavelength == "...":
-                return "Please define all the illuminant wavelengths!"
+                logging.warning("Illuminant wavelengths are undefined!")
+                return "", [], {}
 
             parsed_illuminant_data[wavelength] = as_float(irradiance)
         illuminant = SpectralDistribution(
@@ -1064,17 +1120,23 @@ def compute_idt_p2013_001(
             output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
         elif formatter == "clf":
             output = format_idt_clf(
-                camera_name,
+                aces_transform_id,
+                aces_username,
+                camera_make,
+                camera_model,
                 M,
-                RGB_w * exposure_factor,
+                RGB_w * exposure_normalisation_factor,
                 {
                     "Application": f"{APP_NAME_LONG} - {__version__}",
                     "Url": href,
                     "Date": datetime.datetime.now(
                         datetime.timezone.utc
                     ).strftime("%b %d, %Y %H:%M:%S"),
-                    "ExposureFactor": exposure_factor,
-                    "CameraName": camera_name,
+                    "ACEStransformID": aces_transform_id,
+                    "ACESuserName": aces_username,
+                    "CameraMake": camera_make,
+                    "CameraModel": camera_model,
+                    "ExposureNormalisationFactor": exposure_normalisation_factor,
                     "SensitivitiesData": str(parsed_sensitivities_data)
                     .replace("array([", "[")
                     .replace("])", "]"),
@@ -1090,10 +1152,13 @@ def compute_idt_p2013_001(
             )
         elif formatter == "ctl":
             output = TEMPLATE_CTL_MODULE.format(
+                aces_transform_id=aces_transform_id,
+                aces_username=aces_username,
+                camera_make=camera_make,
+                camera_model=camera_model,
                 matrix=format_matrix_ctl(M, decimals),
                 multipliers=format_vector_ctl(RGB_w, decimals),
-                k_factor=format_float(exposure_factor, decimals),
-                camera=camera_name,
+                k_factor=format_float(exposure_normalisation_factor, decimals),
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME_LONG} - {__version__}",
@@ -1101,6 +1166,10 @@ def compute_idt_p2013_001(
             )
         elif formatter == "dctl":
             output = TEMPLATE_DCTL_MODULE.format(
+                aces_transform_id=aces_transform_id,
+                aces_username=aces_username,
+                camera_make=camera_make,
+                camera_model=camera_model,
                 matrix=format_matrix_dctl(M, decimals),
                 multipliers=format_vector_dctl(RGB_w, decimals),
                 # TODO: Reassess computation with decision on
@@ -1109,8 +1178,7 @@ def compute_idt_p2013_001(
                 b_min=format_float(
                     min(RGB_w[0], RGB_w[1], RGB_w[2]), decimals
                 ),
-                k_factor=format_float(exposure_factor, decimals),
-                camera=camera_name,
+                k_factor=format_float(exposure_normalisation_factor, decimals),
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME_LONG} - {__version__}",
@@ -1118,16 +1186,21 @@ def compute_idt_p2013_001(
             )
         elif formatter == "nuke":
             output = TEMPLATE_NUKE_GROUP.format(
+                aces_transform_id=aces_transform_id,
+                aces_username=aces_username,
+                camera_make=camera_make,
+                camera_model=camera_model,
                 matrix=format_matrix_nuke(M, decimals),
                 multipliers=format_vector_nuke(RGB_w),
-                k_factor=format_float(exposure_factor, decimals),
-                camera=camera_name,
+                k_factor=format_float(exposure_normalisation_factor, decimals),
                 illuminant=illuminant_name,
                 date=now,
                 application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
                 group=slugify(
-                    "_".join([camera_name, illuminant_name]).lower()
+                    "_".join(
+                        [camera_make, camera_model, illuminant_name]
+                    ).lower()
                 ),
             )
 
@@ -1177,7 +1250,7 @@ APP.clientside_callback(
     f"""
     function(n_clicks) {{
         var idtCalculatorOutput = document.getElementById(\
-"{_uid('idt-calculator-output')}");
+"{('idt-calculator-output')}");
         var content = idtCalculatorOutput.textContent;
         navigator.clipboard.writeText(content).then(function() {{
         }}, function() {{
