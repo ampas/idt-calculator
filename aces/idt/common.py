@@ -4,10 +4,11 @@ Common IDT Utilities
 """
 
 import base64
+import io
+
 import colour
 import colour_checker_detection
 import cv2
-import io
 import matplotlib as mpl
 import numpy as np
 from colour import (
@@ -17,11 +18,11 @@ from colour import (
 )
 from colour.algebra import euclidean_distance, vector_dot
 from colour.characterisation import whitepoint_preserving_matrix
-from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_Oklab, XYZ_to_IPT
-from colour.utilities import as_float_array, zeros, orient
+from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
+from colour.utilities import as_float_array, zeros
 
 mpl.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -35,10 +36,8 @@ __all__ = [
     "SD_ILLUMINANT_ACES",
     "SAMPLES_COUNT_DEFAULT",
     "SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC",
-    "swatch_colours_from_image",
     "generate_reference_colour_checker",
     "RGB_COLORCHECKER_CLASSIC_ACES",
-    "is_colour_checker_flipped",
     "optimisation_factory_Oklab",
     "optimisation_factory_IPT",
     "error_delta_E",
@@ -80,12 +79,7 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC : dict
 SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
     {
         "working_width": 1600,
-        "swatches_count_minimum": 24 / 2,
-        "fast_non_local_means_denoising_kwargs": {
-            "h": 3,
-            "templateWindowSize": 5,
-            "searchWindowSize": 11,
-        },
+        "working_height": int(1600 * 4 / 6),
         "adaptive_threshold_kwargs": {
             "maxValue": 255,
             "adaptiveMethod": cv2.ADAPTIVE_THRESH_MEAN_C,
@@ -95,74 +89,6 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
         },
     }
 )
-
-
-def swatch_colours_from_image(
-    image,
-    colour_checker_rectangle,
-    samples=SAMPLES_COUNT_DEFAULT,
-    swatches_h=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
-        "swatches_horizontal"
-    ],
-    swatches_v=SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_vertical"],
-):
-    """
-    Extract the swatch colours for given image using given rectifying rectangle.
-
-    Parameters
-    ----------
-    image : array_like
-        Image to extract the swatch colours of.
-    colour_checker_rectangle : array_like
-        Rectifying rectangle.
-    samples : integer, optional
-        Samples count to use to compute the swatches colours. The effective
-        samples count is :math:`samples^2`.
-    swatches_h : int, optional
-        Horizontal swatches.
-    swatches_v : int, optional
-        Vertical swatches.
-
-    Returns
-    -------
-    NDArray
-        Swatch colours.
-    """
-
-    image = colour_checker_detection.detection.segmentation.adjust_image(
-        image, SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"]
-    )
-
-    colour_checker = (
-        colour_checker_detection.detection.segmentation
-    ).crop_and_level_image_with_rectangle(
-        image,
-        cv2.minAreaRect(colour_checker_rectangle),
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["interpolation_method"],
-    )
-    # TODO: Release new "colour-checker-detection" package.
-    if colour_checker.shape[0] > colour_checker.shape[1]:
-        colour_checker = orient(colour_checker, "90 CW")
-
-    width, height = colour_checker.shape[1], colour_checker.shape[0]
-    masks = colour_checker_detection.detection.segmentation.swatch_masks(
-        width, height, swatches_h, swatches_v, samples
-    )
-
-    swatch_colours = []
-    masks_i = np.zeros(colour_checker.shape)
-    for mask in masks:
-        swatch_colours.append(
-            np.mean(
-                colour_checker[mask[0] : mask[1], mask[2] : mask[3], ...],
-                axis=(0, 1),
-            )
-        )
-        masks_i[mask[0] : mask[1], mask[2] : mask[3], ...] = 1
-
-    swatch_colours = as_float_array(swatch_colours)
-
-    return swatch_colours
 
 
 def generate_reference_colour_checker(
@@ -207,46 +133,6 @@ Reference *ACES* *RGB* values for the *ColorChecker Classic*.
 
 RGB_COLORCHECKER_CLASSIC_ACES : NDArray
 """
-
-
-def is_colour_checker_flipped(swatch_colours):
-    """
-    Return whether the colour checker is flipped.
-
-    The colour checker might be flipped: The mean standard deviation
-    of some expected normalised chromatic and achromatic neutral
-    swatches is computed. If the chromatic mean is lesser than the
-    achromatic mean, it means that the colour checker is flipped.
-
-    Parameters
-    ----------
-    swatch_colours : array_like
-        Swatch colours.
-
-    Returns
-    -------
-    bool
-        Whether the colour checker is flipped.
-    """
-
-    std_means = []
-    for slice_ in [
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["swatches_chromatic_slice"],
-        SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC[
-            "swatches_achromatic_slice"
-        ],
-    ]:
-        swatch_std_mean = as_float_array(swatch_colours[slice_])
-        swatch_std_mean /= swatch_std_mean[..., 1][..., np.newaxis]
-        std_means.append(np.mean(np.std(swatch_std_mean, 0)))
-
-    is_flipped = bool(std_means[0] < std_means[1])
-
-    if is_flipped:
-        print("Colour checker was seemingly flipped!")  # noqa: T201
-        return True
-    else:
-        return False
 
 
 def optimisation_factory_Oklab():
@@ -400,15 +286,11 @@ def error_delta_E(samples_test, samples_reference):
     }
 
     Lab_test = (
-        colour.convert(
-            samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
-        )
+        colour.convert(samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
         * 100
     )
     Lab_reference = (
-        colour.convert(
-            samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs
-        )
+        colour.convert(samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
         * 100
     )
 

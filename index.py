@@ -7,13 +7,13 @@ import logging
 
 from dash.dcc import Link, Location, Markdown
 from dash.dependencies import Input, Output
-from dash.html import A, Div, H3, Img, Main, P
+from dash.html import H3, A, Div, Img, Main, P
 from dash_bootstrap_components import (
     Col,
     Container,
+    NavbarSimple,
     NavItem,
     NavLink,
-    NavbarSimple,
     Row,
 )
 
@@ -57,14 +57,14 @@ APP.layout = Container(
             color="primary",
             dark=True,
         ),
-        Div(id="apps"),
+        Div(id="toc"),
     ],
     id="apps",
     fluid=True,
 )
 
 
-@APP.callback(Output("apps", "children"), [Input("url", "pathname")])
+@APP.callback(Output("toc", "children"), [Input("url", "pathname")])
 def load_app(app):
     """
     Load given app into the appropriate :class:`Div` class instance.

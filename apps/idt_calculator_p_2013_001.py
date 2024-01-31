@@ -3,20 +3,21 @@ Input Device Transform (IDT) Calculator - P-2013-001
 ====================================================
 """
 
-import colour
 import datetime
 import logging
-import numpy as np
 import sys
 import urllib.parse
+
+import colour
+import numpy as np
 from colour import (
     RGB_COLOURSPACES,
-    RGB_to_RGB,
     SDS_ILLUMINANTS,
-    XYZ_to_RGB,
+    RGB_to_RGB,
     SpectralDistribution,
-    sd_CIE_illuminant_D_series,
+    XYZ_to_RGB,
     sd_blackbody,
+    sd_CIE_illuminant_D_series,
 )
 from colour.characterisation import (
     RGB_CameraSensitivities,
@@ -35,7 +36,9 @@ from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Link, Location, Markdown, Tab, Tabs
 from dash.dependencies import Input, Output, State
-from dash.html import A, Code, Div, Footer, H2, H3, Img, Li, Main, P, Pre, Ul
+from dash.html import H2, H3, A, Code, Div, Footer, Img, Li, Main, P, Pre, Ul
+
+# "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -44,6 +47,9 @@ from dash_bootstrap_components import (
     Col,
     Collapse,
     Container,
+)
+from dash_bootstrap_components import Input as Field
+from dash_bootstrap_components import (
     InputGroup,
     InputGroupText,
     Row,
@@ -51,38 +57,35 @@ from dash_bootstrap_components import (
     Tooltip,
 )
 
-# "Input" is already imported above, to avoid clash, we alias it as "Field".
-from dash_bootstrap_components import Input as Field
-
-from aces.idt import png_compare_colour_checkers, error_delta_E, slugify
+from aces.idt import error_delta_E, png_compare_colour_checkers, slugify
 from app import APP, SERVER_URL, __version__
 from apps.common import (
-    DELAY_TOOLTIP_DEFAULT,
-    OPTIONS_CAMERA_SENSITIVITIES,
-    OPTIONS_CAT,
     COLOUR_ENVIRONMENT,
     CUSTOM_WAVELENGTHS,
     DATATABLE_DECIMALS,
+    DELAY_TOOLTIP_DEFAULT,
+    INTERPOLATORS,
+    MSDS_CAMERA_SENSITIVITIES,
     OPTIMISATION_FACTORIES,
+    OPTIONS_CAMERA_SENSITIVITIES,
+    OPTIONS_CAT,
     OPTIONS_DISPLAY_COLOURSPACES,
     OPTIONS_ILLUMINANT,
     OPTIONS_INTERPOLATION,
     OPTIONS_OPTIMISATION_SPACES,
-    INTERPOLATORS,
-    MSDS_CAMERA_SENSITIVITIES,
-    TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_CTL_MODULE,
     TEMPLATE_DCTL_MODULE,
+    TEMPLATE_DEFAULT_OUTPUT,
     TEMPLATE_NUKE_GROUP,
     TRAINING_DATA_KODAK190PATCHES,
     format_float,
     format_idt_clf,
     format_matrix_ctl,
-    format_vector_nuke,
-    format_vector_ctl,
-    format_matrix_nuke,
     format_matrix_dctl,
+    format_matrix_nuke,
+    format_vector_ctl,
     format_vector_dctl,
+    format_vector_nuke,
     metadata_card_default,
 )
 
@@ -148,8 +151,7 @@ APP_UID : str
 """
 
 _OPTIONS_TRAINING_DATASET = [
-    {"label": key, "value": key}
-    for key in ["Kodak - 190 Patches", "ISO 17321-1"]
+    {"label": key, "value": key} for key in ["Kodak - 190 Patches", "ISO 17321-1"]
 ]
 
 _TRAINING_DATASETS = {
@@ -177,9 +179,7 @@ _OPTIONS_FORMATTER = [
     ]
 ]
 
-_CACHE_MATRIX_IDT = CACHE_REGISTRY.register_cache(
-    f"{__name__}._CACHE_MATRIX_IDT"
-)
+_CACHE_MATRIX_IDT = CACHE_REGISTRY.register_cache(f"{__name__}._CACHE_MATRIX_IDT")
 
 
 def _uid(id_):
@@ -286,13 +286,9 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 [
                                     InputGroupText("RGB Display Colourspace"),
                                     Select(
-                                        id=_uid(
-                                            "rgb-display-colourspace-select"
-                                        ),
+                                        id=_uid("rgb-display-colourspace-select"),
                                         options=OPTIONS_DISPLAY_COLOURSPACES,
-                                        value=OPTIONS_DISPLAY_COLOURSPACES[0][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_DISPLAY_COLOURSPACES[0]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -310,11 +306,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                     Select(
                                         id=_uid("training-data-select"),
                                         options=_OPTIONS_TRAINING_DATASET,
-                                        value=(
-                                            _OPTIONS_TRAINING_DATASET[0][
-                                                "value"
-                                            ]
-                                        ),
+                                        value=(_OPTIONS_TRAINING_DATASET[0]["value"]),
                                     ),
                                 ],
                                 className="mb-1",
@@ -344,9 +336,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 "the reflectance training dataset under the "
                                 '"ACES" whitepoint.',
                                 delay=DELAY_TOOLTIP_DEFAULT,
-                                target=_uid(
-                                    "chromatic-adaptation-transform-select"
-                                ),
+                                target=_uid("chromatic-adaptation-transform-select"),
                             ),
                             InputGroup(
                                 [
@@ -354,9 +344,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                     Select(
                                         id=_uid("optimisation-space-select"),
                                         options=OPTIONS_OPTIMISATION_SPACES,
-                                        value=OPTIONS_OPTIMISATION_SPACES[0][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_OPTIMISATION_SPACES[0]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -371,17 +359,13 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupText(
-                                        "Camera Sensitivities Interpolator"
-                                    ),
+                                    InputGroupText("Camera Sensitivities Interpolator"),
                                     Select(
                                         id=_uid(
                                             "camera-sensitivities-interpolator-select"
                                         ),
                                         options=OPTIONS_INTERPOLATION,
-                                        value=OPTIONS_INTERPOLATION[3][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_INTERPOLATION[3]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -391,21 +375,15 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 "sensitivities to the working spectral shape, "
                                 "i.e. `colour.SpectralShape(380, 780, 5)`",
                                 delay=DELAY_TOOLTIP_DEFAULT,
-                                target=_uid(
-                                    "camera-sensitivities-interpolator-select"
-                                ),
+                                target=_uid("camera-sensitivities-interpolator-select"),
                             ),
                             InputGroup(
                                 [
                                     InputGroupText("Illuminant Interpolator"),
                                     Select(
-                                        id=_uid(
-                                            "illuminant-interpolator-select"
-                                        ),
+                                        id=_uid("illuminant-interpolator-select"),
                                         options=OPTIONS_INTERPOLATION,
-                                        value=OPTIONS_INTERPOLATION[1][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_INTERPOLATION[1]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -419,13 +397,9 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                             ),
                             InputGroup(
                                 [
-                                    InputGroupText(
-                                        "Exposure Normalisation Factor"
-                                    ),
+                                    InputGroupText("Exposure Normalisation Factor"),
                                     Field(
-                                        id=_uid(
-                                            "exposure-normalisation-factor-field"
-                                        ),
+                                        id=_uid("exposure-normalisation-factor-field"),
                                         type="number",
                                         value=1,
                                     ),
@@ -438,9 +412,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 "the scene producing ACES values "
                                 "[0.18, 0.18, 0.18].",
                                 delay=DELAY_TOOLTIP_DEFAULT,
-                                target=_uid(
-                                    "exposure-normalisation-factor-field"
-                                ),
+                                target=_uid("exposure-normalisation-factor-field"),
                             ),
                         ],
                         id=_uid("advanced-options-collapse"),
@@ -681,9 +653,7 @@ def set_camera_sensitivities_datable(sensitivities_name):
 
     labels = ["Wavelength", "Red", "Green", "Blue"]
     ids = ["wavelength", "R", "G", "B"]
-    precision = [None] + [
-        Format(precision=DATATABLE_DECIMALS, scheme=Scheme.fixed)
-    ] * 3
+    precision = [None] + [Format(precision=DATATABLE_DECIMALS, scheme=Scheme.fixed)] * 3
     columns = [
         {
             "id": ids[i],
@@ -1049,14 +1019,10 @@ def compute_idt_p2013_001(
 
             wavelength = data["wavelength"]
             if wavelength == "...":
-                logging.warning(
-                    "Camera sensitivities wavelengths are undefined!"
-                )
+                logging.warning("Camera sensitivities wavelengths are undefined!")
                 return "", [], {}
 
-            parsed_sensitivities_data[wavelength] = as_float_array(
-                [red, green, blue]
-            )
+            parsed_sensitivities_data[wavelength] = as_float_array([red, green, blue])
         sensitivities = RGB_CameraSensitivities(
             parsed_sensitivities_data,
             interpolator=INTERPOLATORS[sensitivities_interpolator],
@@ -1129,9 +1095,9 @@ def compute_idt_p2013_001(
                 {
                     "Application": f"{APP_NAME_LONG} - {__version__}",
                     "Url": href,
-                    "Date": datetime.datetime.now(
-                        datetime.timezone.utc
-                    ).strftime("%b %d, %Y %H:%M:%S"),
+                    "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
+                        "%b %d, %Y %H:%M:%S"
+                    ),
                     "ACEStransformID": aces_transform_id,
                     "ACESuserName": aces_user_name,
                     "CameraMake": camera_make,
@@ -1175,9 +1141,7 @@ def compute_idt_p2013_001(
                 # TODO: Reassess computation with decision on
                 # ampas/idt-calculator#26. Ideally, there should not be any
                 # math in the GUI besides the computation of the IDT itself.
-                b_min=format_float(
-                    min(RGB_w[0], RGB_w[1], RGB_w[2]), decimals
-                ),
+                b_min=format_float(min(RGB_w[0], RGB_w[1], RGB_w[2]), decimals),
                 k_factor=format_float(exposure_normalisation_factor, decimals),
                 illuminant=illuminant_name,
                 date=now,
@@ -1198,9 +1162,7 @@ def compute_idt_p2013_001(
                 application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
                 group=slugify(
-                    "_".join(
-                        [camera_make, camera_model, illuminant_name]
-                    ).lower()
+                    "_".join([camera_make, camera_model, illuminant_name]).lower()
                 ),
             )
 
@@ -1236,9 +1198,7 @@ def compute_idt_p2013_001(
                 style={"textAlign": "center"},
             ),
             Img(
-                src=(
-                    f"data:image/png;base64,{compare_colour_checkers_idt_correction}"
-                ),
+                src=(f"data:image/png;base64,{compare_colour_checkers_idt_correction}"),
                 style={"width": "100%"},
             ),
         ],

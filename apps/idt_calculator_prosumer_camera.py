@@ -3,7 +3,6 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 =========================================================
 """
 
-import colour
 import datetime
 import logging
 import os
@@ -11,14 +10,15 @@ import tempfile
 import urllib.parse
 import uuid
 
+import colour
 import numpy as np
 from colour import (
     RGB_COLOURSPACES,
-    RGB_to_RGB,
     SDS_ILLUMINANTS,
+    RGB_to_RGB,
     SpectralDistribution,
-    sd_CIE_illuminant_D_series,
     sd_blackbody,
+    sd_CIE_illuminant_D_series,
 )
 from colour.characterisation import camera_RGB_to_ACES2065_1
 from colour.models import RGB_COLOURSPACE_ACES2065_1
@@ -29,12 +29,12 @@ from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Download, Link, Location, Markdown, Tab, Tabs, send_file
 from dash.dependencies import Input, Output, State
 from dash.html import (
+    H2,
+    H3,
     A,
     Code,
     Div,
     Footer,
-    H2,
-    H3,
     Img,
     Li,
     Main,
@@ -42,6 +42,8 @@ from dash.html import (
     Pre,
     Ul,
 )
+
+# "Input" is already imported above, to avoid clash, we alias it as "Field".
 from dash_bootstrap_components import (
     Button,
     Card,
@@ -50,6 +52,9 @@ from dash_bootstrap_components import (
     Col,
     Collapse,
     Container,
+)
+from dash_bootstrap_components import Input as Field
+from dash_bootstrap_components import (
     InputGroup,
     InputGroupText,
     Row,
@@ -57,9 +62,6 @@ from dash_bootstrap_components import (
     Spinner,
     Tooltip,
 )
-
-# "Input" is already imported above, to avoid clash, we alias it as "Field".
-from dash_bootstrap_components import Input as Field
 from dash_uploader import Upload, callback, configure_upload
 
 from aces.idt import (
@@ -109,9 +111,7 @@ logger = logging.getLogger(__name__)
 
 colour.plotting.colour_style()
 
-APP_NAME_LONG = (
-    "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
-)
+APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
 """
 App long name.
 
@@ -163,8 +163,7 @@ _CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
 )
 
 _OPTIONS_DECODING_METHOD = [
-    {"label": key, "value": key}
-    for key in ["Median", "Average", "Per Channel", "ACES"]
+    {"label": key, "value": key} for key in ["Median", "Average", "Per Channel", "ACES"]
 ]
 
 
@@ -260,13 +259,9 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 [
                                     InputGroupText("RGB Display Colourspace"),
                                     Select(
-                                        id=_uid(
-                                            "rgb-display-colourspace-select"
-                                        ),
+                                        id=_uid("rgb-display-colourspace-select"),
                                         options=OPTIONS_DISPLAY_COLOURSPACES,
-                                        value=OPTIONS_DISPLAY_COLOURSPACES[0][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_DISPLAY_COLOURSPACES[0]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -295,9 +290,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 'convert the "ColorChecker Classic" '
                                 'reflectances under the "ACES" whitepoint.',
                                 delay=DELAY_TOOLTIP_DEFAULT,
-                                target=_uid(
-                                    "chromatic-adaptation-transform-select"
-                                ),
+                                target=_uid("chromatic-adaptation-transform-select"),
                             ),
                             InputGroup(
                                 [
@@ -305,9 +298,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                     Select(
                                         id=_uid("optimisation-space-select"),
                                         options=OPTIONS_OPTIMISATION_SPACES,
-                                        value=OPTIONS_OPTIMISATION_SPACES[0][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_OPTIMISATION_SPACES[0]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -324,13 +315,9 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 [
                                     InputGroupText("Illuminant Interpolator"),
                                     Select(
-                                        id=_uid(
-                                            "illuminant-interpolator-select"
-                                        ),
+                                        id=_uid("illuminant-interpolator-select"),
                                         options=OPTIONS_INTERPOLATION,
-                                        value=OPTIONS_INTERPOLATION[1][
-                                            "value"
-                                        ],
+                                        value=OPTIONS_INTERPOLATION[1]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -348,9 +335,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                     Select(
                                         id=_uid("decoding-method-select"),
                                         options=_OPTIONS_DECODING_METHOD,
-                                        value=_OPTIONS_DECODING_METHOD[0][
-                                            "value"
-                                        ],
+                                        value=_OPTIONS_DECODING_METHOD[0]["value"],
                                     ),
                                 ],
                                 className="mb-1",
@@ -730,9 +715,7 @@ LAYOUT : Div
 def _attribute_value(attribute, default):
     """Return given attribute value from the IDT specification."""
 
-    return optional(
-        _IDT_GENERATOR.specification["header"].get(attribute), default
-    )
+    return optional(_IDT_GENERATOR.specification["header"].get(attribute), default)
 
 
 @callback(
@@ -974,12 +957,8 @@ def download_idt_zip(
         Download component.
     """
 
-    _IDT_GENERATOR.specification["header"]["aces_transform_id"] = str(
-        aces_transform_id
-    )
-    _IDT_GENERATOR.specification["header"]["aces_user_name"] = str(
-        aces_user_name
-    )
+    _IDT_GENERATOR.specification["header"]["aces_transform_id"] = str(aces_transform_id)
+    _IDT_GENERATOR.specification["header"]["aces_user_name"] = str(aces_user_name)
     _IDT_GENERATOR.specification["header"]["camera_make"] = str(camera_make)
     _IDT_GENERATOR.specification["header"]["camera_model"] = str(camera_model)
     _IDT_GENERATOR.specification["header"]["iso"] = float(iso)
@@ -1244,22 +1223,16 @@ def compute_idt_prosumer_camera(
     camera_model = _IDT_GENERATOR.specification["header"][
         "camera_model"
     ] = _attribute_value("camera_model", camera_model)
-    iso = _IDT_GENERATOR.specification["header"]["iso"] = _attribute_value(
-        "iso", iso
-    )
+    iso = _IDT_GENERATOR.specification["header"]["iso"] = _attribute_value("iso", iso)
     temperature = _IDT_GENERATOR.specification["header"][
         "temperature"
     ] = _attribute_value("temperature", temperature)
     additional_camera_settings = _IDT_GENERATOR.specification["header"][
         "additional_camera_settings"
-    ] = _attribute_value(
-        "additional_camera_settings", additional_camera_settings
-    )
+    ] = _attribute_value("additional_camera_settings", additional_camera_settings)
     lighting_setup_description = _IDT_GENERATOR.specification["header"][
         "lighting_setup_description"
-    ] = _attribute_value(
-        "lighting_setup_description", lighting_setup_description
-    )
+    ] = _attribute_value("lighting_setup_description", lighting_setup_description)
     debayering_platform = _IDT_GENERATOR.specification["header"][
         "debayering_platform"
     ] = _attribute_value("debayering_platform", debayering_platform)
@@ -1293,9 +1266,9 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][
-        0
-    ]["samples_median"]
+    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][0][
+        "samples_median"
+    ]
 
     samples_idt = camera_RGB_to_ACES2065_1(
         _IDT_GENERATOR.LUT_decoding.apply(samples_median),
@@ -1320,9 +1293,7 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    delta_E_idt = np.median(
-        error_delta_E(samples_idt, reference_colour_checker)
-    )
+    delta_E_idt = np.median(error_delta_E(samples_idt, reference_colour_checker))
     delta_E_decoded = np.median(
         error_delta_E(samples_decoded, reference_colour_checker)
     )
@@ -1334,9 +1305,7 @@ def compute_idt_prosumer_camera(
             style={"textAlign": "center"},
         ),
         Img(
-            src=(
-                f"data:image/png;base64,{compare_colour_checkers_idt_correction}"
-            ),
+            src=(f"data:image/png;base64,{compare_colour_checkers_idt_correction}"),
             style={"width": "100%"},
         ),
         H3(
@@ -1344,9 +1313,7 @@ def compute_idt_prosumer_camera(
             style={"textAlign": "center"},
         ),
         Img(
-            src=(
-                f"data:image/png;base64,{compare_colour_checkers_LUT_correction}"
-            ),
+            src=(f"data:image/png;base64,{compare_colour_checkers_LUT_correction}"),
             style={"width": "100%"},
         ),
         H3("Baseline", style={"textAlign": "center"}),
@@ -1357,9 +1324,7 @@ def compute_idt_prosumer_camera(
     ]
 
     # Segmentation
-    colour_checker_segmentation = (
-        _IDT_GENERATOR.png_colour_checker_segmentation()
-    )
+    colour_checker_segmentation = _IDT_GENERATOR.png_colour_checker_segmentation()
     if colour_checker_segmentation is not None:
         components += [
             H3("Segmentation", style={"textAlign": "center"}),
@@ -1379,9 +1344,7 @@ def compute_idt_prosumer_camera(
 
     # Camera Samples
     measured_camera_samples = _IDT_GENERATOR.png_measured_camera_samples()
-    extrapolated_camera_samples = (
-        _IDT_GENERATOR.png_extrapolated_camera_samples()
-    )
+    extrapolated_camera_samples = _IDT_GENERATOR.png_extrapolated_camera_samples()
     if None not in (measured_camera_samples, extrapolated_camera_samples):
         components += [
             H3("Measured Camera Samples", style={"textAlign": "center"}),

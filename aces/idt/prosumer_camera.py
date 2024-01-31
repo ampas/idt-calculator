@@ -4,62 +4,60 @@ Input Device Transform (IDT) Prosumer Camera Utilities
 """
 
 import base64
-import colour
-import colour_checker_detection
-import cv2
-import json
-import jsonpickle
 import io
+import json
 import logging
-import matplotlib as mpl
-import numpy as np
 import os
 import re
-import scipy.misc
-import scipy.ndimage
-import scipy.optimize
-import scipy.stats
 import shutil
 import tempfile
 import xml.etree.ElementTree as Et
 from copy import deepcopy
+from pathlib import Path
+from zipfile import ZipFile
+
+import colour
+import cv2
+import jsonpickle
+import matplotlib as mpl
+import numpy as np
+import scipy.misc
+import scipy.ndimage
+import scipy.optimize
+import scipy.stats
 from colour import (
+    LUT1D,
     Extrapolator,
     LinearInterpolator,
-    LUT1D,
     LUT3x1D,
     read_image,
 )
 from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
-from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.io import LUT_to_LUT
-from colour.utilities import (
-    as_float_array,
-    as_int_array,
-    attest,
-    validate_method,
+from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
+from colour.utilities import Structure, as_float_array, attest, validate_method, zeros
+from colour_checker_detection import segmenter_default
+from colour_checker_detection.detection import (
+    as_int32_array,
+    reformat_image,
+    sample_colour_checker,
 )
-from pathlib import Path
 from scipy.optimize import minimize
-from zipfile import ZipFile
 
 from aces.idt.common import (
+    RGB_COLORCHECKER_CLASSIC_ACES,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    RGB_COLORCHECKER_CLASSIC_ACES,
-    is_colour_checker_flipped,
-    swatch_colours_from_image,
 )
 from aces.idt.utilities import (
-    flip_image,
-    mask_outliers,
     list_sub_directories,
+    mask_outliers,
     working_directory,
 )
 
 mpl.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -178,9 +176,7 @@ class IDTGeneratorProsumerCamera:
         self._archive = str(archive)
         self._image_format = image_format
         self._directory = (
-            tempfile.TemporaryDirectory().name
-            if directory is None
-            else directory
+            tempfile.TemporaryDirectory().name if directory is None else directory
         )
         self._cleanup = cleanup
         self._specification = specification
@@ -577,10 +573,7 @@ class IDTGeneratorProsumerCamera:
         # point numbers.
         for exposure in list(specification["data"]["colour_checker"].keys()):
             images = [  # noqa: C416
-                image
-                for image in specification["data"]["colour_checker"].pop(
-                    exposure
-                )
+                image for image in specification["data"]["colour_checker"].pop(exposure)
             ]
 
             specification["data"]["colour_checker"][float(exposure)] = images
@@ -627,9 +620,7 @@ class IDTGeneratorProsumerCamera:
         if len(json_files) == 1:
             specification = json_files[0]
 
-            logger.info(
-                'Found explicit "%s" "IDT" specification file.', specification
-            )
+            logger.info('Found explicit "%s" "IDT" specification file.', specification)
 
             with open(specification) as json_file:
                 self._specification = json.load(json_file)
@@ -637,13 +628,9 @@ class IDTGeneratorProsumerCamera:
             logger.info('Assuming implicit "IDT" specification...')
             self._specification = deepcopy(DATA_SPECIFICATION)
 
-            self._specification["header"]["camera_model"] = Path(
-                self._archive
-            ).stem
+            self._specification["header"]["camera_model"] = Path(self._archive).stem
 
-            colour_checker_directory = (
-                root_directory / "data" / "colour_checker"
-            )
+            colour_checker_directory = root_directory / "data" / "colour_checker"
 
             attest(colour_checker_directory.exists())
 
@@ -669,22 +656,16 @@ class IDTGeneratorProsumerCamera:
                     flatfield_directory.glob(f"*.{self._image_format}")
                 )
 
-        for exposure in list(
-            self._specification["data"]["colour_checker"].keys()
-        ):
+        for exposure in list(self._specification["data"]["colour_checker"].keys()):
             images = [
                 Path(root_directory) / image
-                for image in self._specification["data"]["colour_checker"].pop(
-                    exposure
-                )
+                for image in self._specification["data"]["colour_checker"].pop(exposure)
             ]
 
             for image in images:
                 attest(image.exists())
 
-            self._specification["data"]["colour_checker"][
-                float(exposure)
-            ] = images
+            self._specification["data"]["colour_checker"][float(exposure)] = images
 
         if self._specification["data"].get("flatfield") is not None:
             images = [
@@ -713,87 +694,85 @@ class IDTGeneratorProsumerCamera:
 
         logger.info('Sampling "IDT" specification images...')
 
+        settings = Structure(**SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC)
+        working_width = settings.working_width
+        working_height = settings.working_height
+
+        def _reformat_image(image):
+            """Reformat given image."""
+
+            return reformat_image(
+                image, settings.working_width, settings.interpolation_method
+            )
+
+        rectangle = as_int32_array(
+            [
+                [working_width, 0],
+                [working_width, working_height],
+                [0, working_height],
+                [0, 0],
+            ]
+        )
+
         self._samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
 
         # Segmentation occurs on EV 0 and is reused on all brackets.
         paths = self._specification["data"]["colour_checker"][0]
 
-        # Detecting the colour checker and whether it is flipped.
-        is_flipped, should_flip = False, False
-        while True:
-            should_flip = is_flipped
-
-            with working_directory(self._directory):
-                logger.info(
-                    'Reading EV "0" baseline "ColourChecker" from "%s"...',
-                    paths[0],
-                )
-                image = read_image(paths[0])
-
-            image = flip_image(image) if is_flipped else image
-
-            (
-                colour_checkers,
-                clusters,
-                swatches,
-                segmented_image,
-            ) = colour_checker_detection.colour_checkers_coordinates_segmentation(
-                image,
-                additional_data=True,
-                **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-            ).values
-
-            attest(
-                len(colour_checkers),
-                "Colour checker was not detected at EV 0!",
+        with working_directory(self._directory):
+            logger.info(
+                'Reading EV "0" baseline "ColourChecker" from "%s"...',
+                paths[0],
             )
+            image = _reformat_image(read_image(paths[0]))
 
-            colour_checker_rectangle = colour_checkers[0]
+        (
+            rectangles,
+            clusters,
+            swatches,
+            segmented_image,
+        ) = segmenter_default(
+            image,
+            additional_data=True,
+            **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+        ).values
 
-            swatch_colours = swatch_colours_from_image(
-                image, colour_checker_rectangle
-            )
+        quadrilateral = rectangles[0]
 
-            is_flipped = is_colour_checker_flipped(swatch_colours)
-
-            if is_flipped:
-                logger.warning('The EV 0 "ColourChecker" was flipped!')
-            else:
-                break
-
-        is_flipped = should_flip
-
-        image_colour_checker_segmentation = (
-            colour_checker_detection.detection.segmentation.adjust_image(
-                image,
-                SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC["working_width"],
-            )
+        self._image_colour_checker_segmentation = np.copy(image)
+        cv2.drawContours(
+            self._image_colour_checker_segmentation, swatches, -1, (1, 0, 1), 3
         )
         cv2.drawContours(
-            image_colour_checker_segmentation, swatches, -1, (1, 0, 1), 3
+            self._image_colour_checker_segmentation, clusters, -1, (0, 1, 1), 3
         )
-        cv2.drawContours(
-            image_colour_checker_segmentation, clusters, -1, (0, 1, 1), 3
+
+        data_detection_colour_checker_EV0 = sample_colour_checker(
+            image, quadrilateral, rectangle, SAMPLES_COUNT_DEFAULT, **settings
         )
+
+        # Disabling orientation as we now have an oriented quadrilateral
+        settings.reference_values = None
 
         # Flatfield
         if self._specification["data"].get("flatfield"):
-            self._samples_analysis["data"]["flatfield"] = {
-                "samples_sequence": []
-            }
+            self._samples_analysis["data"]["flatfield"] = {"samples_sequence": []}
             for path in self._specification["data"]["flatfield"]:
                 with working_directory(self._directory):
                     logger.info('Reading flatfield image from "%s"...', path)
-                    image = read_image(path)
+                    image = _reformat_image(read_image(path))
 
-                image = flip_image(image) if is_flipped else image
-                swatch_colours = swatch_colours_from_image(
-                    image, colour_checker_rectangle
+                data_detection_flatfield = sample_colour_checker(
+                    image,
+                    data_detection_colour_checker_EV0.quadrilateral,
+                    rectangle,
+                    SAMPLES_COUNT_DEFAULT,
+                    **settings,
                 )
 
-                self._samples_analysis["data"]["flatfield"][
-                    "samples_sequence"
-                ].append(swatch_colours.tolist())
+                self._samples_analysis["data"]["flatfield"]["samples_sequence"].append(
+                    data_detection_flatfield.swatch_colours.tolist()
+                )
 
             samples_sequence = as_float_array(
                 [
@@ -805,44 +784,39 @@ class IDTGeneratorProsumerCamera:
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis["data"]["flatfield"][
-                "samples_median"
-            ] = np.median(
+            self._samples_analysis["data"]["flatfield"]["samples_median"] = np.median(
                 as_float_array(
-                    self._samples_analysis["data"]["flatfield"][
-                        "samples_sequence"
-                    ]
+                    self._samples_analysis["data"]["flatfield"]["samples_sequence"]
                 )[mask],
                 (0, 1),
             ).tolist()
 
         # Grey Card
         if self._specification["data"].get("grey_card"):
-            self._samples_analysis["data"]["grey_card"] = {
-                "samples_sequence": []
-            }
+            self._samples_analysis["data"]["grey_card"] = {"samples_sequence": []}
+
+            settings_grey_card = Structure(**settings)
+            settings_grey_card.swatches_horizontal = 1
+            settings_grey_card.swatches_vertical = 1
+
             for path in self._specification["data"]["grey_card"]:
                 with working_directory(self._directory):
                     logger.info('Reading grey card image from "%s"...', path)
-                    image = read_image(path)
+                    image = _reformat_image(read_image(path))
 
-                height, width, channels = image.shape
-                grey_card_colour = np.mean(
-                    image[
-                        height // 2
-                        - SAMPLES_COUNT_DEFAULT : height // 2
-                        + SAMPLES_COUNT_DEFAULT,
-                        width // 2
-                        - SAMPLES_COUNT_DEFAULT : width // 2
-                        + SAMPLES_COUNT_DEFAULT,
-                        0:channels,
-                    ],
-                    axis=(0, 1),
+                data_detection_grey_card = sample_colour_checker(
+                    image,
+                    data_detection_colour_checker_EV0.quadrilateral,
+                    rectangle,
+                    SAMPLES_COUNT_DEFAULT,
+                    **settings_grey_card,
                 )
 
-                self._samples_analysis["data"]["grey_card"][
-                    "samples_sequence"
-                ].append(grey_card_colour.tolist())
+                grey_card_colour = np.ravel(data_detection_grey_card.swatch_colours)
+
+                self._samples_analysis["data"]["grey_card"]["samples_sequence"].append(
+                    grey_card_colour.tolist()
+                )
 
             samples_sequence = as_float_array(
                 [
@@ -854,42 +828,32 @@ class IDTGeneratorProsumerCamera:
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis["data"]["grey_card"][
-                "samples_median"
-            ] = np.median(
+            self._samples_analysis["data"]["grey_card"]["samples_median"] = np.median(
                 as_float_array(
-                    self._samples_analysis["data"]["grey_card"][
-                        "samples_sequence"
-                    ]
+                    self._samples_analysis["data"]["grey_card"]["samples_sequence"]
                 )[mask],
                 (0, 1),
             ).tolist()
 
-            self._image_grey_card_sampling = image
+            self._image_grey_card_sampling = np.copy(image)
+            image_grey_card_contour = zeros(
+                (working_height, working_width), dtype=np.uint8
+            )
+            image_grey_card_contour[
+                data_detection_grey_card.swatch_masks[0][
+                    0
+                ] : data_detection_grey_card.swatch_masks[0][1],
+                data_detection_grey_card.swatch_masks[0][
+                    2
+                ] : data_detection_grey_card.swatch_masks[0][3],
+                ...,
+            ] = 255
+            contours, _hierarchy = cv2.findContours(
+                image_grey_card_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+            )
             cv2.drawContours(
                 self._image_grey_card_sampling,
-                [
-                    as_int_array(
-                        [
-                            [
-                                width // 2 - SAMPLES_COUNT_DEFAULT,
-                                height // 2 - SAMPLES_COUNT_DEFAULT,
-                            ],
-                            [
-                                width // 2 + SAMPLES_COUNT_DEFAULT,
-                                height // 2 - SAMPLES_COUNT_DEFAULT,
-                            ],
-                            [
-                                width // 2 + SAMPLES_COUNT_DEFAULT,
-                                height // 2 + SAMPLES_COUNT_DEFAULT,
-                            ],
-                            [
-                                width // 2 - SAMPLES_COUNT_DEFAULT,
-                                height // 2 + SAMPLES_COUNT_DEFAULT,
-                            ],
-                        ]
-                    )
-                ],
+                contours,
                 -1,
                 (1, 0, 1),
                 3,
@@ -910,23 +874,26 @@ class IDTGeneratorProsumerCamera:
                         path,
                     )
 
-                    image = read_image(path)
+                    image = _reformat_image(read_image(path))
 
-                image = flip_image(image) if is_flipped else image
-                swatch_colours = swatch_colours_from_image(
-                    image, colour_checker_rectangle
+                data_detection_colour_checker = sample_colour_checker(
+                    image,
+                    data_detection_colour_checker_EV0.quadrilateral,
+                    rectangle,
+                    SAMPLES_COUNT_DEFAULT,
+                    **settings,
                 )
 
                 self._samples_analysis["data"]["colour_checker"][EV][
                     "samples_sequence"
-                ].append(swatch_colours.tolist())
+                ].append(data_detection_colour_checker.swatch_colours.tolist())
 
             sequence_neutral_5 = as_float_array(
                 [
                     samples[21]
-                    for samples in self._samples_analysis["data"][
-                        "colour_checker"
-                    ][EV]["samples_sequence"]
+                    for samples in self._samples_analysis["data"]["colour_checker"][EV][
+                        "samples_sequence"
+                    ]
                 ]
             )
             mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
@@ -963,12 +930,8 @@ class IDTGeneratorProsumerCamera:
 
         samples_camera = []
         samples_reference = []
-        for EV, images in self._samples_analysis["data"][
-            "colour_checker"
-        ].items():
-            samples_reference.append(
-                reference_colour_checker[-6:, ...] * pow(2, EV)
-            )
+        for EV, images in self._samples_analysis["data"]["colour_checker"].items():
+            samples_reference.append(reference_colour_checker[-6:, ...] * pow(2, EV))
             samples_EV = as_float_array(images["samples_median"])[-6:, ...]
             samples_camera.append(samples_EV)
 
@@ -1044,18 +1007,14 @@ class IDTGeneratorProsumerCamera:
 
             a, b = np.polyfit(
                 samples[index_middle - padding : index_middle + padding],
-                samples_middle[
-                    index_middle - padding : index_middle + padding
-                ],
+                samples_middle[index_middle - padding : index_middle + padding],
                 1,
             )
 
             # Preparing the mask to blend the logarithmic slope with the
             # extrapolated data.
             edge_left = index_middle - padding
-            edge_right = np.searchsorted(
-                samples / size, np.max(self._samples_camera)
-            )
+            edge_right = np.searchsorted(samples / size, np.max(self._samples_camera))
             mask_samples = smoothstep_function(
                 samples, edge_left, edge_right, clip=True
             )
@@ -1111,9 +1070,7 @@ class IDTGeneratorProsumerCamera:
             x_extended = np.concatenate([-padding[::-1], x, padding + 1])
 
             # Filtering is performed on extrapolated data.
-            y_linear_extended = Extrapolator(LinearInterpolator(x, y))(
-                x_extended
-            )
+            y_linear_extended = Extrapolator(LinearInterpolator(x, y))(x_extended)
             y_log_extended = np.exp(
                 Extrapolator(LinearInterpolator(x, np.log(y)))(x_extended)
             )
@@ -1163,9 +1120,7 @@ class IDTGeneratorProsumerCamera:
         grey_card_reflectance = as_float_array(grey_card_reflectance)
 
         if decoding_method == "median":
-            self._LUT_decoding = LUT1D(
-                np.median(self._LUT_filtered.table, axis=-1)
-            )
+            self._LUT_decoding = LUT1D(np.median(self._LUT_filtered.table, axis=-1))
         elif decoding_method == "average":
             self._LUT_decoding = LUT_to_LUT(
                 self._LUT_filtered, LUT1D, force_conversion=True
@@ -1177,17 +1132,15 @@ class IDTGeneratorProsumerCamera:
                 self._LUT_filtered,
                 LUT1D,
                 force_conversion=True,
-                channel_weights=RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[
-                    1, ...
-                ],
+                channel_weights=RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ[1, ...],
             )
 
         self._LUT_decoding.name = "LUT - Decoding"
 
         if self._samples_analysis["data"]["grey_card"] is not None:
-            sampled_grey_card_reflectance = self._samples_analysis["data"][
-                "grey_card"
-            ]["samples_median"]
+            sampled_grey_card_reflectance = self._samples_analysis["data"]["grey_card"][
+                "samples_median"
+            ]
             linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
                 sampled_grey_card_reflectance
             )
@@ -1280,9 +1233,7 @@ class IDTGeneratorProsumerCamera:
                 axis=0,
             )
 
-        XYZ = vector_dot(
-            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data
-        )
+        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
 
         self._RGB_w = 1 / np.mean(self._samples_weighted[18:], axis=0)
         self._k = self._RGB_w * np.mean(XYZ[18:], axis=0)
@@ -1375,9 +1326,7 @@ class IDTGeneratorProsumerCamera:
                 et_metadata, key.replace("_", " ").title().replace(" ", "")
             )
             sub_element.text = str(value)
-        et_academy_idt_calculator = Et.SubElement(
-            et_info, "AcademyIDTCalculator"
-        )
+        et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
         for key, value in information.items():
             sub_element = Et.SubElement(et_academy_idt_calculator, key)
             sub_element.text = str(value)
@@ -1392,34 +1341,24 @@ class IDTGeneratorProsumerCamera:
         LUT_decoding = self._LUT_decoding
         channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
         et_description = Et.SubElement(et_lut, "Description")
-        et_description.text = (
-            f"Linearisation *{LUT_decoding.__class__.__name__}*."
-        )
-        et_array = Et.SubElement(
-            et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
-        )
+        et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
+        et_array = Et.SubElement(et_lut, "Array", dim=f"{LUT_decoding.size} {channels}")
         et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
         RGB_w = self._RGB_w
-        et_RGB_w = Et.SubElement(
-            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-        )
+        et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
         et_description = Et.SubElement(et_RGB_w, "Description")
         et_description.text = "White balance multipliers *b*."
         et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
         et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
 
-        et_M = Et.SubElement(
-            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-        )
+        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
         et_description = Et.SubElement(et_M, "Description")
         et_description.text = "*Input Device Transform* (IDT) matrix *B*."
         et_array = Et.SubElement(et_M, "Array", dim="3 3")
         et_array.text = f"\n{format_array(np.ravel(self._M))}"
 
-        et_k = Et.SubElement(
-            root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-        )
+        et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
         et_description = Et.SubElement(et_k, "Description")
         et_description.text = (
             'Exposure factor *k* that results in a nominally "18% gray" object in '
@@ -1448,9 +1387,7 @@ class IDTGeneratorProsumerCamera:
 
         return clf_path
 
-    def zip(  # noqa: A003
-        self, output_directory, information, archive_serialised_generator=False
-    ):
+    def zip(self, output_directory, information, archive_serialised_generator=False):
         """
         Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
         process.
@@ -1486,9 +1423,7 @@ class IDTGeneratorProsumerCamera:
         with open(json_path, "w") as json_file:
             json_file.write(jsonpickle.encode(self, indent=2))
 
-        zip_file = (
-            Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
-        )
+        zip_file = Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
 
         current_working_directory = os.getcwd()
         try:
@@ -1496,9 +1431,7 @@ class IDTGeneratorProsumerCamera:
             with ZipFile(zip_file, "w") as zip_archive:
                 zip_archive.write(clf_path.replace(output_directory, "")[1:])
                 if archive_serialised_generator:
-                    zip_archive.write(
-                        json_path.replace(output_directory, "")[1:]
-                    )
+                    zip_archive.write(json_path.replace(output_directory, "")[1:])
         finally:
             os.chdir(current_working_directory)
 
@@ -1609,9 +1542,7 @@ class IDTGeneratorProsumerCamera:
                 color=RGB,
                 alpha=0.25,
             )
-            axes.plot(
-                samples, np.log(self._LUT_filtered.table[..., i]), color=RGB
-            )
+            axes.plot(samples, np.log(self._LUT_filtered.table[..., i]), color=RGB)
             axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
             axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
