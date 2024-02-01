@@ -134,6 +134,7 @@ class IDTGeneratorProsumerCamera:
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.specification`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_colour_checker_segmentation`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_grey_card_sampling`
+    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.baseline_exposure`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_analysis`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_camera`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_reference`
@@ -186,6 +187,7 @@ class IDTGeneratorProsumerCamera:
         self._lut_blending_edge_left = None
         self._lut_blending_edge_right = None
 
+        self._baseline_exposure = 0
         self._samples_analysis = None
         self._samples_camera = None
         self._samples_reference = None
@@ -279,6 +281,19 @@ class IDTGeneratorProsumerCamera:
         """
 
         return self._image_grey_card_sampling
+
+    @property
+    def baseline_exposure(self):
+        """
+        Getter property for the baseline exposure.
+
+        Returns
+        -------
+        :class:`float`
+            Baseline exposure.
+        """
+
+        return self._baseline_exposure
 
     @property
     def samples_analysis(self):
@@ -716,12 +731,20 @@ class IDTGeneratorProsumerCamera:
 
         self._samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
 
-        # Segmentation occurs on EV 0 and is reused on all brackets.
-        paths = self._specification["data"]["colour_checker"][0]
+        # Baseline exposure value, it can be different from zero.
+        if 0 not in self._specification["data"]["colour_checker"]:
+            EVs = sorted(self._specification["data"]["colour_checker"].keys())
+            self._baseline_exposure = EVs[len(EVs) // 2]
+            logger.warning(
+                "Baseline exposure is different from zero: %s", self._baseline_exposure
+            )
+
+        paths = self._specification["data"]["colour_checker"][self._baseline_exposure]
 
         with working_directory(self._directory):
             logger.info(
-                'Reading EV "0" baseline "ColourChecker" from "%s"...',
+                'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
+                self._baseline_exposure,
                 paths[0],
             )
             image = _reformat_image(read_image(paths[0]))
@@ -1137,7 +1160,7 @@ class IDTGeneratorProsumerCamera:
 
         self._LUT_decoding.name = "LUT - Decoding"
 
-        if self._samples_analysis["data"]["grey_card"] is not None:
+        if self._samples_analysis["data"]["grey_card"]:
             sampled_grey_card_reflectance = self._samples_analysis["data"]["grey_card"][
                 "samples_median"
             ]
@@ -1215,12 +1238,22 @@ class IDTGeneratorProsumerCamera:
         )
 
         EV_range = as_float_array(EV_range)
+        EV_range = [EV for EV in EV_range if EV in self._samples_decoded]
+        if not EV_range:
+            logger.warning(
+                'Given "EV range" does not contain any existing exposure values, '
+                "falling back to center exposure value!"
+            )
+
+            EV_range = sorted(self._samples_decoded)
+            EV_range = [EV_range[len(EV_range) // 2]]
+
+        logger.info('"EV range": %s"', EV_range)
 
         samples_normalised = as_float_array(
             [
                 self._samples_decoded[EV] * (1 / pow(2, EV))
                 for EV in np.atleast_1d(EV_range)
-                if EV in self._samples_decoded
             ]
         )
 
@@ -1567,7 +1600,7 @@ if __name__ == "__main__":
     resources_directory = Path(__file__).parent / "tests" / "resources"
 
     idt_generator = IDTGeneratorProsumerCamera.from_archive(
-        resources_directory / "synthetic_001.zip", cleanup=True
+        resources_directory / "synthetic_002.zip", cleanup=True
     )
 
     logger.info("LUT :\n%s", idt_generator.LUT_decoding)

@@ -343,6 +343,12 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
 }
 ```
 
+#### Floating Point Exposure Values
+
+Floating point exposure values are also supported as keys in the JSON file:
+
+![IDT Archive Explicit Structure - Floating Point Values](docs/_static/idt_archive_explicit_json_file_floating_point_ev.png)
+
 ### Implicit Specification
 
 The implicit specification of the IDT archive requires that the image sequences are stored in specific directories that match the JSON schema:
@@ -350,6 +356,12 @@ The implicit specification of the IDT archive requires that the image sequences 
 ![IDT Archive Implicit Structure](docs/_static/idt_archive_implicit_structure.png)
 
 The implicit specification cannot represent some of the metadata that the explicit specification supports, e.g. `manufacture` or `exposure_settings`.
+
+#### Floating Point Exposure Values
+
+It is also possible to use floating point exposure values by naming the directories accordingly:
+
+![IDT Archive Implicit Structure - Floating Point Values](docs/_static/idt_archive_implicit_structure_fractional_ev.png)
 
 ## License
 

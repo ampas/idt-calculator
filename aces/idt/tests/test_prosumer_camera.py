@@ -38,12 +38,12 @@ class TestIDTGeneratorProsumerCamera(unittest.TestCase):
 test_from_archive` definition unit tests methods.
         """
 
-        idt_generator = IDTGeneratorProsumerCamera.from_archive(
+        idt_generator_1 = IDTGeneratorProsumerCamera.from_archive(
             RESOURCES_DIRECTORY / "synthetic_001.zip", cleanup=True
         )
 
         np.testing.assert_allclose(
-            idt_generator.LUT_decoding.table,
+            idt_generator_1.LUT_decoding.table,
             np.array(
                 [
                     -0.01754712,
@@ -1076,7 +1076,7 @@ test_from_archive` definition unit tests methods.
         )
 
         np.testing.assert_allclose(
-            idt_generator.M,
+            idt_generator_1.M,
             np.array(
                 [
                     [0.70726202, 0.20276496, 0.08997302],
@@ -1087,15 +1087,38 @@ test_from_archive` definition unit tests methods.
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
         np.testing.assert_allclose(
-            idt_generator.RGB_w,
+            idt_generator_1.RGB_w,
             np.array([1.00560941, 1.00000000, 1.01626893]),
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
         np.testing.assert_allclose(
-            idt_generator.k,
+            idt_generator_1.k,
             1.1263768159732932,
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-    if __name__ == "__main__":
-        unittest.main()
+        idt_generator_2 = IDTGeneratorProsumerCamera.from_archive(
+            RESOURCES_DIRECTORY / "synthetic_002.zip", cleanup=True
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_1.M,
+            idt_generator_2.M,
+            atol=0.025,
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_1.RGB_w,
+            idt_generator_2.RGB_w,
+            atol=0.00025,
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_1.k,
+            idt_generator_2.k,
+            atol=0.25,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

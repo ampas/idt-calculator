@@ -1266,9 +1266,9 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][0][
-        "samples_median"
-    ]
+    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][
+        _IDT_GENERATOR.baseline_exposure
+    ]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
         _IDT_GENERATOR.LUT_decoding.apply(samples_median),
@@ -1276,6 +1276,14 @@ def compute_idt_prosumer_camera(
         _IDT_GENERATOR.RGB_w,
         _IDT_GENERATOR.k,
     )
+
+    if _IDT_GENERATOR.baseline_exposure != 0:
+        logger.warning(
+            "Compensating display and metric computations for non-zero "
+            "baseline exposure!"
+        )
+
+        samples_idt *= pow(2, -_IDT_GENERATOR.baseline_exposure)
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_idt),
