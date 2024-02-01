@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.12
 
 RUN apt-get update \
     && apt-get -y install ffmpeg libsm6 libxext6
