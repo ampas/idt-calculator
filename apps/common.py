@@ -3,11 +3,12 @@ Common Apps Utilities
 =====================
 """
 
+import xml.etree.ElementTree as Et
+
 import colour
 import colour_checker_detection  # noqa: F401
 import colour_datasets
 import numpy as np
-import xml.etree.ElementTree as Et
 from colour import (
     CubicSplineInterpolator,
     LinearInterpolator,
@@ -15,24 +16,25 @@ from colour import (
     SpragueInterpolator,
 )
 from colour.characterisation import (
-    optimisation_factory_rawtoaces_v1,
     optimisation_factory_Jzazbz,
+    optimisation_factory_rawtoaces_v1,
 )
 from dash_bootstrap_components import (
     Card,
     CardBody,
     CardHeader,
+)
+from dash_bootstrap_components import Input as Field
+from dash_bootstrap_components import (
     InputGroup,
     InputGroupText,
     Tooltip,
 )
-from dash_bootstrap_components import Input as Field
 
 from aces.idt import (
-    optimisation_factory_Oklab,
     optimisation_factory_IPT,
+    optimisation_factory_Oklab,
 )
-
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
 __copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
@@ -269,8 +271,7 @@ OPTIONS_CAT : list
 OPTIONS_CAT.append({"label": "None", "value": None})
 
 OPTIONS_ILLUMINANT = [
-    {"label": key, "value": key}
-    for key in sorted(colour.SDS_ILLUMINANTS.keys())
+    {"label": key, "value": key} for key in sorted(colour.SDS_ILLUMINANTS.keys())
 ]
 """
 Illuminant options for a :class:`Dropdown`class instance.
@@ -345,9 +346,7 @@ IDT Matrix
 White Balance Multipliers
 -------------------------
 
-{1}"""[
-    1:
-]
+{1}"""[1:]
 """
 Default formatting template.
 
@@ -465,9 +464,7 @@ void main (
     gOut = B[1][0] * Rraw + B[1][1] * Graw + B[1][2] * Braw;
     bOut = B[2][0] * Rraw + B[2][1] * Graw + B[2][2] * Braw;
     aOut = aIn;
-}}"""[
-    1:
-]
+}}"""[1:]
 """
 Color Transform Language (CTL) Module template.
 
@@ -788,9 +785,7 @@ def format_idt_clf(
         sub_element = Et.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
-    et_multipliers = Et.SubElement(
-        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-    )
+    et_multipliers = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
     et_array = Et.SubElement(et_multipliers, "Array", dim="3 3")
     et_array.text = f"\n{format_array(np.diag(multipliers))}"
 
@@ -803,9 +798,7 @@ def format_idt_clf(
     et_max_out_value = Et.SubElement(et_range, "maxOutValue")
     et_max_out_value.text = "1"
 
-    et_matrix = Et.SubElement(
-        root, "Matrix", inBitDepth="32f", outBitDepth="32f"
-    )
+    et_matrix = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
     et_array = Et.SubElement(et_matrix, "Array", dim="3 3")
     et_array.text = f"\n{format_array(matrix)}"
 

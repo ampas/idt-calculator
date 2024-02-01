@@ -4,15 +4,14 @@ Common IDT Utilities
 """
 
 import contextlib
-import matplotlib as mpl
-import numpy as np
 import os
 import re
-import scipy.stats
 import unicodedata
 from pathlib import Path
 
-from colour.utilities import orient
+import matplotlib as mpl
+import numpy as np
+import scipy.stats
 
 mpl.use("Agg")
 
@@ -25,7 +24,6 @@ __status__ = "Production"
 
 __all__ = [
     "slugify",
-    "flip_image",
     "list_sub_directories",
     "mask_outliers",
     "working_directory",
@@ -80,24 +78,6 @@ def slugify(object_, allow_unicode=False):
     value = re.sub(r"[^\w\s-]", "", value.lower())
 
     return re.sub(r"[-\s]+", "-", value).strip("-_")
-
-
-def flip_image(image):
-    """
-    Flip given image by rotating it 180 degrees.
-
-    Parameters
-    ----------
-    image : array_like
-        Image to rotate 180 degrees
-
-    Returns
-    -------
-    NDArray
-        Flipped image.
-    """
-
-    return orient(image, "180")
 
 
 def list_sub_directories(

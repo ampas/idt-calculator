@@ -1,6 +1,7 @@
 # Input Device Transform Calculator Apps
 
 ## Table of Contents
+
 1. [Introduction](#introduction)
 2. [Package Contents](#package-contents)
 3. [Prerequisites](#prerequisites)
@@ -21,16 +22,16 @@ online Apps:
 
 ## Package Contents
 
-* [`aces/`](./aces) - *Python* package containing the API code.
-* [`apps/`](./apps) - *Python* package of the online Apps.
-* [`assets/`](./assets) - Assets, e.g. CSS files for the online Apps.
-* [`docs/`](./docs) - Documentation for the API code.
+- [`aces/`](./aces) - _Python_ package containing the API code.
+- [`apps/`](./apps) - _Python_ package of the online Apps.
+- [`assets/`](./assets) - Assets, e.g. CSS files for the online Apps.
+- [`docs/`](./docs) - Documentation for the API code.
 
 ## Prerequisites
 
 ### Docker (Users)
 
-[Docker](https://www.docker.com) is the only requirement to run the Apps locally. 
+[Docker](https://www.docker.com) is the only requirement to run the Apps locally.
 
 #### Python & Poetry (Developers)
 
@@ -51,7 +52,7 @@ $ docker build --platform=linux/amd64 \
 The apps can then be launched locally as follows:
 
 ```bash
-$ docker run -d \ 
+$ docker run -d \
 --name=ampas-apps
 -p 8010:8000 ampas/ampas-apps:latest-amd64
 ```
@@ -96,214 +97,97 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
 
 ```json
 {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {
-        "header": {
-            "type": "object",
-            "properties": {
-                "schema_version": {
-                    "type": "string"
-                },
-                "aces_transform_id": {
-                    "type": "string"
-                },
-                "aces_user_name": {
-                    "type": "string"
-                },
-                "camera_make": {
-                    "type": "string"
-                },
-                "camera_model": {
-                    "type": "string"
-                },
-                "iso": {
-                    "type": "number"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "additional_camera_settings": {
-                    "type": "string"
-                },
-                "lighting_setup_description": {
-                    "type": "string"
-                },
-                "debayering_platform": {
-                    "type": "string"
-                },
-                "debayering_settings": {
-                    "type": "string"
-                },
-                "encoding_colourspace": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "schema_version",
-                "camera_make",
-                "camera_model"
-            ]
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "header": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "string"
         },
-        "data": {
-            "type": "object",
-            "properties": {
-                "colour_checker": {
-                    "type": "object",
-                    "patternProperties": {
-                        "-10": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-9": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-8": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-7": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-6": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-5": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-4": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-3": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-2": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "-1": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "0": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "1": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "2": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "3": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "4": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "5": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "6": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "7": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "8": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "9": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        },
-                        "10": {
-                            "type": "array",
-                            "items": [{
-                                "type": "string"
-                            }]
-                        }
-                    },
-                    "additionalProperties": false
-                },
-                "flatfield": {
-                    "type": "array",
-                    "items": [{
-                        "type": "string"
-                    }]
-                },
-                "grey_card": {
-                    "type": "array",
-                    "items": [{
-                        "type": "string"
-                    }]
-                }
-            },
-            "required": [
-                "colour_checker"
-            ]
+        "aces_transform_id": {
+          "type": "string"
+        },
+        "aces_user_name": {
+          "type": "string"
+        },
+        "camera_make": {
+          "type": "string"
+        },
+        "camera_model": {
+          "type": "string"
+        },
+        "iso": {
+          "type": "number"
+        },
+        "temperature": {
+          "type": "number"
+        },
+        "additional_camera_settings": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "lighting_setup_description": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "debayering_platform": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "debayering_settings": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+        "encoding_colourspace": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         }
+      },
+      "required": ["schema_version", "camera_make", "camera_model"]
     },
-    "required": [
-        "header",
-        "data"
-    ]
+    "data": {
+      "type": "object",
+      "properties": {
+        "colour_checker": {
+          "type": "object",
+          "patternProperties": {
+            "[+-]?[0-9]+[.]?[0-9]*([e][+-]?[0-9]+)?": {
+              "type": "array",
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "flatfield": {
+          "type": "array",
+          "items": [
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "grey_card": {
+          "type": "array",
+          "items": [
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "required": ["colour_checker"]
+    }
+  },
+  "required": ["header", "data"]
 }
 ```
+
+#### Floating Point Exposure Values
+
+Floating point exposure values are also supported as keys in the JSON file:
+
+![IDT Archive Explicit Structure - Floating Point Values](docs/_static/idt_archive_explicit_json_file_floating_point_ev.png)
 
 ### Implicit Specification
 
@@ -312,6 +196,12 @@ The implicit specification of the IDT archive requires that the image sequences 
 ![IDT Archive Implicit Structure](docs/_static/idt_archive_implicit_structure.png)
 
 The implicit specification cannot represent some of the metadata that the explicit specification supports, e.g. `manufacture` or `exposure_settings`.
+
+#### Floating Point Exposure Values
+
+It is also possible to use floating point exposure values by naming the directories accordingly:
+
+![IDT Archive Implicit Structure - Floating Point Values](docs/_static/idt_archive_implicit_structure_fractional_ev.png)
 
 ## License
 

@@ -1,0 +1,25 @@
+{
+  "header": {
+    "schema_version": "0.1.0",
+    "camera_make": "Synthetic",
+    "camera_model": "colour-science",
+    "iso": 100,
+    "temperature": 6500,
+    "additional_camera_settings": null,
+    "lighting_setup_description": "D65",
+    "debayering_platform": null,
+    "debayering_settings": null,
+    "encoding_colourspace": null
+  },
+  "data": {
+    "colour_checker": {
+      "-3.25": ["data/colour_checker/-3.25/colour_checker_0001.tif"],
+      "-2.125": ["data/colour_checker/-2.125/colour_checker_0001.tif"],
+      "-0.75": ["data/colour_checker/-0.75/colour_checker_0001.tif"],
+      "0.333": ["data/colour_checker/0.333/colour_checker_0001.tif"],
+      "+1.75": ["data/colour_checker/1.75/colour_checker_0001.tif"],
+      "+2.25": ["data/colour_checker/2.25/colour_checker_0001.tif"],
+      "+3.4": ["data/colour_checker/3.4/colour_checker_0001.tif"]
+    }
+  }
+}

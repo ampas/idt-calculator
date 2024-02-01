@@ -3,9 +3,10 @@ Application
 ===========
 """
 
+import os
+
 import dash
 import dash_bootstrap_components
-import os
 from flask import Flask
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"

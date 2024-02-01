@@ -5,7 +5,7 @@ description = "An ACES Input Device Transform (IDT) calculator"
 license = "License Terms for Academy Color Encoding System Components"
 authors = [ "Alex Forsythe <aforsythe@oscars.org>", "Thomas Mansencal <thomas.mansencal@gmail.com>" ]
 maintainers = [ "Academy of Motion Picture Arts and Sciences <aforsythe@oscars.org >" ]
-readme = 'README.rst'
+readme = 'README.md'
 repository = "https://github.com/ampas/idt-calculator"
 homepage = "https://www.oscars.org/science-technology/sci-tech-projects/aces"
 keywords = [
@@ -41,10 +41,10 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">= 3.9, < 3.12"
-colour-datasets = ">= 0.2.1"
-colour-checker-detection = ">= 0.1.5"
-colour_science = ">= 0.4.3"
+python = ">= 3.9, < 3.13"
+colour-datasets = ">= 0.2.5"
+colour-checker-detection = { git = "https://github.com/colour-science/colour-checker-detection.git", branch = "develop" }
+colour_science = ">= 0.4.4"
 dash = "*"
 dash-bootstrap-components = "*"
 dash-renderer = "*"
@@ -62,41 +62,39 @@ typing-extensions = ">= 4, < 5"
 packaging = "<= 21.3"  # Later versions currently break with Dash Uploader.
 
 [tool.poetry.group.dev.dependencies]
-black = "*"
-blackdoc = "*"
 coverage = "!= 6.3"
 coveralls = "*"
-flynt = "*"
 invoke = "*"
 pre-commit = "*"
 pyright = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-xdist = "*"
-ruff = "*"
 toml = "*"
-
-[tool.black]
-line-length = 79
-exclude = '''
-/(
-    \.git
-  | build
-  | dist
-)/
-'''
 
 [tool.flynt]
 line_length = 999
+
+[tool.isort]
+ensure_newline_before_comments = true
+force_grid_wrap = 0
+include_trailing_comma = true
+line_length = 88
+multi_line_output = 3
+split_on_trailing_comma = true
+use_parentheses = true
 
 [tool.pyright]
 reportMissingImports = false
 reportMissingModuleSource = false
 reportUnboundVariable = false
 reportUnnecessaryCast = true
-reportUnnecessaryTypeIgnoreComment = true
+reportUnnecessaryTypeIgnorComment = true
 reportUnsupportedDunderAll = false
 reportUnusedExpression = false
+
+[tool.pytest.ini_options]
+addopts = "-n auto --dist=loadscope --durations=5"
 
 [tool.ruff]
 target-version = "py39"
@@ -129,8 +127,7 @@ select = [
     "PGH", # pygrep-hooks
     "PL", # pylint
     # "PT", # flake8-pytest-style
-    # "PTH", # flake8-use-pathlib [Enable]
-    "Q", # flake8-quotes
+    # "PTH", # flake8-use-pathlib [Enable]    "Q",   # flake8-quotes
     "RET", # flake8-return
     "RUF", # Ruff
     "S", # flake8-bandit
@@ -142,7 +139,7 @@ select = [
     "TRY", # tryceratops
     "UP", # pyupgrade
     "W", # pydocstyle
-    "YTT" # flake8-2020
+    "YTT", # flake8-2020
 ]
 ignore = [
     "B008",
@@ -185,6 +182,9 @@ convention = "numpy"
 
 [tool.ruff.per-file-ignores]
 "tasks.py" = ["INP"]
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]
