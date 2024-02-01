@@ -125,19 +125,19 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
           "type": "number"
         },
         "additional_camera_settings": {
-          "type": "string"
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         },
         "lighting_setup_description": {
-          "type": "string"
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         },
         "debayering_platform": {
-          "type": "string"
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         },
         "debayering_settings": {
-          "type": "string"
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         },
         "encoding_colourspace": {
-          "type": "string"
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
         }
       },
       "required": ["schema_version", "camera_make", "camera_model"]
@@ -148,167 +148,7 @@ The JSON schema for the IDT archive can be used to validate a new user file usin
         "colour_checker": {
           "type": "object",
           "patternProperties": {
-            "-10": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-9": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-8": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-7": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-6": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-5": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-4": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-3": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-2": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "-1": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "0": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "1": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "2": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "3": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "4": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "5": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "6": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "7": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "8": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "9": {
-              "type": "array",
-              "items": [
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "10": {
+            "[+-]?[0-9]+[.]?[0-9]*([e][+-]?[0-9]+)?": {
               "type": "array",
               "items": [
                 {
