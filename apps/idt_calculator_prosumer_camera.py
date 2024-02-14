@@ -1204,11 +1204,13 @@ def compute_idt_prosumer_camera(
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE] = (
             _IDT_GENERATOR.specification,
             _IDT_GENERATOR.samples_analysis,
+            _IDT_GENERATOR.baseline_exposure,
         )
     else:
         (
             _IDT_GENERATOR._specification,
             _IDT_GENERATOR._samples_analysis,
+            _IDT_GENERATOR._baseline_exposure,
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE]
 
     aces_transform_id = _IDT_GENERATOR.specification["header"][
