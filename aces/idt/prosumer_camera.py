@@ -49,6 +49,7 @@ from aces.idt.common import (
     RGB_COLORCHECKER_CLASSIC_ACES,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+    clf_processing_elements,
 )
 from aces.idt.utilities import (
     list_sub_directories,
@@ -1378,35 +1379,7 @@ class IDTGeneratorProsumerCamera:
         et_array = Et.SubElement(et_lut, "Array", dim=f"{LUT_decoding.size} {channels}")
         et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
-        RGB_w = self._RGB_w
-        et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_RGB_w, "Description")
-        et_description.text = "White balance multipliers *b*."
-        et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
-
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
-        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(self._M))}"
-
-        et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_k, "Description")
-        et_description.text = (
-            'Exposure factor *k* that results in a nominally "18% gray" object in '
-            "the scene producing ACES values [0.18, 0.18, 0.18]."
-        )
-        et_array = Et.SubElement(et_k, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(np.diag([self._k] * 3)))}"
-
-        et_range = Et.SubElement(
-            root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
-        )
-        et_max_in_value = Et.SubElement(et_range, "maxInValue")
-        et_max_in_value.text = "1"
-        et_max_out_value = Et.SubElement(et_range, "maxOutValue")
-        et_max_out_value.text = "1"
+        root = clf_processing_elements(root, self._M, self._RGB_w, self._k, False)
 
         clf_path = (
             f"{output_directory}/"
