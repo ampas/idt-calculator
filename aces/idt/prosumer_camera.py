@@ -1324,10 +1324,12 @@ class IDTGeneratorProsumerCamera:
             information,
         )
 
-        aces_transform_id = self._specification["header"]["aces_transform_id"]
-        aces_user_name = self._specification["header"]["aces_user_name"]
-        camera_make = self._specification["header"]["camera_make"]
-        camera_model = self._specification["header"]["camera_model"]
+        header = self._specification["header"]
+
+        aces_transform_id = header.get("aces_transform_id", "Undefined")
+        aces_user_name = header.get("aces_user_name", "Undefined")
+        camera_make = header.get("camera_make", "Undefined")
+        camera_model = header.get("camera_model", "Undefined")
 
         root = Et.Element(
             "ProcessList",
