@@ -5,6 +5,8 @@ Common IDT Utilities
 
 import base64
 import io
+import re
+import xml.etree.ElementTree as Et
 
 import colour
 import colour_checker_detection
@@ -42,6 +44,7 @@ __all__ = [
     "optimisation_factory_IPT",
     "error_delta_E",
     "png_compare_colour_checkers",
+    "clf_processing_elements",
 ]
 
 SDS_COLORCHECKER_CLASSIC = tuple(SDS_COLOURCHECKERS["ISO 17321-1"].values())
@@ -333,3 +336,74 @@ def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
     plt.close()
 
     return data_png
+
+
+def clf_processing_elements(
+    root,
+    matrix,
+    multipliers,
+    k_factor,
+    use_range=True,
+):
+    """
+    Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
+    multipliers and exposure factor :math:`k` to given *XML* sub-element.
+
+    Parameters
+    ----------
+    matrix : ArrayLike
+        *IDT* matrix.
+    multipliers : ArrayLike
+        *IDT* multipliers.
+    k_factor : float
+        Exposure factor :math:`k` that results in a nominally "18% gray" object
+        in the scene producing ACES values [0.18, 0.18, 0.18].
+    use_range : bool
+        Whether to use the range node to clamp the graph before the exposure
+        factor :math:`k`.
+
+    Returns
+    -------
+    Et.SubElement
+        *XML* sub-element.
+    """
+
+    def format_array(a):
+        """Format given array :math:`a`."""
+
+        return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
+
+    et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = Et.SubElement(et_RGB_w, "Description")
+    et_description.text = "White balance multipliers *b*."
+    et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(np.diag(multipliers))}"
+
+    if use_range:
+        et_range = Et.SubElement(
+            root,
+            "Range",
+            inBitDepth="32f",
+            outBitDepth="32f",
+        )
+        et_max_in_value = Et.SubElement(et_range, "maxInValue")
+        et_max_in_value.text = "1"
+        et_max_out_value = Et.SubElement(et_range, "maxOutValue")
+        et_max_out_value.text = "1"
+
+    et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = Et.SubElement(et_k, "Description")
+    et_description.text = (
+        'Exposure factor *k* that results in a nominally "18% gray" object in '
+        "the scene producing ACES values [0.18, 0.18, 0.18]."
+    )
+    et_array = Et.SubElement(et_k, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(np.ravel(np.diag([k_factor] * 3)))}"
+
+    et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = Et.SubElement(et_M, "Description")
+    et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+    et_array = Et.SubElement(et_M, "Array", dim="3 3")
+    et_array.text = f"\n{format_array(matrix)}"
+
+    return root

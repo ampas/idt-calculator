@@ -32,6 +32,7 @@ from dash_bootstrap_components import (
 )
 
 from aces.idt import (
+    clf_processing_elements,
     optimisation_factory_IPT,
     optimisation_factory_Oklab,
 )
@@ -42,7 +43,6 @@ __license__ = "Academy of Motion Picture Arts and Sciences License Terms"
 __maintainer__ = "Academy of Motion Picture Arts and Sciences"
 __email__ = "acessupport@oscars.org"
 __status__ = "Production"
-
 
 __all__ = [
     "COLOUR_ENVIRONMENT",
@@ -319,7 +319,6 @@ Display colourspaces.
 
 OPTIONS_DISPLAY_COLOURSPACES : list
 """
-
 
 OPTIONS_OPTIMISATION_SPACES = [
     {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
@@ -732,10 +731,12 @@ def format_idt_clf(
     camera_model,
     matrix,
     multipliers,
+    k_factor,
     information,
 ):
     """
-    Format the *IDT* matrix and multipliers as a *Common LUT Format* (CLF).
+    Format the *IDT* matrix, multipliers and exposure factor :math:`k` as a
+    *Common LUT Format* (CLF).
 
     Parameters
     ----------
@@ -752,6 +753,9 @@ def format_idt_clf(
         *IDT* matrix.
     multipliers : ArrayLike
         *IDT* multipliers.
+    k_factor : float
+        Exposure factor :math:`k` that results in a nominally "18% gray" object
+        in the scene producing ACES values [0.18, 0.18, 0.18].
     information : dict
         Information pertaining to the *IDT* and the computation parameters.
 
@@ -785,22 +789,7 @@ def format_idt_clf(
         sub_element = Et.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
-    et_multipliers = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_array = Et.SubElement(et_multipliers, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.diag(multipliers))}"
-
-    et_range = Et.SubElement(
-        root,
-        "Range",
-        inBitDepth="32f",
-        outBitDepth="32f",
-    )
-    et_max_out_value = Et.SubElement(et_range, "maxOutValue")
-    et_max_out_value.text = "1"
-
-    et_matrix = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_array = Et.SubElement(et_matrix, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(matrix)}"
+    root = clf_processing_elements(root, matrix, multipliers, k_factor)
 
     Et.indent(root)
 

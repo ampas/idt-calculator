@@ -166,7 +166,6 @@ _TRAINING_DATASET_TO_COLUMNS = {
     "ISO 17321-1": 6,
 }
 
-
 _OPTIONS_FORMATTER = [
     {"label": label, "value": value}
     for label, value in [
@@ -1086,13 +1085,14 @@ def compute_idt_p2013_001(
             output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
         elif formatter == "clf":
             output = format_idt_clf(
-                aces_transform_id,
-                aces_user_name,
-                camera_make,
-                camera_model,
-                M,
-                RGB_w * exposure_normalisation_factor,
-                {
+                aces_transform_id=aces_transform_id,
+                aces_user_name=aces_user_name,
+                camera_make=camera_make,
+                camera_model=camera_model,
+                matrix=M,
+                multipliers=RGB_w,
+                k_factor=exposure_normalisation_factor,
+                information={
                     "Application": f"{APP_NAME_LONG} - {__version__}",
                     "Url": href,
                     "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
