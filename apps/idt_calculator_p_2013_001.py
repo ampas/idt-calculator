@@ -1210,7 +1210,7 @@ APP.clientside_callback(
     f"""
     function(n_clicks) {{
         var idtCalculatorOutput = document.getElementById(\
-"{('idt-calculator-output')}");
+"{_uid('idt-calculator-output')}");
         if (idtCalculatorOutput == undefined) return "undefined"
         var content = idtCalculatorOutput.textContent;
         navigator.clipboard.writeText(content).then(function() {{
