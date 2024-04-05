@@ -36,7 +36,14 @@ from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
-from colour.utilities import Structure, as_float_array, attest, validate_method, zeros
+from colour.utilities import (
+    Structure,
+    as_float_array,
+    attest,
+    multiline_str,
+    validate_method,
+    zeros,
+)
 from colour_checker_detection import segmenter_default
 from colour_checker_detection.detection import (
     as_int32_array,
@@ -150,6 +157,7 @@ class IDTGeneratorProsumerCamera:
 
     Methods
     -------
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_archive`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_specification`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.extract`
@@ -446,6 +454,49 @@ class IDTGeneratorProsumerCamera:
         """
 
         return self._k
+
+    def __str__(self):
+        """
+        Return a formatted string representation of the *IDT* generator.
+
+        Returns
+        -------
+        :class:`str`
+            Formatted string representation.
+        """
+
+        samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
+            self._baseline_exposure
+        )
+        if samples_analysis is not None:
+            samples_analysis = as_float_array(samples_analysis["samples_median"])
+
+        return multiline_str(
+            self,
+            [
+                {
+                    "label": "IDT Generator",
+                    "header": True,
+                },
+                {"line_break": True},
+                {"name": "_archive", "label": "Archive"},
+                {"name": "_image_format", "label": "Image Format"},
+                {"name": "_directory", "label": "Directory"},
+                {"name": "_specification", "label": "Specification"},
+                {"name": "_baseline_exposure", "label": "Baseline Exposure"},
+                {
+                    "formatter": lambda x: str(samples_analysis),  # noqa: ARG005
+                    "label": "Samples Analysis",
+                },
+                {
+                    "formatter": lambda x: str(self._LUT_decoding),  # noqa: ARG005
+                    "label": "LUT Decoding",
+                },
+                {"name": "_M", "label": "M"},
+                {"name": "_RGB_w", "label": "RGB_w"},
+                {"name": "_k", "label": "k"},
+            ],
+        )
 
     @staticmethod
     def from_archive(
@@ -1165,6 +1216,7 @@ class IDTGeneratorProsumerCamera:
             sampled_grey_card_reflectance = self._samples_analysis["data"]["grey_card"][
                 "samples_median"
             ]
+
             linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
                 sampled_grey_card_reflectance
             )
@@ -1267,14 +1319,14 @@ class IDTGeneratorProsumerCamera:
                 axis=0,
             )
 
-        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
+        self._RGB_w = training_data[21] / self._samples_weighted[21]
+        self._RGB_w /= self._RGB_w[1]
+        self._samples_weighted *= self._RGB_w
 
-        self._RGB_w = 1 / np.mean(self._samples_weighted[18:], axis=0)
-        self._k = self._RGB_w * np.mean(XYZ[18:], axis=0)
+        self._k = np.mean(training_data[21]) / np.mean(self._samples_weighted[21])
         self._samples_weighted *= self._k
 
-        self._RGB_w /= self._RGB_w[1]
-        self._k = np.mean(self._k)
+        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
 
         (
             x_0,
@@ -1575,13 +1627,10 @@ if __name__ == "__main__":
     resources_directory = Path(__file__).parent / "tests" / "resources"
 
     idt_generator = IDTGeneratorProsumerCamera.from_archive(
-        resources_directory / "synthetic_002.zip", cleanup=True
+        resources_directory / "synthetic_001.zip", cleanup=True
     )
 
-    logger.info("LUT :\n%s", idt_generator.LUT_decoding)
-    logger.info("M :\n%s", idt_generator.M)
-    logger.info("White Balance Multipliers :\n%s", idt_generator.RGB_w)
-    logger.info("k :\n%s", idt_generator.k)
+    logger.info(idt_generator)
 
     with open(
         resources_directory / "synthetic_001" / "synthetic_001.json"
@@ -1592,7 +1641,4 @@ if __name__ == "__main__":
         specification, resources_directory / "synthetic_001"
     )
 
-    logger.info("LUT :\n%s", idt_generator.LUT_decoding)
-    logger.info("M :\n%s", idt_generator.M)
-    logger.info("White Balance Multipliers :\n%s", idt_generator.RGB_w)
-    logger.info("k :\n%s", idt_generator.k)
+    logger.info(idt_generator)

@@ -1079,21 +1079,21 @@ test_from_archive` definition unit tests methods.
             idt_generator_1.M,
             np.array(
                 [
-                    [0.70726202, 0.20276496, 0.08997302],
-                    [-0.01198328, 1.03891745, -0.02693417],
-                    [-0.13768414, -0.06846436, 1.20614850],
+                    [0.71091097, 0.20348528, 0.08560375],
+                    [0.01379831, 1.02510569, -0.03890399],
+                    [-0.10581334, -0.07130598, 1.17711932],
                 ]
             ),
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
         np.testing.assert_allclose(
             idt_generator_1.RGB_w,
-            np.array([1.00560941, 1.00000000, 1.01626893]),
+            np.array([1.00246918, 1.00000000, 1.00537500]),
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
         np.testing.assert_allclose(
             idt_generator_1.k,
-            1.1263768159732932,
+            1.1831303512964655,
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
@@ -1110,13 +1110,41 @@ test_from_archive` definition unit tests methods.
         np.testing.assert_allclose(
             idt_generator_1.RGB_w,
             idt_generator_2.RGB_w,
-            atol=0.00025,
+            atol=0.0005,
         )
 
         np.testing.assert_allclose(
             idt_generator_1.k,
             idt_generator_2.k,
             atol=0.25,
+        )
+
+        idt_generator_3 = IDTGeneratorProsumerCamera.from_archive(
+            RESOURCES_DIRECTORY / "synthetic_003.zip", cleanup=True
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_3.M,
+            np.array(
+                [
+                    [0.70683937, 0.19921694, 0.09394369],
+                    [0.01383883, 1.01847757, -0.03231640],
+                    [-0.11943804, -0.06335993, 1.18279798],
+                ]
+            ),
+            atol=TOLERANCE_ABSOLUTE_TESTS,
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_3.RGB_w,
+            np.array([0.51079662, 1.00000000, 2.00262926]),
+            atol=TOLERANCE_ABSOLUTE_TESTS,
+        )
+
+        np.testing.assert_allclose(
+            idt_generator_3.k,
+            1.1842568704786522,
+            atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
 

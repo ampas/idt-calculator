@@ -645,7 +645,7 @@ def set_camera_sensitivities_datable(sensitivities_name):
         Tuple of data and columns.
     """
 
-    logging.debug(
+    logging.info(
         'Setting camera sensitivities datatable with "%s"...',
         sensitivities_name,
     )
@@ -720,7 +720,7 @@ def set_illuminant_datable(illuminant, CCT):
         Tuple of data and columns.
     """
 
-    logging.debug(
+    logging.info(
         'Setting illuminant datatable for "%s" illuminant and "%s" CCT...',
         illuminant,
         CCT,
@@ -791,7 +791,7 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         Whether to open or collapse the *Illuminant Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling illuminant options...")
+    logging.info("Toggling illuminant options...")
 
     return illuminant in ("Daylight", "Blackbody")
 
@@ -820,7 +820,7 @@ def toggle_advanced_options(n_clicks, is_open):
         Whether to open or collapse the *Advanced Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling advanced options...")
+    logging.info("Toggling advanced options...")
 
     if n_clicks:
         return not is_open
@@ -933,7 +933,7 @@ def compute_idt_p2013_001(
         Tuple of *Dash* components.
     """
 
-    logging.debug(
+    logging.info(
         'Computing "IDT" according to "P2013-001" with parameters:\n'
         '\tFormatter : "%s"\n'
         '\tDecimals : "%s"\n'
