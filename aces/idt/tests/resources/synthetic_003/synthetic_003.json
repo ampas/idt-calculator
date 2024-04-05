@@ -1,6 +1,8 @@
 {
   "header": {
     "schema_version": "0.1.0",
+    "aces_transform_id": "synthetic-colour-science-camera",
+    "aces_user_name": "Synthetic colour-science Camera",
     "camera_make": "Synthetic",
     "camera_model": "colour-science",
     "iso": 100,
