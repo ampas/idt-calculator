@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    image: acescentral/idt-calculator:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - NAME=idt-calculator
