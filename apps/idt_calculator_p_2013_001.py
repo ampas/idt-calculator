@@ -166,7 +166,6 @@ _TRAINING_DATASET_TO_COLUMNS = {
     "ISO 17321-1": 6,
 }
 
-
 _OPTIONS_FORMATTER = [
     {"label": label, "value": value}
     for label, value in [
@@ -646,7 +645,7 @@ def set_camera_sensitivities_datable(sensitivities_name):
         Tuple of data and columns.
     """
 
-    logging.debug(
+    logging.info(
         'Setting camera sensitivities datatable with "%s"...',
         sensitivities_name,
     )
@@ -721,7 +720,7 @@ def set_illuminant_datable(illuminant, CCT):
         Tuple of data and columns.
     """
 
-    logging.debug(
+    logging.info(
         'Setting illuminant datatable for "%s" illuminant and "%s" CCT...',
         illuminant,
         CCT,
@@ -792,7 +791,7 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         Whether to open or collapse the *Illuminant Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling illuminant options...")
+    logging.info("Toggling illuminant options...")
 
     return illuminant in ("Daylight", "Blackbody")
 
@@ -821,7 +820,7 @@ def toggle_advanced_options(n_clicks, is_open):
         Whether to open or collapse the *Advanced Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling advanced options...")
+    logging.info("Toggling advanced options...")
 
     if n_clicks:
         return not is_open
@@ -934,7 +933,7 @@ def compute_idt_p2013_001(
         Tuple of *Dash* components.
     """
 
-    logging.debug(
+    logging.info(
         'Computing "IDT" according to "P2013-001" with parameters:\n'
         '\tFormatter : "%s"\n'
         '\tDecimals : "%s"\n'
@@ -1086,13 +1085,14 @@ def compute_idt_p2013_001(
             output = TEMPLATE_DEFAULT_OUTPUT.format(repr(M), repr(RGB_w))
         elif formatter == "clf":
             output = format_idt_clf(
-                aces_transform_id,
-                aces_user_name,
-                camera_make,
-                camera_model,
-                M,
-                RGB_w * exposure_normalisation_factor,
-                {
+                aces_transform_id=aces_transform_id,
+                aces_user_name=aces_user_name,
+                camera_make=camera_make,
+                camera_model=camera_model,
+                matrix=M,
+                multipliers=RGB_w,
+                k_factor=exposure_normalisation_factor,
+                information={
                     "Application": f"{APP_NAME_LONG} - {__version__}",
                     "Url": href,
                     "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
@@ -1210,7 +1210,7 @@ APP.clientside_callback(
     f"""
     function(n_clicks) {{
         var idtCalculatorOutput = document.getElementById(\
-"{('idt-calculator-output')}");
+"{_uid('idt-calculator-output')}");
         if (idtCalculatorOutput == undefined) return "undefined"
         var content = idtCalculatorOutput.textContent;
         navigator.clipboard.writeText(content).then(function() {{

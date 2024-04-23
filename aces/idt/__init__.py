@@ -1,4 +1,5 @@
 from .common import (
+    clf_processing_elements,
     error_delta_E,
     generate_reference_colour_checker,
     optimisation_factory_IPT,
@@ -6,14 +7,27 @@ from .common import (
     png_compare_colour_checkers,
 )
 from .prosumer_camera import IDTGeneratorProsumerCamera
-from .utilities import slugify
+from .utilities import (
+    hash_file,
+    list_sub_directories,
+    mask_outliers,
+    slugify,
+    working_directory,
+)
 
 __all__ = [
-    "generate_reference_colour_checker",
     "error_delta_E",
-    "png_compare_colour_checkers",
-    "optimisation_factory_Oklab",
+    "generate_reference_colour_checker",
     "optimisation_factory_IPT",
+    "optimisation_factory_Oklab",
+    "png_compare_colour_checkers",
+    "clf_processing_elements",
 ]
 __all__ += ["IDTGeneratorProsumerCamera"]
-__all__ += ["slugify"]
+__all__ += [
+    "slugify",
+    "list_sub_directories",
+    "mask_outliers",
+    "working_directory",
+    "hash_file",
+]

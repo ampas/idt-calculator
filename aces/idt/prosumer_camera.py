@@ -36,7 +36,14 @@ from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
-from colour.utilities import Structure, as_float_array, attest, validate_method, zeros
+from colour.utilities import (
+    Structure,
+    as_float_array,
+    attest,
+    multiline_str,
+    validate_method,
+    zeros,
+)
 from colour_checker_detection import segmenter_default
 from colour_checker_detection.detection import (
     as_int32_array,
@@ -49,6 +56,7 @@ from aces.idt.common import (
     RGB_COLORCHECKER_CLASSIC_ACES,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+    clf_processing_elements,
 )
 from aces.idt.utilities import (
     list_sub_directories,
@@ -149,6 +157,7 @@ class IDTGeneratorProsumerCamera:
 
     Methods
     -------
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_archive`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_specification`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.extract`
@@ -445,6 +454,49 @@ class IDTGeneratorProsumerCamera:
         """
 
         return self._k
+
+    def __str__(self):
+        """
+        Return a formatted string representation of the *IDT* generator.
+
+        Returns
+        -------
+        :class:`str`
+            Formatted string representation.
+        """
+
+        samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
+            self._baseline_exposure
+        )
+        if samples_analysis is not None:
+            samples_analysis = as_float_array(samples_analysis["samples_median"])
+
+        return multiline_str(
+            self,
+            [
+                {
+                    "label": "IDT Generator",
+                    "header": True,
+                },
+                {"line_break": True},
+                {"name": "_archive", "label": "Archive"},
+                {"name": "_image_format", "label": "Image Format"},
+                {"name": "_directory", "label": "Directory"},
+                {"name": "_specification", "label": "Specification"},
+                {"name": "_baseline_exposure", "label": "Baseline Exposure"},
+                {
+                    "formatter": lambda x: str(samples_analysis),  # noqa: ARG005
+                    "label": "Samples Analysis",
+                },
+                {
+                    "formatter": lambda x: str(self._LUT_decoding),  # noqa: ARG005
+                    "label": "LUT Decoding",
+                },
+                {"name": "_M", "label": "M"},
+                {"name": "_RGB_w", "label": "RGB_w"},
+                {"name": "_k", "label": "k"},
+            ],
+        )
 
     @staticmethod
     def from_archive(
@@ -1164,6 +1216,7 @@ class IDTGeneratorProsumerCamera:
             sampled_grey_card_reflectance = self._samples_analysis["data"]["grey_card"][
                 "samples_median"
             ]
+
             linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
                 sampled_grey_card_reflectance
             )
@@ -1266,14 +1319,14 @@ class IDTGeneratorProsumerCamera:
                 axis=0,
             )
 
-        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
+        self._RGB_w = training_data[21] / self._samples_weighted[21]
+        self._RGB_w /= self._RGB_w[1]
+        self._samples_weighted *= self._RGB_w
 
-        self._RGB_w = 1 / np.mean(self._samples_weighted[18:], axis=0)
-        self._k = self._RGB_w * np.mean(XYZ[18:], axis=0)
+        self._k = np.mean(training_data[21]) / np.mean(self._samples_weighted[21])
         self._samples_weighted *= self._k
 
-        self._RGB_w /= self._RGB_w[1]
-        self._k = np.mean(self._k)
+        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
 
         (
             x_0,
@@ -1323,10 +1376,12 @@ class IDTGeneratorProsumerCamera:
             information,
         )
 
-        aces_transform_id = self._specification["header"]["aces_transform_id"]
-        aces_user_name = self._specification["header"]["aces_user_name"]
-        camera_make = self._specification["header"]["camera_make"]
-        camera_model = self._specification["header"]["camera_model"]
+        header = self._specification["header"]
+
+        aces_transform_id = header.get("aces_transform_id", "Undefined")
+        aces_user_name = header.get("aces_user_name", "Undefined")
+        camera_make = header.get("camera_make", "Undefined")
+        camera_model = header.get("camera_model", "Undefined")
 
         root = Et.Element(
             "ProcessList",
@@ -1378,35 +1433,7 @@ class IDTGeneratorProsumerCamera:
         et_array = Et.SubElement(et_lut, "Array", dim=f"{LUT_decoding.size} {channels}")
         et_array.text = f"\n{format_array(LUT_decoding.table)}"
 
-        RGB_w = self._RGB_w
-        et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_RGB_w, "Description")
-        et_description.text = "White balance multipliers *b*."
-        et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(np.diag(RGB_w)))}"
-
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
-        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(self._M))}"
-
-        et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_k, "Description")
-        et_description.text = (
-            'Exposure factor *k* that results in a nominally "18% gray" object in '
-            "the scene producing ACES values [0.18, 0.18, 0.18]."
-        )
-        et_array = Et.SubElement(et_k, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.ravel(np.diag([self._k] * 3)))}"
-
-        et_range = Et.SubElement(
-            root, "Range", inBitDepth="32f", outBitDepth="32f", style="clamp"
-        )
-        et_max_in_value = Et.SubElement(et_range, "maxInValue")
-        et_max_in_value.text = "1"
-        et_max_out_value = Et.SubElement(et_range, "maxOutValue")
-        et_max_out_value.text = "1"
+        root = clf_processing_elements(root, self._M, self._RGB_w, self._k, False)
 
         clf_path = (
             f"{output_directory}/"
@@ -1600,13 +1627,10 @@ if __name__ == "__main__":
     resources_directory = Path(__file__).parent / "tests" / "resources"
 
     idt_generator = IDTGeneratorProsumerCamera.from_archive(
-        resources_directory / "synthetic_002.zip", cleanup=True
+        resources_directory / "synthetic_001.zip", cleanup=True
     )
 
-    logger.info("LUT :\n%s", idt_generator.LUT_decoding)
-    logger.info("M :\n%s", idt_generator.M)
-    logger.info("White Balance Multipliers :\n%s", idt_generator.RGB_w)
-    logger.info("k :\n%s", idt_generator.k)
+    logger.info(idt_generator)
 
     with open(
         resources_directory / "synthetic_001" / "synthetic_001.json"
@@ -1617,7 +1641,4 @@ if __name__ == "__main__":
         specification, resources_directory / "synthetic_001"
     )
 
-    logger.info("LUT :\n%s", idt_generator.LUT_decoding)
-    logger.info("M :\n%s", idt_generator.M)
-    logger.info("White Balance Multipliers :\n%s", idt_generator.RGB_w)
-    logger.info("k :\n%s", idt_generator.k)
+    logger.info(idt_generator)

@@ -53,7 +53,7 @@ The apps can then be launched locally as follows:
 
 ```bash
 $ docker run -d \
---name=ampas-apps
+--name=ampas-apps \
 -p 8010:8000 ampas/ampas-apps:latest-amd64
 ```
 

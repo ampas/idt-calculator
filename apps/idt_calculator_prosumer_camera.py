@@ -68,6 +68,7 @@ from aces.idt import (
     IDTGeneratorProsumerCamera,
     error_delta_E,
     generate_reference_colour_checker,
+    hash_file,
     png_compare_colour_checkers,
 )
 from app import APP, SERVER_URL, __version__
@@ -155,6 +156,7 @@ _ROOT_UPLOADED_IDT_ARCHIVE = tempfile.gettempdir()
 configure_upload(APP, _ROOT_UPLOADED_IDT_ARCHIVE)
 
 _PATH_UPLOADED_IDT_ARCHIVE = None
+_HASH_IDT_ARCHIVE = None
 _IDT_GENERATOR = None
 _PATH_IDT_ZIP = None
 
@@ -737,11 +739,13 @@ def set_uploaded_idt_archive_location(filename):
         *CSS* stylesheet for *Dash* components.
     """
 
-    logging.debug('Setting uploaded "IDT" archive location to "%s".', filename)
+    logging.info('Setting uploaded "IDT" archive location to "%s".', filename)
 
     global _PATH_UPLOADED_IDT_ARCHIVE  # noqa: PLW0603
+    global _HASH_IDT_ARCHIVE  # noqa: PLW0603
 
     _PATH_UPLOADED_IDT_ARCHIVE = filename[0]
+    _HASH_IDT_ARCHIVE = None
 
     return {"display": "block"}
 
@@ -770,7 +774,7 @@ def toggle_advanced_options(n_clicks, is_open):
         Whether to open or collapse the *Advanced Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling advanced options...")
+    logging.info("Toggling advanced options...")
 
     if n_clicks:
         return not is_open
@@ -812,7 +816,7 @@ def set_illuminant_datable(illuminant, CCT):
         Tuple of data and columns.
     """
 
-    logging.debug(
+    logging.info(
         'Setting illuminant datatable for "%s" illuminant and "%s" CCT...',
         illuminant,
         CCT,
@@ -883,7 +887,7 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         Whether to open or collapse the *Illuminant Options* `Collapse` panel.
     """
 
-    logging.debug("Toggling illuminant options...")
+    logging.info("Toggling illuminant options...")
 
     return illuminant in ("Daylight", "Blackbody")
 
@@ -979,7 +983,7 @@ def download_idt_zip(
         encoding_colourspace
     )
 
-    logging.debug('Sending "IDT" archive...')
+    logging.info('Sending "IDT" archive...')
 
     global _PATH_IDT_ZIP  # noqa: PLW0603
 
@@ -996,6 +1000,8 @@ def download_idt_zip(
         Output(_uid("loading-div"), "children"),
         Output(_uid("output-data-div"), "children"),
         Output(_uid("download-idt-column"), "style"),
+        Output(_uid("acestransformid-field"), "value"),
+        Output(_uid("acesusername-field"), "value"),
         Output(_uid("camera-make-field"), "value"),
         Output(_uid("camera-model-field"), "value"),
         Output(_uid("iso-field"), "value"),
@@ -1127,7 +1133,7 @@ def compute_idt_prosumer_camera(
         Tuple of *Dash* components.
     """
 
-    logging.debug(
+    logging.info(
         'Computing "IDT" for "Prosumer Camera" with parameters:\n'
         '\tRGB Display Colourspace : "%s"\n'
         '\tIlluminant Name : "%s"\n'
@@ -1192,16 +1198,21 @@ def compute_idt_prosumer_camera(
     )
 
     global _IDT_GENERATOR  # noqa: PLW0603
+    global _HASH_IDT_ARCHIVE  # noqa: PLW0603
 
     _IDT_GENERATOR = IDTGeneratorProsumerCamera(
         _PATH_UPLOADED_IDT_ARCHIVE, cleanup=True
     )
 
-    if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_PATH_UPLOADED_IDT_ARCHIVE) is None:
+    if _HASH_IDT_ARCHIVE is None:
+        _HASH_IDT_ARCHIVE = hash_file(_PATH_UPLOADED_IDT_ARCHIVE)
+        logger.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
+
+    if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
         _IDT_GENERATOR.extract()
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
         _IDT_GENERATOR.sample()
-        _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE] = (
+        _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE] = (
             _IDT_GENERATOR.specification,
             _IDT_GENERATOR.samples_analysis,
             _IDT_GENERATOR.baseline_exposure,
@@ -1211,7 +1222,7 @@ def compute_idt_prosumer_camera(
             _IDT_GENERATOR._specification,
             _IDT_GENERATOR._samples_analysis,
             _IDT_GENERATOR._baseline_exposure,
-        ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_PATH_UPLOADED_IDT_ARCHIVE]
+        ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE]
 
     aces_transform_id = _IDT_GENERATOR.specification["header"][
         "aces_transform_id"
@@ -1255,6 +1266,8 @@ def compute_idt_prosumer_camera(
         optimisation_factory=OPTIMISATION_FACTORIES[optimisation_space],
     )
 
+    logging.info(str(_IDT_GENERATOR))
+
     def RGB_working_to_RGB_display(RGB):
         """
         Convert given *RGB* array from the working colourspace to the display
@@ -1273,7 +1286,11 @@ def compute_idt_prosumer_camera(
     ]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
-        _IDT_GENERATOR.LUT_decoding.apply(samples_median),
+        # "camera_RGB_to_ACES2065_1" divides RGB by "min(RGB_w)" for highlights
+        # recovery, this is not required here as the images are expected to be
+        # fully processed, thus we pre-emptively multiply by "min(RGB_w)".
+        _IDT_GENERATOR.LUT_decoding.apply(samples_median)
+        * np.min(_IDT_GENERATOR.RGB_w),
         _IDT_GENERATOR.M,
         _IDT_GENERATOR.RGB_w,
         _IDT_GENERATOR.k,
@@ -1393,6 +1410,8 @@ def compute_idt_prosumer_camera(
         "",
         components,
         {"display": "block"},
+        aces_transform_id,
+        aces_user_name,
         camera_make,
         camera_model,
         iso,

@@ -7,11 +7,13 @@ import contextlib
 import os
 import re
 import unicodedata
+from functools import partial
 from pathlib import Path
 
 import matplotlib as mpl
 import numpy as np
 import scipy.stats
+import xxhash
 
 mpl.use("Agg")
 
@@ -156,3 +158,26 @@ def working_directory(directory):
         yield
     finally:
         os.chdir(current_working_directory)
+
+
+def hash_file(path):
+    """
+    Hash the file a given path.
+
+    Parameters
+    ----------
+    path : str
+        Path to the file to hash.
+
+    Returns
+    -------
+    :class:`str`
+        File hash.
+    """
+
+    with open(path, "rb") as input_file:
+        x = xxhash.xxh3_64()
+        for chunk in iter(partial(input_file.read, 2**32), b""):
+            x.update(chunk)
+
+        return x.hexdigest()
