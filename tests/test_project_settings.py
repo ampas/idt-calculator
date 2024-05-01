@@ -2,7 +2,7 @@ import os
 import unittest
 
 from idt.core import constants
-from idt.core.project_settings import IDTProjectSettings
+from idt.framework.project_settings import IDTProjectSettings
 
 
 class TestIDTProjectSettings(unittest.TestCase):
