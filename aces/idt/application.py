@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class IDTGeneratorApplication:
     def __init__(self, working_directory=None, cleanup=True):
         self._project_settings = IDTProjectSettings()
+
         self._all_generators = ALL_GENERATORS
         self._idt_generator = None
         self._file_type = None
@@ -37,7 +38,8 @@ class IDTGeneratorApplication:
         if value not in self.all_generators:
             raise ValueError(f"Invalid generator name: {value}")
 
-        self._idt_generator = self._all_generators.get(value)
+        generator_class = self._all_generators.get(value)
+        self._idt_generator = generator_class(self)
 
     @property
     def project_settings(self):
@@ -211,20 +213,17 @@ class IDTGeneratorApplication:
             self.project_settings.data[DataFolderStructure.GREY_CARD] = []
 
     def process_from_archive(self, archive):
-        selected_generator = self.idt_generator
-        if not selected_generator:
+        if not self.idt_generator:
             raise ValueError("No Idt Generator Set")
 
         self.working_directory = self.extract_archive(archive, self.working_directory)
-
-        idt_generator = selected_generator(self)
-        idt_generator.sample()
-        idt_generator.sort()
-        idt_generator.generate_LUT()
-        idt_generator.filter_LUT()
-        idt_generator.decode()
-        idt_generator.optimise()
-        return idt_generator
+        self.idt_generator.sample()
+        self.idt_generator.sort()
+        self.idt_generator.generate_LUT()
+        self.idt_generator.filter_LUT()
+        self.idt_generator.decode()
+        self.idt_generator.optimise()
+        return self.idt_generator
 
     def process_from_project_settings(self):
         selected_generator = self.idt_generator
