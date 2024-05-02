@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 class BaseGenerator:
     def __init__(self, application):
         self._application = application
-        self._projectSettings = application.project_settings
         self._samples_analysis = None
 
     @property
@@ -67,24 +66,23 @@ class BaseGenerator:
             ]
         )
 
-        self._samples_analysis = deepcopy(self._projectSettings.data)
-
+        self._samples_analysis = deepcopy(self._application.project_settings.data)
         # Baseline exposure value, it can be different from zero.
-        if 0 not in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER]:
-            EVs = sorted(self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER].keys())
+        if 0 not in self._application.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
+            EVs = sorted(self._application.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys())
             self._baseline_exposure = EVs[len(EVs) // 2]
             logger.warning(
                 "Baseline exposure is different from zero: %s", self._baseline_exposure
             )
 
-        paths = self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER][self._baseline_exposure]
+        paths = self._application.project_settings.data[DataFolderStructure.COLOUR_CHECKER][self._baseline_exposure]
         with working_directory(self._application.working_directory):
             logger.info(
                 'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
                 self._baseline_exposure,
                 paths[0],
             )
-            image = _reformat_image(read_image(paths[0]))
+            image = _reformat_image(read_image(str(paths[0])))
 
         (
             rectangles,
@@ -116,9 +114,9 @@ class BaseGenerator:
 
         # TODO Again are we using this?
         # Flatfield
-        if self._projectSettings.data.get("flatfield"):
+        if self._application.project_settings.data.get("flatfield"):
             self._samples_analysis["flatfield"] = {"samples_sequence": []}
-            for path in self._projectSettings.data.get("flatfield", []):
+            for path in self._application.project_settings.data.get("flatfield", []):
                 with working_directory(self._application.working_directory):
                     logger.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
@@ -148,14 +146,14 @@ class BaseGenerator:
             ).tolist()
 
         # Grey Card
-        if self._projectSettings.data.get(DataFolderStructure.GREY_CARD, []):
+        if self._application.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
             self._samples_analysis[DataFolderStructure.GREY_CARD] = {"samples_sequence": []}
 
             settings_grey_card = Structure(**settings)
             settings_grey_card.swatches_horizontal = 1
             settings_grey_card.swatches_vertical = 1
 
-            for path in self._projectSettings.data.get(DataFolderStructure.GREY_CARD, []):
+            for path in self._application.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
                 with working_directory(self._application.working_directory):
                     logger.info('Reading grey card image from "%s"...', path)
                     image = _reformat_image(read_image(path))
@@ -212,12 +210,12 @@ class BaseGenerator:
 
         # ColourChecker Classic Samples per EV
         self._samples_analysis[DataFolderStructure.COLOUR_CHECKER] = {}
-        for EV in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER]:
+        for EV in self._application.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
             self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV] = {}
             self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                 "samples_sequence"
             ] = []
-            for path in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER][EV]:
+            for path in self._application.project_settings.data[DataFolderStructure.COLOUR_CHECKER][EV]:
                 with working_directory(self._application.working_directory):
                     logger.info(
                         'Reading EV "%s" "ColourChecker" from "%s"...',

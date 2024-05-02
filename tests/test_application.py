@@ -20,7 +20,7 @@ class TestIDTApplication(TestIDTBase):
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         idt_application.working_directory = idt_application.extract_archive(archive)
 
-        generator = idt_application.idt_generator(idt_application)
+        generator = idt_application.idt_generator
         generator.sample()
         expected_file = os.path.join(self.get_test_resources_folder(), "samples_analysis.json")
         with open(expected_file, "r") as file:
@@ -43,7 +43,7 @@ class TestIDTApplication(TestIDTBase):
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         idt_application.working_directory = idt_application.extract_archive(archive)
 
-        generator = idt_application.idt_generator(idt_application)
+        generator = idt_application.idt_generator
         generator.sample()
         generator.sort()
 

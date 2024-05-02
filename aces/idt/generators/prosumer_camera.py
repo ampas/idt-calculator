@@ -338,7 +338,8 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         :class:`str`
             Formatted string representation.
         """
-
+        # TODO Cant do this cant have the __str__ method be dependent on an execution state of the instance
+        # TODO _samples_analysis may not be populated yet
         samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
             self._baseline_exposure
         )
@@ -431,7 +432,7 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
             Unfiltered linearisation *LUT* for the camera samples.
         """
 
-        size = self._projectSettings.lut_size
+        size = self._application.project_settings.lut_size
         logger.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
 
         self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
@@ -548,8 +549,8 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         Decode the samples produced by the image sampling process.
         """
 
-        decoding_method = self._projectSettings.decoding_method
-        grey_card_reflectance = self._projectSettings.grey_card_reference
+        decoding_method = self._application.project_settings.decoding_method
+        grey_card_reflectance = self._application.project_settings.grey_card_reference
 
         logger.info(
             'Decoding analysis samples using "%s" method and "%s" grey '
@@ -630,7 +631,7 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         """
 
         # Exposure values to use when computing the *IDT* matrix.
-        EV_range = tuple(self._projectSettings.ev_range)
+        EV_range = tuple(self._application.project_settings.ev_range)
         # Normalised weights used to sum the exposure values. If not given, the median of the exposure values is used.
         # TODO Where do these params live? project? generator? currently only exist in the ui
         #  TODO Needs to be a generator specific params? We use the same meta data properties on the generators and these
