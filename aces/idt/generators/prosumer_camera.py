@@ -632,8 +632,11 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         # Exposure values to use when computing the *IDT* matrix.
         EV_range = tuple(self._projectSettings.ev_range)
         # Normalised weights used to sum the exposure values. If not given, the median of the exposure values is used.
-        # TODO Needs to be a generator specific params? We use the same meta data properties on the generators and these
+        # TODO Where do these params live? project? generator? currently only exist in the ui
+        #  TODO Needs to be a generator specific params? We use the same meta data properties on the generators and these
         # TODO can also display in the ui dynamically
+        # TODO Project settings should be serialized and restored without the need for a ui so i anything generic
+        #  should go there
         EV_weights = None
 
         # Training data multi-spectral distributions, defaults to using the *RAW to ACES* v1 190 patches.

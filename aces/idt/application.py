@@ -73,6 +73,8 @@ class IDTGeneratorApplication:
     def cleanup(self, value):
         self._cleanup = value
 
+    # TODO: The following properties are not currently part of the schema, you should be able to serialize a project
+    #  and run it without need to set anything else up as a headless command
     @property
     def reference_colour_checker(self):
         return self._reference_colour_checker
@@ -88,6 +90,14 @@ class IDTGeneratorApplication:
     @sigma.setter
     def sigma(self, value):
         self._sigma = value
+
+    @property
+    def optimisation_factory(self):
+        return self._optimisation_factory
+
+    @optimisation_factory.setter
+    def optimisation_factory(self, value):
+        self._optimisation_factory = value
 
     def extract_archive(self, archive: str, directory: str = None):
         """
