@@ -1,26 +1,13 @@
 import os
-import unittest
 
 from idt.core import constants
 from idt.framework.project_settings import IDTProjectSettings
+from utils import TestIDTBase
 
 
-class TestIDTProjectSettings(unittest.TestCase):
+class TestIDTProjectSettings(TestIDTBase):
     def setUp(self):
         self.project_settings = IDTProjectSettings()
-
-    @classmethod
-    def get_unit_test_folder(cls):
-        script_file_path = os.path.abspath(__file__)
-        return os.path.dirname(script_file_path)
-
-    @classmethod
-    def get_test_output_folder(cls):
-        return os.path.join(cls.get_unit_test_folder(), "output")
-
-    @classmethod
-    def get_test_resources_folder(cls):
-        return os.path.join(cls.get_unit_test_folder(), "resources")
 
     def test_properties(self):
         class_props = list(self.project_settings.properties)

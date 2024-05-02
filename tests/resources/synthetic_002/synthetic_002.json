@@ -1,0 +1,44 @@
+{
+  "header": {
+        "schema_version": "0.1.0",
+        "aces_transform_id": "synthetic-colour-science-camera",
+        "aces_user_name": "Synthetic colour-science Camera",
+        "camera_make": "Synthetic",
+        "camera_model": "colour-science",
+        "iso": 100,
+        "temperature": 6500,
+        "additional_camera_settings": "",
+        "lighting_setup_description": "D65",
+        "debayering_platform": "",
+        "debayering_settings": "",
+        "encoding_colourspace": "",
+        "rgb_display_colourspace": "sRGB",
+        "cat": "CAT02",
+        "optimisation_space": "Oklab",
+        "illuminant_interpolator": "Linear",
+        "decoding_method": "Median",
+        "ev_range": [
+            -1.0,
+            0.0,
+            1.0
+        ],
+        "grey_card_reference": [
+            0.18,
+            0.18,
+            0.18
+        ],
+        "lut_size": 1024,
+        "lut_smoothing": 32
+    },
+  "data": {
+    "colour_checker": {
+      "-3.25": ["data/colour_checker/-3.25/colour_checker_0001.tif"],
+      "-2.125": ["data/colour_checker/-2.125/colour_checker_0001.tif"],
+      "-0.75": ["data/colour_checker/-0.75/colour_checker_0001.tif"],
+      "0.333": ["data/colour_checker/0.333/colour_checker_0001.tif"],
+      "+1.75": ["data/colour_checker/1.75/colour_checker_0001.tif"],
+      "+2.25": ["data/colour_checker/2.25/colour_checker_0001.tif"],
+      "+3.4": ["data/colour_checker/3.4/colour_checker_0001.tif"]
+    }
+  }
+}
