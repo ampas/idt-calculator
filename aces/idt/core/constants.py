@@ -6,6 +6,13 @@ import colour
 from .structures import IDTMetaData
 
 
+class DataFolderStructure:
+    DATA = "data"
+    COLOUR_CHECKER = "colour_checker"
+    GREY_CARD = "grey_card"
+
+
+
 class UITypes:
     """ Constants for the UI categories
 
@@ -14,6 +21,7 @@ class UITypes:
     STRING_FIELD = "StringField"
     OPTIONS_FIELD = "OptionsField"
     VECTOR3_FIELD = "Vector3Field"
+    FOLDER_STRUCTURE = "FOLDER_STRUCTURE"
 
 
 class UICategories:
@@ -22,6 +30,7 @@ class UICategories:
     """
     ADVANCED = "Advanced"
     STANDARD = "Standard"
+    HIDDEN = "HIDDEN"
 
 
 class LUTSize:
@@ -96,6 +105,13 @@ class ProjectSettingsMetaDataConstants:
     """ Constants for the project settings
 
     """
+    SCHEMA_VERSION = IDTMetaData(
+        default_value="0.1.0",
+        description="The project settings schema version",
+        display_name="Schema Version",
+        ui_type=UITypes.STRING_FIELD,
+        ui_category=UICategories.HIDDEN)
+
     CAMERA_MAKE = IDTMetaData(
         default_value="",
         description="The make of the camera used to capture the images",
@@ -197,7 +213,7 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.STANDARD
     )
 
-    ACES_USERNAME = IDTMetaData(
+    ACES_USER_NAME = IDTMetaData(
         default_value="",
         description="The ACES username",
         display_name="ACES Username",
@@ -261,7 +277,16 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.STANDARD
     )
 
+    DATA = IDTMetaData(
+        default_value={DataFolderStructure.COLOUR_CHECKER: {}, DataFolderStructure.GREY_CARD: {}},
+        description="The folder structure for the ",
+        display_name="Schema Version",
+        ui_type=UITypes.FOLDER_STRUCTURE,
+        serialize_group="",
+        ui_category=UICategories.HIDDEN)
+
     ALL = [
+        SCHEMA_VERSION,
         CAMERA_MAKE,
         CAMERA_MODEL,
         RGB_DISPLAY_COLOURSPACE,
@@ -274,12 +299,13 @@ class ProjectSettingsMetaDataConstants:
         LUT_SIZE,
         LUT_SMOOTHING,
         ACES_TRANSFORM_ID,
-        ACES_USERNAME,
+        ACES_USER_NAME,
         ISO,
         TEMPERATURE,
         ADDITIONAL_CAMERA_SETTINGS,
         LIGHTING_SETUP_DESCRIPTION,
         DEBAYERING_PLATFORM,
         DEBAYERING_SETTINGS,
-        ENCODING_COLOUR_SPACE
+        ENCODING_COLOUR_SPACE,
+        DATA
     ]
