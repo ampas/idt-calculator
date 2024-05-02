@@ -185,6 +185,8 @@ class IDTGeneratorApplication:
                 attest(image.exists())
 
             self.project_settings.data["flatfield"] = images
+        else:
+            self.project_settings.data["flatfield"] = []
 
         if self.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
             images = [
@@ -195,6 +197,8 @@ class IDTGeneratorApplication:
                 attest(image.exists())
 
             self.project_settings.data[DataFolderStructure.GREY_CARD] = images
+        else:
+            self.project_settings.data[DataFolderStructure.GREY_CARD] = []
 
     def process_from_archive(self, archive):
         selected_generator = self.idt_generator

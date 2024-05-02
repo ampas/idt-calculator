@@ -20,21 +20,43 @@ class TestIDTApplication(TestIDTBase):
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         idt_application.working_directory = idt_application.extract_archive(archive)
 
-        result = idt_application.idt_generator(idt_application).sample()
+        generator = idt_application.idt_generator(idt_application)
+        generator.sample()
         expected_file = os.path.join(self.get_test_resources_folder(), "samples_analysis.json")
         with open(expected_file, "r") as file:
             expected = json.load(file)
 
-        colour_checkers_result = result.get(DataFolderStructure.COLOUR_CHECKER)
+        colour_checkers_result = generator.samples_analysis.get(DataFolderStructure.COLOUR_CHECKER)
         expected_colour_checkers = expected.get(DataFolderStructure.COLOUR_CHECKER)
         for key in colour_checkers_result:
             a = colour_checkers_result[key]
             e = expected_colour_checkers[str(key)]
             self.assertEqual(a, e)
 
-        grey_result = result.get(DataFolderStructure.GREY_CARD)
+        grey_result = generator.samples_analysis.get(DataFolderStructure.GREY_CARD)
         grey_expected = expected.get(DataFolderStructure.GREY_CARD)
         self.assertEqual(grey_result, grey_expected)
+
+    def test_prosumer_generator_sort(self):
+        idt_application = IDTGeneratorApplication()
+        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        idt_application.working_directory = idt_application.extract_archive(archive)
+
+        generator = idt_application.idt_generator(idt_application)
+        generator.sample()
+        generator.sort()
+
+        camera_expected_file = os.path.join(self.get_test_resources_folder(), "samples_camera.json")
+        reference_expected_file = os.path.join(self.get_test_resources_folder(), "samples_reference.json")
+        with open(camera_expected_file, "r") as file:
+            expected_camera = json.load(file)
+
+        with open(reference_expected_file, "r") as file:
+            expected_reference = json.load(file)
+
+        self.assertEqual(generator.samples_camera.tolist(), expected_camera)
+        self.assertEqual(generator.samples_reference.tolist(), expected_reference)
 
     def test_prosumer_generator_from_archive(self):
         """

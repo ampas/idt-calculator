@@ -692,7 +692,6 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
 
         if self._application.cleanup:
             shutil.rmtree(self._application.working_directory)
-        return self._samples_analysis
 
     def sort(self):
         """
@@ -954,8 +953,9 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         # Exposure values to use when computing the *IDT* matrix.
         EV_range = tuple(self._projectSettings.ev_range)
         # Normalised weights used to sum the exposure values. If not given, the median of the exposure values is used.
-        # TODO Needs to be a generator specific param?
-        EV_weights = None,
+        # TODO Needs to be a generator specific params? We use the same meta data properties on the generators and these
+        # TODO can also display in the ui dynamically
+        EV_weights = None
 
         # Training data multi-spectral distributions, defaults to using the *RAW to ACES* v1 190 patches.
         training_data = self._application.reference_colour_checker
