@@ -692,6 +692,7 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
 
         if self._application.cleanup:
             shutil.rmtree(self._application.working_directory)
+        return self._samples_analysis
 
     def sort(self):
         """

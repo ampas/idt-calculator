@@ -1,9 +1,11 @@
+import json
 import os
 
 import numpy as np
 from colour.constants import TOLERANCE_ABSOLUTE_TESTS
 
 from idt.application import IDTGeneratorApplication
+from idt.core.constants import DataFolderStructure
 from idt.framework.project_settings import IDTProjectSettings
 from utils import TestIDTBase
 
@@ -11,6 +13,28 @@ from utils import TestIDTBase
 class TestIDTApplication(TestIDTBase):
     def setUp(self):
         self.project_settings = IDTProjectSettings()
+
+    def test_prosumer_generator_sample(self):
+        idt_application = IDTGeneratorApplication()
+        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        idt_application.working_directory = idt_application.extract_archive(archive)
+
+        result = idt_application.idt_generator(idt_application).sample()
+        expected_file = os.path.join(self.get_test_resources_folder(), "samples_analysis.json")
+        with open(expected_file, "r") as file:
+            expected = json.load(file)
+
+        colour_checkers_result = result.get(DataFolderStructure.COLOUR_CHECKER)
+        expected_colour_checkers = expected.get(DataFolderStructure.COLOUR_CHECKER)
+        for key in colour_checkers_result:
+            a = colour_checkers_result[key]
+            e = expected_colour_checkers[str(key)]
+            self.assertEqual(a, e)
+
+        grey_result = result.get(DataFolderStructure.GREY_CARD)
+        grey_expected = expected.get(DataFolderStructure.GREY_CARD)
+        self.assertEqual(grey_result, grey_expected)
 
     def test_prosumer_generator_from_archive(self):
         """
