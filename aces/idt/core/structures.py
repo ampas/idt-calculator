@@ -2,6 +2,19 @@
 
 """
 import json
+from pathlib import Path
+
+
+class PathEncoder(json.JSONEncoder):
+    """
+    A custom JSONEncoder subclass that knows how to encode Path objects.
+    """
+    def default(self, obj):
+        if isinstance(obj, Path):
+            # Convert the PosixPath to a string
+            return str(obj)
+        # Delegate other types to the default JSONEncoder
+        return super().default(obj)
 
 
 class SerializableConstants:
@@ -81,7 +94,7 @@ class BaseSerializable:
                 output[prop.metadata.serialize_group][name] = prop.getter(self)
             else:
                 output[SerializableConstants.DATA] = prop.getter(self)
-        return json.dumps(output, indent=4)
+        return json.dumps(output, indent=4, cls=PathEncoder)
 
     @classmethod
     def from_json(cls, data):
