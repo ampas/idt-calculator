@@ -4,8 +4,11 @@ Common IDT Utilities
 """
 
 import contextlib
+import logging
 import os
 import re
+import shutil
+import tempfile
 import unicodedata
 from functools import partial
 from pathlib import Path
@@ -14,8 +17,10 @@ import matplotlib as mpl
 import numpy as np
 import scipy.stats
 import xxhash
+from colour.utilities import attest
 
 mpl.use("Agg")
+logger = logging.getLogger(__name__)
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -82,40 +87,6 @@ def slugify(object_, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-def list_sub_directories(
-    directory,
-    filterers=(
-        lambda path: "__MACOSX" not in path.name,
-        lambda path: path.is_dir(),
-    ),
-):
-    """
-    List the sub-directories in given directory.
-
-    Parameters
-    ----------
-    directory : str
-        Directory to list the sub-directories from.
-    filterers : array_like, optional
-        List of callables used to filter the sub-directories, each callable
-        takes a :class:`Path` class instance as argument and returns whether to
-        include or exclude the sub-directory as a bool.
-
-    Returns
-    -------
-    list
-        Sub-directories in given directory.
-    """
-
-    sub_directories = [
-        path
-        for path in Path(directory).iterdir()
-        if all(filterer(path) for filterer in filterers)
-    ]
-
-    return sub_directories
-
-
 def mask_outliers(a, axis=None, z_score=3):
     """
     Return the mask for the outliers of given array :math:`a` using the
@@ -177,7 +148,71 @@ def hash_file(path):
 
     with open(path, "rb") as input_file:
         x = xxhash.xxh3_64()
-        for chunk in iter(partial(input_file.read, 2**32), b""):
+        for chunk in iter(partial(input_file.read, 2 ** 32), b""):
             x.update(chunk)
 
         return x.hexdigest()
+
+
+def extract_archive(archive: str, directory: str = None):
+    """
+    Extracts the archive to the given directory or a temporary directory.
+
+    Parameters
+    ----------
+    archive : str
+        Archive to extract.
+    directory : str, optional known directory
+
+    Returns
+    -------
+    str
+        Extracted directory.
+    """
+    if not directory:
+        directory = tempfile.TemporaryDirectory().name if directory is None else directory
+
+    logger.info(
+        'Extracting "%s" archive to "%s"...',
+        archive,
+        directory,
+    )
+
+    shutil.unpack_archive(archive, directory)
+    return directory
+
+
+def list_sub_directories(
+        directory,
+        filterers=(
+                lambda path: "__MACOSX" not in path.name,
+                lambda path: path.is_dir(),
+        ),
+):
+    """
+    List the sub-directories in given directory.
+
+    Parameters
+    ----------
+    directory : str
+        Directory to list the sub-directories from.
+    filterers : array_like, optional
+        List of callables used to filter the sub-directories, each callable
+        takes a :class:`Path` class instance as argument and returns whether to
+        include or exclude the sub-directory as a bool.
+
+    Returns
+    -------
+    list
+        Sub-directories in given directory.
+    """
+
+    sub_directories = [
+        path
+        for path in Path(directory).iterdir()
+        if all(filterer(path) for filterer in filterers)
+    ]
+
+    attest(len(sub_directories) == 1)
+
+    return sub_directories
