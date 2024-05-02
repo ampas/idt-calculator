@@ -1208,6 +1208,7 @@ def compute_idt_prosumer_camera(
         _HASH_IDT_ARCHIVE = hash_file(_PATH_UPLOADED_IDT_ARCHIVE)
         logger.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
 
+    # TODO _IDT_GENERATOR should be replaced with _IDT_APPLICATION
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
         _IDT_GENERATOR.extract()
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
@@ -1320,6 +1321,7 @@ def compute_idt_prosumer_camera(
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
+    # TODO ALL OF THIS SHOULD BE MOVED TO THE APPLICATION CLASS THERE SHOULD BE NO COMPUTATION IN THE UI
     delta_E_idt = np.median(error_delta_E(samples_idt, reference_colour_checker))
     delta_E_decoded = np.median(
         error_delta_E(samples_decoded, reference_colour_checker)
@@ -1386,6 +1388,7 @@ def compute_idt_prosumer_camera(
             ),
         ]
 
+    # TODO THIS SHOUDL BE MOVED TO THE APPLICATION CLASS
     _IDT_GENERATOR.information = {
         "Application": f"{APP_NAME_LONG} - {__version__}",
         "Url": href,
