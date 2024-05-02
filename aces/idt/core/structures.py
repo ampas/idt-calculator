@@ -4,6 +4,13 @@
 import json
 
 
+class SerializableConstants:
+    """ Constants for the serializable
+    """
+    HEADER = "header"
+    DATA = "data"
+
+
 class IDTMetaData:
     """ Simple class to store metadata information for a property within an IDT project, this data is not used in any
         calculations or computation and is primarily designed to store data which would be associated with how the
@@ -11,10 +18,12 @@ class IDTMetaData:
 
     """
 
-    def __init__(self, default_value=None, description="", display_name="", ui_category="", ui_type="", options=None):
+    def __init__(self, default_value=None, description="", display_name="",
+                 serialize_group=SerializableConstants.HEADER, ui_category="", ui_type="", options=None):
         self.default_value = default_value
         self.description = description
         self.display_name = display_name
+        self.serialize_group = serialize_group
         self.ui_category = ui_category
         self.ui_type = ui_type
         self.options = options or []
@@ -63,11 +72,16 @@ class BaseSerializable:
                 yield name, descriptor
 
     def to_json(self):
-        data = {}
+        output = {
+            SerializableConstants.HEADER: {},
+            SerializableConstants.DATA: {}
+        }
         for name, prop in self.properties:
-            data[name] = prop.getter(self)
-
-        return json.dumps(data, indent=4)
+            if prop.metadata.serialize_group:
+                output[prop.metadata.serialize_group][name] = prop.getter(self)
+            else:
+                output[SerializableConstants.DATA] = prop.getter(self)
+        return json.dumps(output, indent=4)
 
     @classmethod
     def from_json(cls, data):
@@ -76,15 +90,19 @@ class BaseSerializable:
             data = json.loads(data)
 
         for name, prop in item.properties:
-            prop.setter(item, data[name])
+            if prop.metadata.serialize_group == SerializableConstants.HEADER:
+                prop.setter(item, data[SerializableConstants.HEADER][name])
+            else:
+                prop.setter(item, data[SerializableConstants.DATA])
         return item
 
     def to_file(self, filepath):
         with open(filepath, 'w') as f:
             f.write(self.to_json())
 
-    def from_file(self, filepath):
+    @classmethod
+    def from_file(cls, filepath):
         with open(filepath, 'r') as f:
             data = json.load(f)
 
-        return self.from_json(data)
+        return cls.from_json(data)
