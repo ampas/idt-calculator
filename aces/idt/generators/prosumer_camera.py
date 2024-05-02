@@ -10,7 +10,6 @@ import logging
 import os
 import re
 import shutil
-import tempfile
 import xml.etree.ElementTree as Et
 from copy import deepcopy
 from pathlib import Path
@@ -52,18 +51,13 @@ from colour_checker_detection.detection import (
 )
 from scipy.optimize import minimize
 
-from aces.idt.common import (
-    RGB_COLORCHECKER_CLASSIC_ACES,
-    SAMPLES_COUNT_DEFAULT,
-    SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    clf_processing_elements,
-)
-from aces.idt.utilities import (
-    list_sub_directories,
-    mask_outliers,
-    working_directory,
-)
+from idt.core import common, utilities
+from idt.core.constants import DataFolderStructure, DecodingMethods
+from idt.core.utilities import working_directory
+from idt.generators.base_generator import BaseGenerator
+from idt.core.common import RGB_COLORCHECKER_CLASSIC_ACES
 
+# TODO are the mpl.use things needed in every file?
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -75,49 +69,13 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "DATA_SPECIFICATION",
-    "DATA_SAMPLES_ANALYSIS",
     "IDTGeneratorProsumerCamera",
 ]
 
 logger = logging.getLogger(__name__)
 
-DATA_SPECIFICATION = {
-    "header": {
-        "schema_version": "0.1.0",
-        "aces_transform_id": None,
-        "aces_user_name": None,
-        "camera_make": None,
-        "camera_model": None,
-        "iso": 800,
-        "temperature": 5600,
-        "additional_camera_settings": None,
-        "lighting_setup_description": None,
-        "debayering_platform": None,
-        "debayering_settings": None,
-        "encoding_colourspace": None,
-    },
-    "data": {
-        "colour_checker": {},
-        "flatfield": [],
-        "grey_card": [],
-    },
-}
-"""
-Template specification for the *IDT* archive.
 
-DATA_SPECIFICATION : dict
-"""
-
-DATA_SAMPLES_ANALYSIS = deepcopy(DATA_SPECIFICATION)
-"""
-Template specification for the image sampling process.
-
-DATA_SAMPLES_ANALYSIS : dict
-"""
-
-
-class IDTGeneratorProsumerCamera:
+class IDTGeneratorProsumerCamera(BaseGenerator):
     """
     Define an *IDT* generator for a *Prosumer Camera*.
 
@@ -136,10 +94,6 @@ class IDTGeneratorProsumerCamera:
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.archive`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_format`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.directory`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.specification`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_colour_checker_segmentation`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_grey_card_sampling`
     -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.baseline_exposure`
@@ -158,9 +112,7 @@ class IDTGeneratorProsumerCamera:
     Methods
     -------
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_archive`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_specification`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.extract`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.sample`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.sort`
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.generate_LUT`
@@ -175,21 +127,10 @@ class IDTGeneratorProsumerCamera:
     -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_extrapolated_camera_samples`
     """
 
-    def __init__(
-        self,
-        archive=None,
-        image_format="tif",
-        directory=None,
-        specification=None,
-        cleanup=False,
-    ):
-        self._archive = str(archive)
-        self._image_format = image_format
-        self._directory = (
-            tempfile.TemporaryDirectory().name if directory is None else directory
-        )
-        self._cleanup = cleanup
-        self._specification = specification
+    generator_name = "IDTGeneratorProsumerCamera"
+
+    def __init__(self, application):
+        super().__init__(application)
 
         self._image_colour_checker_segmentation = None
         self._image_grey_card_sampling = None
@@ -197,7 +138,6 @@ class IDTGeneratorProsumerCamera:
         self._lut_blending_edge_right = None
 
         self._baseline_exposure = 0
-        self._samples_analysis = None
         self._samples_camera = None
         self._samples_reference = None
         self._samples_decoded = None
@@ -210,58 +150,6 @@ class IDTGeneratorProsumerCamera:
         self._M = None
         self._RGB_w = None
         self._k = None
-
-    @property
-    def archive(self):
-        """
-        Getter property for the *IDT* archive path.
-
-        Returns
-        -------
-        :class:`str` or None
-            *IDT* archive path, i.e. a zip file path.
-        """
-
-        return self._archive
-
-    @property
-    def image_format(self):
-        """
-        Getter property for image format to filter.
-
-        Returns
-        -------
-        :class:`str` or None
-            Image format to filter.
-        """
-
-        return self._image_format
-
-    @property
-    def directory(self):
-        """
-        Getter property for the working directory to extract the *IDT* archive.
-
-        Returns
-        -------
-        :class:`str` or None
-            Working directory to extract the *IDT* archive.
-        """
-
-        return self._directory
-
-    @property
-    def specification(self):
-        """
-        Getter property for the *IDT* archive specification.
-
-        Returns
-        -------
-        :class:`str` or None
-            *IDT* archive specification.
-        """
-
-        return self._specification
 
     @property
     def image_colour_checker_segmentation(self):
@@ -499,101 +387,19 @@ class IDTGeneratorProsumerCamera:
         )
 
     @staticmethod
-    def from_archive(
-        archive,
-        image_format="tif",
-        directory=None,
-        cleanup=False,
-        reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES,
-        size=1024,
-        sigma=16,
-        decoding_method="Median",
-        grey_card_reflectance=(0.18, 0.18, 0.18),
-        EV_range=(-1, 0, 1),
-        EV_weights=None,
-        training_data=RGB_COLORCHECKER_CLASSIC_ACES,
-        optimisation_factory=optimisation_factory_rawtoaces_v1,
-        optimisation_kwargs=None,
-    ):
-        """
-        Return an *IDT* generator for a *Prosumer Camera* for given
-        *IDT* archive path.
-
-        Parameters
-        ----------
-        archive : str
-            *IDT* archive path, i.e. a zip file path.
-        image_format : str, optional
-            Image format to filter.
-        directory : str, optional
-            Working directory.
-        cleanup : bool, optional
-            Whether to cleanup, i.e. remove, the working directory.
-        reference_colour_checker : NDArray
-            Reference *ACES* *RGB* values for the *ColorChecker Classic*.
-        size : integer, optional
-            *LUT* size.
-        sigma : numeric
-            Standard deviation of the gaussian convolution kernel.
-        decoding_method : str, optional
-            {"Median", "Average", "Per Channel", "ACES"},
-            Decoding method.
-        grey_card_reflectance : array_like, optional
-            Measured grey card reflectance.
-        EV_range : array_like, optional
-            Exposure values to use when computing the *IDT* matrix.
-        EV_weights : array_like, optional
-            Normalised weights used to sum the exposure values. If not given,
-            the median of the exposure values is used.
-        training_data : NDArray, optional
-            Training data multi-spectral distributions, defaults to using the
-            *RAW to ACES* v1 190 patches.
-        optimisation_factory : callable, optional
-            Callable producing the objective function and the *CIE XYZ* to
-            optimisation colour model function.
-        optimisation_kwargs : dict, optional
-            Parameters for :func:`scipy.optimize.minimize` definition.
-
-        Returns
-        -------
-        :class:`IDTGeneratorProsumerCamera`
-            *IDT* generator for a *Prosumer Camera*.
-        """
-
-        idt_generator = IDTGeneratorProsumerCamera(
-            archive, image_format, directory, cleanup
-        )
-
-        idt_generator.extract()
-        idt_generator.sample()
-        idt_generator.sort(reference_colour_checker)
-        idt_generator.generate_LUT(size)
-        idt_generator.filter_LUT(sigma)
-        idt_generator.decode(decoding_method, grey_card_reflectance)
-        idt_generator.optimise(
-            EV_range,
-            EV_weights,
-            training_data,
-            optimisation_factory,
-            optimisation_kwargs,
-        )
-
-        return idt_generator
-
-    @staticmethod
     def from_specification(
-        specification,
-        directory,
-        reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES,
-        size=1024,
-        sigma=16,
-        decoding_method="Median",
-        grey_card_reflectance=(0.18, 0.18, 0.18),
-        EV_range=(-1, 0, 1),
-        EV_weights=None,
-        training_data=RGB_COLORCHECKER_CLASSIC_ACES,
-        optimisation_factory=optimisation_factory_rawtoaces_v1,
-        optimisation_kwargs=None,
+            specification,
+            directory,
+            reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES,
+            size=1024,
+            sigma=16,
+            decoding_method="Median",
+            grey_card_reflectance=(0.18, 0.18, 0.18),
+            EV_range=(-1, 0, 1),
+            EV_weights=None,
+            training_data=RGB_COLORCHECKER_CLASSIC_ACES,
+            optimisation_factory=optimisation_factory_rawtoaces_v1,
+            optimisation_kwargs=None,
     ):
         """
         Return an *IDT* generator for a *Prosumer Camera* for given
@@ -664,96 +470,6 @@ class IDTGeneratorProsumerCamera:
 
         return idt_generator
 
-    def extract(self):
-        """
-        Extract the specification from the *IDT* archive.
-        """
-
-        logger.info(
-            'Extracting "%s" archive to "%s"...',
-            self._archive,
-            self._directory,
-        )
-
-        shutil.unpack_archive(self._archive, self._directory)
-
-        extracted_directories = list_sub_directories(self._directory)
-
-        attest(len(extracted_directories) == 1)
-
-        root_directory = extracted_directories[0]
-
-        json_files = list(root_directory.glob("*.json"))
-        if len(json_files) == 1:
-            specification = json_files[0]
-
-            logger.info('Found explicit "%s" "IDT" specification file.', specification)
-
-            with open(specification) as json_file:
-                self._specification = json.load(json_file)
-        else:
-            logger.info('Assuming implicit "IDT" specification...')
-            self._specification = deepcopy(DATA_SPECIFICATION)
-
-            self._specification["header"]["camera_model"] = Path(self._archive).stem
-
-            colour_checker_directory = root_directory / "data" / "colour_checker"
-
-            attest(colour_checker_directory.exists())
-
-            for exposure_directory in colour_checker_directory.iterdir():
-                if re.match(r"-?\d", exposure_directory.name):
-                    EV = exposure_directory.name
-
-                    self._specification["data"]["colour_checker"][EV] = list(
-                        (colour_checker_directory / exposure_directory).glob(
-                            f"*.{self._image_format}"
-                        )
-                    )
-
-            flatfield_directory = root_directory / "data" / "flatfield"
-            if flatfield_directory.exists():
-                self._specification["data"]["flatfield"] = list(
-                    flatfield_directory.glob(f"*.{self._image_format}")
-                )
-
-            grey_card_directory = root_directory / "data" / "grey_card"
-            if grey_card_directory.exists():
-                self._specification["data"]["grey_card"] = list(
-                    flatfield_directory.glob(f"*.{self._image_format}")
-                )
-
-        for exposure in list(self._specification["data"]["colour_checker"].keys()):
-            images = [
-                Path(root_directory) / image
-                for image in self._specification["data"]["colour_checker"].pop(exposure)
-            ]
-
-            for image in images:
-                attest(image.exists())
-
-            self._specification["data"]["colour_checker"][float(exposure)] = images
-
-        if self._specification["data"].get("flatfield") is not None:
-            images = [
-                Path(root_directory) / image
-                for image in self._specification["data"]["flatfield"]
-            ]
-            for image in images:
-                attest(image.exists())
-
-            self._specification["data"]["flatfield"] = images
-
-        if self._specification["data"].get("grey_card") is not None:
-            images = [
-                Path(root_directory) / image
-                for image in self._specification["data"]["grey_card"]
-            ]
-            for image in images:
-                attest(image.exists())
-
-            self._specification["data"]["grey_card"] = images
-
     def sample(self):
         """
         Sample the images from the *IDT* specification.
@@ -761,7 +477,7 @@ class IDTGeneratorProsumerCamera:
 
         logger.info('Sampling "IDT" specification images...')
 
-        settings = Structure(**SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC)
+        settings = Structure(**common.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC)
         working_width = settings.working_width
         working_height = settings.working_height
 
@@ -781,19 +497,18 @@ class IDTGeneratorProsumerCamera:
             ]
         )
 
-        self._samples_analysis = deepcopy(DATA_SAMPLES_ANALYSIS)
+        self._samples_analysis = deepcopy(self._projectSettings.data)
 
         # Baseline exposure value, it can be different from zero.
-        if 0 not in self._specification["data"]["colour_checker"]:
-            EVs = sorted(self._specification["data"]["colour_checker"].keys())
+        if 0 not in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER]:
+            EVs = sorted(self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER].keys())
             self._baseline_exposure = EVs[len(EVs) // 2]
             logger.warning(
                 "Baseline exposure is different from zero: %s", self._baseline_exposure
             )
 
-        paths = self._specification["data"]["colour_checker"][self._baseline_exposure]
-
-        with working_directory(self._directory):
+        paths = self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER][self._baseline_exposure]
+        with working_directory(self._application.working_directory):
             logger.info(
                 'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
                 self._baseline_exposure,
@@ -809,7 +524,7 @@ class IDTGeneratorProsumerCamera:
         ) = segmenter_default(
             image,
             additional_data=True,
-            **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+            **common.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
         ).values
 
         quadrilateral = rectangles[0]
@@ -823,17 +538,18 @@ class IDTGeneratorProsumerCamera:
         )
 
         data_detection_colour_checker_EV0 = sample_colour_checker(
-            image, quadrilateral, rectangle, SAMPLES_COUNT_DEFAULT, **settings
+            image, quadrilateral, rectangle, common.SAMPLES_COUNT_DEFAULT, **settings
         )
 
         # Disabling orientation as we now have an oriented quadrilateral
         settings.reference_values = None
 
+        # TODO Again are we using this?
         # Flatfield
-        if self._specification["data"].get("flatfield"):
-            self._samples_analysis["data"]["flatfield"] = {"samples_sequence": []}
-            for path in self._specification["data"]["flatfield"]:
-                with working_directory(self._directory):
+        if self._projectSettings.data.get("flatfield"):
+            self._samples_analysis["flatfield"] = {"samples_sequence": []}
+            for path in self._projectSettings.data.get("flatfield", []):
+                with working_directory(self._application.working_directory):
                     logger.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
@@ -841,41 +557,36 @@ class IDTGeneratorProsumerCamera:
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    SAMPLES_COUNT_DEFAULT,
+                    common.SAMPLES_COUNT_DEFAULT,
                     **settings,
                 )
 
-                self._samples_analysis["data"]["flatfield"]["samples_sequence"].append(
+                self._samples_analysis["flatfield"]["samples_sequence"].append(
                     data_detection_flatfield.swatch_colours.tolist()
                 )
 
             samples_sequence = as_float_array(
-                [
-                    samples[0]
-                    for samples in self._samples_analysis["data"]["flatfield"][
-                        "samples_sequence"
-                    ]
-                ]
+                [samples[0] for samples in self._samples_analysis["flatfield"]["samples_sequence"]]
             )
-            mask = np.all(~mask_outliers(samples_sequence), axis=-1)
+            mask = np.all(~utilities.mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis["data"]["flatfield"]["samples_median"] = np.median(
+            self._samples_analysis["flatfield"]["samples_median"] = np.median(
                 as_float_array(
-                    self._samples_analysis["data"]["flatfield"]["samples_sequence"]
+                    self._samples_analysis["flatfield"]["samples_sequence"]
                 )[mask],
                 (0, 1),
             ).tolist()
 
         # Grey Card
-        if self._specification["data"].get("grey_card"):
-            self._samples_analysis["data"]["grey_card"] = {"samples_sequence": []}
+        if self._projectSettings.data.get(DataFolderStructure.GREY_CARD, []):
+            self._samples_analysis[DataFolderStructure.GREY_CARD] = {"samples_sequence": []}
 
             settings_grey_card = Structure(**settings)
             settings_grey_card.swatches_horizontal = 1
             settings_grey_card.swatches_vertical = 1
 
-            for path in self._specification["data"]["grey_card"]:
-                with working_directory(self._directory):
+            for path in self._projectSettings.data.get(DataFolderStructure.GREY_CARD, []):
+                with working_directory(self._application.working_directory):
                     logger.info('Reading grey card image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
@@ -883,29 +594,24 @@ class IDTGeneratorProsumerCamera:
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    SAMPLES_COUNT_DEFAULT,
+                    common.SAMPLES_COUNT_DEFAULT,
                     **settings_grey_card,
                 )
 
                 grey_card_colour = np.ravel(data_detection_grey_card.swatch_colours)
 
-                self._samples_analysis["data"]["grey_card"]["samples_sequence"].append(
+                self._samples_analysis[DataFolderStructure.GREY_CARD]["samples_sequence"].append(
                     grey_card_colour.tolist()
                 )
 
             samples_sequence = as_float_array(
-                [
-                    samples[0]
-                    for samples in self._samples_analysis["data"]["grey_card"][
-                        "samples_sequence"
-                    ]
-                ]
+                [samples[0] for samples in self._samples_analysis[DataFolderStructure.GREY_CARD]["samples_sequence"]]
             )
-            mask = np.all(~mask_outliers(samples_sequence), axis=-1)
+            mask = np.all(~utilities.mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis["data"]["grey_card"]["samples_median"] = np.median(
+            self._samples_analysis[DataFolderStructure.GREY_CARD]["samples_median"] = np.median(
                 as_float_array(
-                    self._samples_analysis["data"]["grey_card"]["samples_sequence"]
+                    self._samples_analysis[DataFolderStructure.GREY_CARD]["samples_sequence"]
                 )[mask],
                 (0, 1),
             ).tolist()
@@ -915,13 +621,13 @@ class IDTGeneratorProsumerCamera:
                 (working_height, working_width), dtype=np.uint8
             )
             image_grey_card_contour[
-                data_detection_grey_card.swatch_masks[0][
-                    0
-                ] : data_detection_grey_card.swatch_masks[0][1],
-                data_detection_grey_card.swatch_masks[0][
-                    2
-                ] : data_detection_grey_card.swatch_masks[0][3],
-                ...,
+            data_detection_grey_card.swatch_masks[0][
+                0
+            ]: data_detection_grey_card.swatch_masks[0][1],
+            data_detection_grey_card.swatch_masks[0][
+                2
+            ]: data_detection_grey_card.swatch_masks[0][3],
+            ...,
             ] = 255
             contours, _hierarchy = cv2.findContours(
                 image_grey_card_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
@@ -935,14 +641,14 @@ class IDTGeneratorProsumerCamera:
             )
 
         # ColourChecker Classic Samples per EV
-        self._samples_analysis["data"]["colour_checker"] = {}
-        for EV in self._specification["data"]["colour_checker"]:
-            self._samples_analysis["data"]["colour_checker"][EV] = {}
-            self._samples_analysis["data"]["colour_checker"][EV][
+        self._samples_analysis[DataFolderStructure.COLOUR_CHECKER] = {}
+        for EV in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER]:
+            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV] = {}
+            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                 "samples_sequence"
             ] = []
-            for path in self._specification["data"]["colour_checker"][EV]:
-                with working_directory(self._directory):
+            for path in self._projectSettings.data[DataFolderStructure.COLOUR_CHECKER][EV]:
+                with working_directory(self._application.working_directory):
                     logger.info(
                         'Reading EV "%s" "ColourChecker" from "%s"...',
                         EV,
@@ -955,39 +661,39 @@ class IDTGeneratorProsumerCamera:
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    SAMPLES_COUNT_DEFAULT,
+                    common.SAMPLES_COUNT_DEFAULT,
                     **settings,
                 )
 
-                self._samples_analysis["data"]["colour_checker"][EV][
+                self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                     "samples_sequence"
                 ].append(data_detection_colour_checker.swatch_colours.tolist())
 
             sequence_neutral_5 = as_float_array(
                 [
                     samples[21]
-                    for samples in self._samples_analysis["data"]["colour_checker"][EV][
-                        "samples_sequence"
-                    ]
+                    for samples in self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+                    "samples_sequence"
+                ]
                 ]
             )
-            mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
+            mask = np.all(~utilities.mask_outliers(sequence_neutral_5), axis=-1)
 
-            self._samples_analysis["data"]["colour_checker"][EV][
+            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                 "samples_median"
             ] = np.median(
                 as_float_array(
-                    self._samples_analysis["data"]["colour_checker"][EV][
+                    self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                         "samples_sequence"
                     ]
                 )[mask],
                 0,
             ).tolist()
 
-        if self._cleanup:
-            shutil.rmtree(self._directory)
+        if self._application.cleanup:
+            shutil.rmtree(self._application.working_directory)
 
-    def sort(self, reference_colour_checker=RGB_COLORCHECKER_CLASSIC_ACES):
+    def sort(self):
         """
         Sort the samples produced by the image sampling process.
 
@@ -1002,10 +708,11 @@ class IDTGeneratorProsumerCamera:
         """
 
         logger.info("Sorting camera and reference samples...")
+        reference_colour_checker = self._application.reference_colour_checker
 
         samples_camera = []
         samples_reference = []
-        for EV, images in self._samples_analysis["data"]["colour_checker"].items():
+        for EV, images in self._samples_analysis[DataFolderStructure.COLOUR_CHECKER].items():
             samples_reference.append(reference_colour_checker[-6:, ...] * pow(2, EV))
             samples_EV = as_float_array(images["samples_median"])[-6:, ...]
             samples_camera.append(samples_EV)
@@ -1018,7 +725,7 @@ class IDTGeneratorProsumerCamera:
         self._samples_camera = self._samples_camera[indices]
         self._samples_reference = self._samples_reference[indices]
 
-    def generate_LUT(self, size=1024):
+    def generate_LUT(self):
         """
         Generate an unfiltered linearisation *LUT* for the camera samples.
 
@@ -1039,17 +746,13 @@ class IDTGeneratorProsumerCamera:
         through a smoothstep with the constant extrapolated samples. The blend
         is fully achieved at the right edge of the camera samples.
 
-        Parameters
-        ----------
-        size : integer, optional
-            *LUT* size.
-
         Returns
         -------
         :class:`LUT3x1D`
             Unfiltered linearisation *LUT* for the camera samples.
         """
 
+        size = self._projectSettings.lut_size
         logger.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
 
         self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
@@ -1075,14 +778,14 @@ class IDTGeneratorProsumerCamera:
             samples_middle = np.log(np.copy(samples_linear))
             samples_middle[: index_middle - padding] = samples_middle[
                 index_middle - padding
-            ]
-            samples_middle[index_middle + padding :] = samples_middle[
+                ]
+            samples_middle[index_middle + padding:] = samples_middle[
                 index_middle + padding
-            ]
+                ]
 
             a, b = np.polyfit(
-                samples[index_middle - padding : index_middle + padding],
-                samples_middle[index_middle - padding : index_middle + padding],
+                samples[index_middle - padding: index_middle + padding],
+                samples_middle[index_middle - padding: index_middle + padding],
                 1,
             )
 
@@ -1095,10 +798,10 @@ class IDTGeneratorProsumerCamera:
             )
 
             self._LUT_unfiltered.table[..., i] = samples_linear
-            self._LUT_unfiltered.table[index_middle - padding :, i] = (
-                np.exp(a * samples + b) * mask_samples
-                + samples_constant * (1 - mask_samples)
-            )[index_middle - padding :]
+            self._LUT_unfiltered.table[index_middle - padding:, i] = (
+                                                                             np.exp(a * samples + b) * mask_samples
+                                                                             + samples_constant * (1 - mask_samples)
+                                                                     )[index_middle - padding:]
 
             self._lut_blending_edge_left, self._lut_blending_edge_right = (
                 edge_left / size,
@@ -1107,7 +810,7 @@ class IDTGeneratorProsumerCamera:
 
         return self._LUT_unfiltered
 
-    def filter_LUT(self, sigma=16):
+    def filter_LUT(self):
         """
         Filter/smooth the linearisation *LUT* for the camera samples.
 
@@ -1118,17 +821,15 @@ class IDTGeneratorProsumerCamera:
         linearly extrapolated while the right edge is logarithmically
         extrapolated.
 
-        Parameters
-        ----------
-        sigma : numeric
-            Standard deviation of the gaussian convolution kernel.
-
         Returns
         -------
         :class:`LUT3x1D`
             Filtered linearisation *LUT* for the camera samples.
         """
 
+        #Standard deviation of the gaussian convolution kernel.
+
+        sigma = self._application.sigma
         logger.info('Filtering unfiltered "LUT3x1D" with "%s" sigma...', sigma)
 
         filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
@@ -1163,22 +864,13 @@ class IDTGeneratorProsumerCamera:
 
         return self._LUT_filtered
 
-    def decode(
-        self,
-        decoding_method="Median",
-        grey_card_reflectance=(0.18, 0.18, 0.18),
-    ):
+    def decode(self):
         """
         Decode the samples produced by the image sampling process.
-
-        Parameters
-        ----------
-        decoding_method : str, optional
-            {"Median", "Average", "Per Channel", "ACES"},
-            Decoding method.
-        grey_card_reflectance : array_like, optional
-            Measured grey card reflectance.
         """
+
+        decoding_method = self._projectSettings.decoding_method
+        grey_card_reflectance = self._projectSettings.grey_card_reference
 
         logger.info(
             'Decoding analysis samples using "%s" method and "%s" grey '
@@ -1189,20 +881,21 @@ class IDTGeneratorProsumerCamera:
 
         decoding_method = validate_method(
             decoding_method,
-            ("Median", "Average", "Per Channel", "ACES"),
+            tuple(DecodingMethods.ALL),
         )
+
 
         grey_card_reflectance = as_float_array(grey_card_reflectance)
 
-        if decoding_method == "median":
+        if decoding_method.title() == DecodingMethods.MEDIAN:
             self._LUT_decoding = LUT1D(np.median(self._LUT_filtered.table, axis=-1))
-        elif decoding_method == "average":
+        elif decoding_method.title() == DecodingMethods.AVERAGE:
             self._LUT_decoding = LUT_to_LUT(
                 self._LUT_filtered, LUT1D, force_conversion=True
             )
-        elif decoding_method == "per channel":
+        elif decoding_method.title() == DecodingMethods.PER_CHANNEL:
             self._LUT_decoding = self._LUT_filtered.copy()
-        elif decoding_method == "aces":
+        elif decoding_method.title() == DecodingMethods.ACES:
             self._LUT_decoding = LUT_to_LUT(
                 self._LUT_filtered,
                 LUT1D,
@@ -1211,22 +904,21 @@ class IDTGeneratorProsumerCamera:
             )
 
         self._LUT_decoding.name = "LUT - Decoding"
-
-        if self._samples_analysis["data"]["grey_card"]:
-            sampled_grey_card_reflectance = self._samples_analysis["data"]["grey_card"][
+        if self._samples_analysis[DataFolderStructure.GREY_CARD]:
+            sampled_grey_card_reflectance = self._samples_analysis[DataFolderStructure.GREY_CARD][
                 "samples_median"
             ]
 
             linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
                 sampled_grey_card_reflectance
             )
-            if decoding_method == "median":
+            if decoding_method.title() == DecodingMethods.MEDIAN:
                 linear_gain = np.median(linear_gain)
-            elif decoding_method == "average":
+            elif decoding_method.title() == DecodingMethods.AVERAGE:
                 linear_gain = np.average(linear_gain)
-            elif decoding_method == "per channel":
+            elif decoding_method.title() == DecodingMethods.PER_CHANNEL:
                 pass
-            elif decoding_method == "aces":
+            elif decoding_method.title() == DecodingMethods.ACES:
                 linear_gain = RGB_luminance(
                     linear_gain,
                     RGB_COLOURSPACE_ACES2065_1.primaries,
@@ -1236,41 +928,18 @@ class IDTGeneratorProsumerCamera:
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
-        for EV in sorted(self._samples_analysis["data"]["colour_checker"]):
+        for EV in sorted(self._samples_analysis[DataFolderStructure.COLOUR_CHECKER]):
             self._samples_decoded[EV] = self._LUT_decoding.apply(
                 as_float_array(
-                    self._samples_analysis["data"]["colour_checker"][EV][
+                    self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                         "samples_median"
                     ]
                 )
             )
 
-    def optimise(
-        self,
-        EV_range=(-1, 0, 1),
-        EV_weights=None,
-        training_data=RGB_COLORCHECKER_CLASSIC_ACES,
-        optimisation_factory=optimisation_factory_rawtoaces_v1,
-        optimisation_kwargs=None,
-    ):
+    def optimise( self):
         """
         Compute the *IDT* matrix.
-
-        Parameters
-        ----------
-        EV_range : array_like, optional
-            Exposure values to use when computing the *IDT* matrix.
-        EV_weights : array_like, optional
-            Normalised weights used to sum the exposure values. If not given,
-            the median of the exposure values is used.
-        training_data : NDArray, optional
-            Training data multi-spectral distributions, defaults to using the
-            *RAW to ACES* v1 190 patches.
-        optimisation_factory : callable, optional
-            Callable producing the objective function and the *CIE XYZ* to
-            optimisation colour model function.
-        optimisation_kwargs : dict, optional
-            Parameters for :func:`scipy.optimize.minimize` definition.
 
         Returns
         -------
@@ -1280,6 +949,21 @@ class IDTGeneratorProsumerCamera:
             nominally "18% gray" object in the scene producing ACES values
             [0.18, 0.18, 0.18].
         """
+
+        # Exposure values to use when computing the *IDT* matrix.
+        EV_range = tuple(self._projectSettings.ev_range)
+        # Normalised weights used to sum the exposure values. If not given, the median of the exposure values is used.
+        # TODO Needs to be a generator specific param?
+        EV_weights = None,
+
+        # Training data multi-spectral distributions, defaults to using the *RAW to ACES* v1 190 patches.
+        training_data = self._application.reference_colour_checker
+
+        # Callable producing the objective function and the *CIE XYZ* to optimisation colour model function.
+        optimisation_factory = optimisation_factory_rawtoaces_v1
+
+        # Parameters for :func:`scipy.optimize.minimize` definition.
+        optimisation_kwargs = None
 
         logger.info(
             'Optimising the "IDT" matrix using "%s" EV range, "%s" EV '
@@ -1404,8 +1088,8 @@ class IDTGeneratorProsumerCamera:
         et_info = Et.SubElement(root, "Info")
         et_metadata = Et.SubElement(et_info, "Archive")
         for (
-            key,
-            value,
+                key,
+                value,
         ) in self._specification["header"].items():
             if key == "schema_version":
                 continue
@@ -1586,9 +1270,9 @@ class IDTGeneratorProsumerCamera:
         """
 
         if (
-            self._samples_camera is None
-            or self._samples_reference is None
-            or self._LUT_filtered is None
+                self._samples_camera is None
+                or self._samples_reference is None
+                or self._LUT_filtered is None
         ):
             return None
 
@@ -1633,7 +1317,7 @@ if __name__ == "__main__":
     logger.info(idt_generator)
 
     with open(
-        resources_directory / "synthetic_001" / "synthetic_001.json"
+            resources_directory / "synthetic_001" / "synthetic_001.json"
     ) as json_file:
         specification = json.load(json_file)
 
