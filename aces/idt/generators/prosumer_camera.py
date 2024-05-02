@@ -7,17 +7,10 @@ import base64
 import io
 import json
 import logging
-import os
-import re
-import shutil
-import xml.etree.ElementTree as Et
-from copy import deepcopy
 from pathlib import Path
-from zipfile import ZipFile
+
 
 import colour
-import cv2
-import jsonpickle
 import matplotlib as mpl
 import numpy as np
 import scipy.misc
@@ -29,33 +22,21 @@ from colour import (
     Extrapolator,
     LinearInterpolator,
     LUT3x1D,
-    read_image,
 )
 from colour.algebra import smoothstep_function, vector_dot
 from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.utilities import (
-    Structure,
     as_float_array,
-    attest,
     multiline_str,
     validate_method,
-    zeros,
-)
-from colour_checker_detection import segmenter_default
-from colour_checker_detection.detection import (
-    as_int32_array,
-    reformat_image,
-    sample_colour_checker,
 )
 from scipy.optimize import minimize
 
-from idt.core import common, utilities
 from idt.core.constants import DataFolderStructure, DecodingMethods
-from idt.core.utilities import working_directory
 from idt.generators.base_generator import BaseGenerator
-from idt.core.common import RGB_COLORCHECKER_CLASSIC_ACES
+
 
 # TODO are the mpl.use things needed in every file?
 mpl.use("Agg")
@@ -132,93 +113,11 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
     def __init__(self, application):
         super().__init__(application)
 
-        self._image_colour_checker_segmentation = None
-        self._image_grey_card_sampling = None
         self._lut_blending_edge_left = None
         self._lut_blending_edge_right = None
 
-        self._baseline_exposure = 0
-        self._samples_camera = None
-        self._samples_reference = None
         self._samples_decoded = None
         self._samples_weighted = None
-
-        self._LUT_unfiltered = None
-        self._LUT_filtered = None
-        self._LUT_decoding = None
-
-        self._M = None
-        self._RGB_w = None
-        self._k = None
-
-    @property
-    def image_colour_checker_segmentation(self):
-        """
-        Getter property for the image of the colour checker with segmentation
-        contours.
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            Image of the colour checker with segmentation contours.
-        """
-
-        return self._image_colour_checker_segmentation
-
-    @property
-    def image_grey_card_sampling(self):
-        """
-        Getter property for the image the grey card with sampling contours.
-        contours.
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            Image of the grey card with sampling contours.
-        """
-
-        return self._image_grey_card_sampling
-
-    @property
-    def baseline_exposure(self):
-        """
-        Getter property for the baseline exposure.
-
-        Returns
-        -------
-        :class:`float`
-            Baseline exposure.
-        """
-
-        return self._baseline_exposure
-
-    @property
-    def samples_camera(self):
-        """
-        Getter property for the samples of the camera produced by the sorting
-        process.
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            Samples of the camera produced by the sorting process.
-        """
-
-        return self._samples_camera
-
-    @property
-    def samples_reference(self):
-        """
-        Getter property for the reference samples produced by the sorting
-        process.
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            Reference samples produced by the sorting process.
-        """
-
-        return self._samples_reference
 
     @property
     def samples_decoded(self):
@@ -248,86 +147,6 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         """
 
         return self._samples_weighted
-
-    @property
-    def LUT_unfiltered(self):
-        """
-        Getter property for the unfiltered *LUT*.
-
-        Returns
-        -------
-        :class:`LUT3x1D` or None
-            Unfiltered *LUT*.
-        """
-
-        return self._LUT_unfiltered
-
-    @property
-    def LUT_filtered(self):
-        """
-        Getter property for the filtered *LUT*.
-
-        Returns
-        -------
-        :class:`LUT3x1D` or None
-            Filtered *LUT*.
-        """
-
-        return self._LUT_filtered
-
-    @property
-    def LUT_decoding(self):
-        """
-        Getter property for the (final) decoding *LUT*.
-
-        Returns
-        -------
-        :class:`LUT1D` or :class:`LUT3x1D` or None
-            Decoding *LUT*.
-        """
-
-        return self._LUT_decoding
-
-    @property
-    def M(self):
-        """
-        Getter property for the *IDT* matrix :math:`M`,
-
-        Returns
-        -------
-        :class:`NDArray` or None
-           *IDT* matrix :math:`M`.
-        """
-
-        return self._M
-
-    @property
-    def RGB_w(self):
-        """
-        Getter property for the white balance multipliers :math:`RGB_w`.
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            White balance multipliers :math:`RGB_w`.
-        """
-
-        return self._RGB_w
-
-    @property
-    def k(self):
-        """
-        Getter property for the exposure factor :math:`k` that results in a
-        nominally "18% gray" object in the scene producing ACES values
-        [0.18, 0.18, 0.18].
-
-        Returns
-        -------
-        :class:`NDArray` or None
-            Exposure factor :math:`k`
-        """
-
-        return self._k
 
     def __str__(self):
         """
@@ -372,38 +191,6 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
                 {"name": "_k", "label": "k"},
             ],
         )
-
-    def sort(self):
-        """
-        Sort the samples produced by the image sampling process.
-
-        The *ACES* reference samples are sorted and indexed as a function of the
-        camera samples ordering. This ensures that the camera samples are
-        monotonically increasing.
-
-        Parameters
-        ----------
-        reference_colour_checker : NDArray
-            Reference *ACES* *RGB* values for the *ColorChecker Classic*.
-        """
-
-        logger.info("Sorting camera and reference samples...")
-        reference_colour_checker = self._application.reference_colour_checker
-
-        samples_camera = []
-        samples_reference = []
-        for EV, images in self._samples_analysis[DataFolderStructure.COLOUR_CHECKER].items():
-            samples_reference.append(reference_colour_checker[-6:, ...] * pow(2, EV))
-            samples_EV = as_float_array(images["samples_median"])[-6:, ...]
-            samples_camera.append(samples_EV)
-
-        self._samples_camera = np.vstack(samples_camera)
-        self._samples_reference = np.vstack(samples_reference)
-
-        indices = np.argsort(np.median(self._samples_camera, axis=-1), axis=0)
-
-        self._samples_camera = self._samples_camera[indices]
-        self._samples_reference = self._samples_reference[indices]
 
     def generate_LUT(self):
         """
@@ -720,200 +507,6 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
 
         return self._M, self._RGB_w, self._k
 
-    def to_clf(self, output_directory, information):
-        """
-        Convert the *IDT* generation process data to *Common LUT Format* (CLF).
-
-        Parameters
-        ----------
-        output_directory : str
-            Output directory for the zip file.
-        information : dict
-            Information pertaining to the *IDT* and the computation parameters.
-
-        Returns
-        -------
-        :class:`str`
-            *CLF* file path.
-        """
-
-        logger.info(
-            'Converting "IDT" generation process data to "CLF" in "%s"'
-            'output directory using given information: "%s".',
-            output_directory,
-            information,
-        )
-
-        header = self._specification["header"]
-
-        aces_transform_id = header.get("aces_transform_id", "Undefined")
-        aces_user_name = header.get("aces_user_name", "Undefined")
-        camera_make = header.get("camera_make", "Undefined")
-        camera_model = header.get("camera_model", "Undefined")
-
-        root = Et.Element(
-            "ProcessList",
-            compCLFversion="3",
-            id=aces_transform_id,
-            name=aces_user_name,
-        )
-
-        def format_array(a):
-            """Format given array :math:`a`."""
-
-            return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
-
-        et_input_descriptor = Et.SubElement(root, "InputDescriptor")
-        et_input_descriptor.text = f"{camera_make} {camera_model}"
-
-        et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
-        et_output_descriptor.text = "ACES2065-1"
-
-        et_info = Et.SubElement(root, "Info")
-        et_metadata = Et.SubElement(et_info, "Archive")
-        for (
-                key,
-                value,
-        ) in self._specification["header"].items():
-            if key == "schema_version":
-                continue
-
-            sub_element = Et.SubElement(
-                et_metadata, key.replace("_", " ").title().replace(" ", "")
-            )
-            sub_element.text = str(value)
-        et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
-        for key, value in information.items():
-            sub_element = Et.SubElement(et_academy_idt_calculator, key)
-            sub_element.text = str(value)
-
-        et_lut = Et.SubElement(
-            root,
-            "LUT1D",
-            inBitDepth="32f",
-            outBitDepth="32f",
-            interpolation="linear",
-        )
-        LUT_decoding = self._LUT_decoding
-        channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-        et_description = Et.SubElement(et_lut, "Description")
-        et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-        et_array = Et.SubElement(et_lut, "Array", dim=f"{LUT_decoding.size} {channels}")
-        et_array.text = f"\n{format_array(LUT_decoding.table)}"
-
-        root = clf_processing_elements(root, self._M, self._RGB_w, self._k, False)
-
-        clf_path = (
-            f"{output_directory}/"
-            f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
-        )
-        Et.indent(root)
-
-        with open(clf_path, "w") as clf_file:
-            clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-            clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
-
-        return clf_path
-
-    def zip(self, output_directory, information, archive_serialised_generator=False):
-        """
-        Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
-        process.
-
-        Parameters
-        ----------
-        output_directory : str
-            Output directory for the *zip* file.
-        information : dict
-            Information pertaining to the *IDT* and the computation parameters.
-        archive_serialised_generator : bool
-            Whether to serialise and archive the *IDT* generator.
-
-        Returns
-        -------
-        :class:`str`
-            *Zip* file path.
-        """
-
-        logger.info(
-            'Zipping the "CLF" resulting from the "IDT" generation '
-            'process in "%s" output directory using given information: "%s".',
-            output_directory,
-            information,
-        )
-
-        camera_make = self._specification["header"]["camera_make"]
-        camera_model = self._specification["header"]["camera_model"]
-
-        clf_path = self.to_clf(output_directory, information)
-
-        json_path = f"{output_directory}/{camera_make}.{camera_model}.json"
-        with open(json_path, "w") as json_file:
-            json_file.write(jsonpickle.encode(self, indent=2))
-
-        zip_file = Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
-
-        current_working_directory = os.getcwd()
-        try:
-            os.chdir(output_directory)
-            with ZipFile(zip_file, "w") as zip_archive:
-                zip_archive.write(clf_path.replace(output_directory, "")[1:])
-                if archive_serialised_generator:
-                    zip_archive.write(json_path.replace(output_directory, "")[1:])
-        finally:
-            os.chdir(current_working_directory)
-
-        return zip_file
-
-    def png_colour_checker_segmentation(self):
-        """
-        Return the colour checker segmentation image as *PNG* data.
-
-        Returns
-        -------
-        :class:`str` or None
-            *PNG* data.
-        """
-
-        if self._image_colour_checker_segmentation is None:
-            return None
-
-        colour.plotting.plot_image(
-            self._image_colour_checker_segmentation,
-            show=False,
-        )
-
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format="png")
-        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-        plt.close()
-
-        return data_png
-
-    def png_grey_card_sampling(self):
-        """
-        Return the grey card image sampling as *PNG* data.
-
-        Returns
-        -------
-        :class:`str` or None
-            *PNG* data.
-        """
-
-        if self._image_grey_card_sampling is None:
-            return None
-
-        colour.plotting.plot_image(
-            self._image_grey_card_sampling,
-            show=False,
-        )
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format="png")
-        data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
-        plt.close()
-
-        return data_png
-
     def png_measured_camera_samples(self):
         """
         Return the measured camera samples as *PNG* data.
@@ -952,7 +545,8 @@ class IDTGeneratorProsumerCamera(BaseGenerator):
         :class:`str` or None
             *PNG* data.
         """
-
+        # TODO This looks specific to the prosumer camera as its using the blending edges, so will keep this as an
+        #  overide of the base class
         if (
                 self._samples_camera is None
                 or self._samples_reference is None
