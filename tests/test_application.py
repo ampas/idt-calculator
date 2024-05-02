@@ -1183,3 +1183,12 @@ class TestIDTApplication(TestIDTBase):
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
         idt_application.process_from_archive(archive)
+
+    def test_prosumer_generator_from_archive_zip(self):
+        idt_application = IDTGeneratorApplication()
+        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        idt_application.process_from_archive(archive)
+        zip_file = idt_application.zip(self.get_test_output_folder(), archive_serialised_generator=False)
+        self.assertEqual(os.path.exists(zip_file), True)
