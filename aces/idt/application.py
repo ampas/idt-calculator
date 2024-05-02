@@ -226,8 +226,7 @@ class IDTGeneratorApplication:
         return self.idt_generator
 
     def process_from_project_settings(self):
-        selected_generator = self.idt_generator
-        if not selected_generator:
+        if not self.idt_generator:
             raise ValueError("No Idt Generator Set")
 
         # Ensuring that exposure values in the specification are floating point numbers.
@@ -238,14 +237,13 @@ class IDTGeneratorApplication:
 
             self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][float(exposure)] = images
 
-        idt_generator = selected_generator(self)
-        idt_generator.sample()
-        idt_generator.sort()
-        idt_generator.generate_LUT()
-        idt_generator.filter_LUT()
-        idt_generator.decode()
-        idt_generator.optimise()
-        return idt_generator
+        self.idt_generator.sample()
+        self.idt_generator.sort()
+        self.idt_generator.generate_LUT()
+        self.idt_generator.filter_LUT()
+        self.idt_generator.decode()
+        self.idt_generator.optimise()
+        return self.idt_generator
 
     def _validate_images(self):
         """ Ensure that all the files in the project settings exist and that we only have a single file type"""
@@ -266,3 +264,11 @@ class IDTGeneratorApplication:
 
         self.file_type = file_types[0]
         pass
+
+    def zip(self, output_directory, archive_serialised_generator=False):
+        if not self.idt_generator:
+            raise ValueError("No Idt Generator Set")
+
+        return self.idt_generator.zip(output_directory, archive_serialised_generator=archive_serialised_generator)
+
+
