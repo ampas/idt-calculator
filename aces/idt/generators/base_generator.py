@@ -41,8 +41,8 @@ class IDTBaseGenerator(ABC):
     A Class which holds the core logic for any generator, and should be inherited from
     """
 
-    def __init__(self, application):
-        self._application = application
+    def __init__(self, project_settings):
+        self._project_settings = project_settings
         self._samples_analysis = None
 
         self._samples_camera = None
@@ -59,6 +59,17 @@ class IDTBaseGenerator(ABC):
 
         self._image_grey_card_sampling = None
         self._image_colour_checker_segmentation = None
+
+    @property
+    def project_settings(self):
+        """Returns the project settings passed into the generator from the application
+
+        Returns
+        -------
+        IDTProjectSettings
+            The ProjectSettings passed into the generator
+        """
+        return self._project_settings
 
     @property
     def image_colour_checker_segmentation(self):
@@ -250,28 +261,21 @@ class IDTBaseGenerator(ABC):
             ]
         )
 
-        self._samples_analysis = deepcopy(self._application.project_settings.data)
+        self._samples_analysis = deepcopy(self.project_settings.data)
         # Baseline exposure value, it can be different from zero.
-        if (
-            0
-            not in self._application.project_settings.data[
-                DataFolderStructure.COLOUR_CHECKER
-            ]
-        ):
+        if 0 not in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
             EVs = sorted(
-                self._application.project_settings.data[
-                    DataFolderStructure.COLOUR_CHECKER
-                ].keys()
+                self.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys()
             )
             self._baseline_exposure = EVs[len(EVs) // 2]
             logger.warning(
                 "Baseline exposure is different from zero: %s", self._baseline_exposure
             )
 
-        paths = self._application.project_settings.data[
-            DataFolderStructure.COLOUR_CHECKER
-        ][self._baseline_exposure]
-        with working_directory(self._application.working_directory):
+        paths = self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+            self._baseline_exposure
+        ]
+        with working_directory(self.project_settings.working_directory):
             logger.info(
                 'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
                 self._baseline_exposure,
@@ -309,10 +313,10 @@ class IDTBaseGenerator(ABC):
 
         # TODO Again are we using this?
         # Flatfield
-        if self._application.project_settings.data.get("flatfield"):
+        if self.project_settings.data.get("flatfield"):
             self._samples_analysis["flatfield"] = {"samples_sequence": []}
-            for path in self._application.project_settings.data.get("flatfield", []):
-                with working_directory(self._application.working_directory):
+            for path in self.project_settings.data.get("flatfield", []):
+                with working_directory(self.working_directory):
                     logger.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
@@ -346,9 +350,7 @@ class IDTBaseGenerator(ABC):
             ).tolist()
 
         # Grey Card
-        if self._application.project_settings.data.get(
-            DataFolderStructure.GREY_CARD, []
-        ):
+        if self.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
             self._samples_analysis[DataFolderStructure.GREY_CARD] = {
                 "samples_sequence": []
             }
@@ -357,10 +359,10 @@ class IDTBaseGenerator(ABC):
             settings_grey_card.swatches_horizontal = 1
             settings_grey_card.swatches_vertical = 1
 
-            for path in self._application.project_settings.data.get(
+            for path in self.project_settings.data.get(
                 DataFolderStructure.GREY_CARD, []
             ):
-                with working_directory(self._application.working_directory):
+                with working_directory(self.project_settings.working_directory):
                     logger.info('Reading grey card image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
@@ -425,17 +427,15 @@ class IDTBaseGenerator(ABC):
 
         # ColourChecker Classic Samples per EV
         self._samples_analysis[DataFolderStructure.COLOUR_CHECKER] = {}
-        for EV in self._application.project_settings.data[
-            DataFolderStructure.COLOUR_CHECKER
-        ]:
+        for EV in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
             self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV] = {}
             self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
                 "samples_sequence"
             ] = []
-            for path in self._application.project_settings.data[
-                DataFolderStructure.COLOUR_CHECKER
-            ][EV]:
-                with working_directory(self._application.working_directory):
+            for path in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+                EV
+            ]:
+                with working_directory(self.project_settings.working_directory):
                     logger.info(
                         'Reading EV "%s" "ColourChecker" from "%s"...',
                         EV,
@@ -477,8 +477,8 @@ class IDTBaseGenerator(ABC):
                 0,
             ).tolist()
 
-        if self._application.cleanup:
-            shutil.rmtree(self._application.working_directory)
+        if self.project_settings.cleanup:
+            shutil.rmtree(self.project_settings.working_directory)
 
     def sort(self):
         """
@@ -495,8 +495,7 @@ class IDTBaseGenerator(ABC):
         """
 
         logger.info("Sorting camera and reference samples...")
-        reference_colour_checker = self._application.reference_colour_checker
-
+        reference_colour_checker = self.project_settings.reference_colour_checker
         samples_camera = []
         samples_reference = []
         for EV, images in self._samples_analysis[
@@ -567,8 +566,8 @@ class IDTBaseGenerator(ABC):
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
-        camera_make = self._application.project_settings.camera_make
-        camera_model = self._application.project_settings.camera_model
+        camera_make = self.project_settings.project_settings.camera_make
+        camera_model = self.project_settings.project_settings.camera_model
 
         clf_path = self.to_clf(output_directory, information)
 
@@ -613,7 +612,7 @@ class IDTBaseGenerator(ABC):
             information,
         )
 
-        project_settings = self._application.project_settings
+        project_settings = self.project_settings.project_settings
 
         aces_transform_id = project_settings.aces_transform_id
         aces_user_name = project_settings.aces_user_name

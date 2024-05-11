@@ -57,6 +57,15 @@ class IDTProjectSettings(BaseSerializable):
         self._lut_size = IDTProjectSettings.lut_size.metadata.default_value
         self._lut_smoothing = IDTProjectSettings.lut_smoothing.metadata.default_value
         self._data = IDTProjectSettings.data.metadata.default_value
+        self._working_directory = (
+            IDTProjectSettings.working_directory.metadata.default_value
+        )
+        self._cleanup = IDTProjectSettings.cleanup.metadata.default_value
+        self._reference_colour_checker = (
+            IDTProjectSettings.reference_colour_checker.metadata.default_value
+        )
+        self._sigma = IDTProjectSettings.sigma.metadata.default_value
+        self._file_type = IDTProjectSettings.file_type.metadata.default_value
 
     @idt_metadata_property(metadata=PsMdC.SCHEMA_VERSION)
     def schema_version(self):
@@ -321,3 +330,60 @@ class IDTProjectSettings(BaseSerializable):
 
         """
         return self._data
+
+    @idt_metadata_property(metadata=PsMdC.WORKING_DIR)
+    def working_directory(self):
+        """Return the working directory for the project
+
+        Returns
+        -------
+        str
+            The working directory for the project
+
+        """
+        return self._working_directory
+
+    @idt_metadata_property(metadata=PsMdC.CLEAN_UP)
+    def cleanup(self):
+        """Return whether we want to cleanup the working dir or not
+
+        Returns
+        -------
+        bool
+            Whether we are cleaning up the working dir or not
+
+        """
+        return self._cleanup
+
+    @idt_metadata_property(metadata=PsMdC.REFERENCE_COLOUR_CHECKER)
+    def reference_colour_checker(self):
+        """Return the reference_colour_checker
+
+        Returns
+        -------
+        NDArray
+            The reference colour checker
+        """
+        return self._reference_colour_checker
+
+    @idt_metadata_property(metadata=PsMdC.SIGMA)
+    def sigma(self):
+        """Return the sigma
+
+        Returns
+        -------
+        int
+            The sigma
+        """
+        return self._sigma
+
+    @idt_metadata_property(metadata=PsMdC.FILE_TYPE)
+    def file_type(self):
+        """Return the file_type
+
+        Returns
+        -------
+        int
+            The file_type
+        """
+        return self._file_type

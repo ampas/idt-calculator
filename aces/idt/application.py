@@ -9,7 +9,6 @@ from typing import Optional
 from colour.utilities import attest
 
 from aces.idt.core import utilities
-from aces.idt.core.common import RGB_COLORCHECKER_CLASSIC_ACES
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import ALL_GENERATORS
@@ -24,16 +23,10 @@ class IDTGeneratorApplication:
 
     """
 
-    def __init__(self, working_directory=None, cleanup=True):
+    def __init__(self):
         self._project_settings = IDTProjectSettings()
-
         self._all_generators = ALL_GENERATORS
         self._idt_generator = None
-        self._file_type = None
-        self._working_directory = working_directory
-        self._cleanup = cleanup
-        self._reference_colour_checker = RGB_COLORCHECKER_CLASSIC_ACES
-        self._sigma = 16
 
     @property
     def all_generators(self):
@@ -65,7 +58,7 @@ class IDTGeneratorApplication:
             raise ValueError(f"Invalid generator name: {value}")
 
         generator_class = self._all_generators.get(value)
-        self._idt_generator = generator_class(self)
+        self._idt_generator = generator_class(self.project_settings)
 
     @property
     def project_settings(self):
@@ -83,101 +76,13 @@ class IDTGeneratorApplication:
     def project_settings(self, value: IDTProjectSettings):
         if not isinstance(value, IDTProjectSettings):
             raise TypeError("project_settings must be of type IDTProjectSettings")
-        self._project_settings = value
 
-    @property
-    def file_type(self):
-        """Return the current file type of the files which are being processed
-
-        Returns
-        -------
-        str
-            The file type of the files within the archive or project
-        """
-        return self._file_type
-
-    @file_type.setter
-    def file_type(self, value):
-        self._file_type = value
-
-    @property
-    def working_directory(self):
-        """Return the working directory
-
-        Returns
-        -------
-        PosixPath
-            The current working directory
-
-        """
-        return self._working_directory
-
-    @working_directory.setter
-    def working_directory(self, value):
-        self._working_directory = value
-
-    @property
-    def cleanup(self):
-        """Returns whether we should perform a cleanup or not
-
-        Returns
-        -------
-        bool
-            Cleanup the directory or not
-        """
-        return self._cleanup
-
-    @cleanup.setter
-    def cleanup(self, value):
-        self._cleanup = value
-
-    # TODO: The following properties are not currently part of the schema,
-    #  ou should be able to serialize a project
-    #  and run it without need to set anything else up as a headless command
-    @property
-    def reference_colour_checker(self):
-        """Return the reference colour checker values
-
-        Returns
-        -------
-        Array
-            Reference colour checker values
-        """
-        return self._reference_colour_checker
-
-    @reference_colour_checker.setter
-    def reference_colour_checker(self, value):
-        self._reference_colour_checker = value
-
-    @property
-    def sigma(self):
-        """Return the sigma value
-
-        Returns
-        -------
-        int
-            The sigma value
-        """
-        return self._sigma
-
-    @sigma.setter
-    def sigma(self, value):
-        self._sigma = value
-
-    @property
-    def optimisation_factory(self):
-        """Return the optimisation factory we want to use
-
-        Returns
-        -------
-        str
-            The name of the optimisation factory
-        """
-        return self._optimisation_factory
-
-    @optimisation_factory.setter
-    def optimisation_factory(self, value):
-        self._optimisation_factory = value
+        # The application holds a single project settings object
+        # When a new project is set the properties are set rather than replace the
+        # object so this can be referenced throughout
+        for name, prop in value.properties:
+            value2 = prop.getter(value)
+            setattr(self._project_settings, name, value2)
 
     def extract_archive(self, archive: str, directory: Optional[str] = None):
         """
@@ -317,7 +222,7 @@ class IDTGeneratorApplication:
         if not self.idt_generator:
             raise ValueError("No Idt Generator Set")
 
-        self.working_directory = self.extract_archive(archive, self.working_directory)
+        self.project_settings.working_directory = self.extract_archive(archive)
         self.idt_generator.sample()
         self.idt_generator.sort()
         self.idt_generator.generate_LUT()
@@ -381,7 +286,7 @@ class IDTGeneratorApplication:
         if len(set(file_types)) > 1:
             raise ValueError("Multiple file types found in the project settings")
 
-        self.file_type = file_types[0]
+        self.project_settings.file_type = file_types[0]
 
     def zip(self, output_directory, archive_serialised_generator=False):
         """Create a zip of the results from the idt creation

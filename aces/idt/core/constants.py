@@ -5,6 +5,7 @@ from typing import ClassVar
 
 import colour
 
+from .common import RGB_COLORCHECKER_CLASSIC_ACES
 from .structures import IDTMetaData
 
 
@@ -24,6 +25,7 @@ class UITypes:
     OPTIONS_FIELD: ClassVar[str] = "OptionsField"
     VECTOR3_FIELD: ClassVar[str] = "Vector3Field"
     FOLDER_STRUCTURE: ClassVar[str] = "FOLDER_STRUCTURE"
+    BOOLEAN_FIELD: ClassVar[str] = "BooleanField"
 
 
 class UICategories:
@@ -306,6 +308,48 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
+    WORKING_DIR = IDTMetaData(
+        default_value="",
+        description="The file path to the working directory",
+        display_name="Working Directory",
+        ui_type=UITypes.STRING_FIELD,
+        ui_category=UICategories.HIDDEN,
+    )
+
+    CLEAN_UP = IDTMetaData(
+        default_value=False,
+        description="Do we want to cleanup the directory after we finish",
+        display_name="Cleanup",
+        ui_type=UITypes.BOOLEAN_FIELD,
+        ui_category=UICategories.HIDDEN,
+    )
+
+    # TODO I dont think we should store the actual array, would we be better to store
+    # TODO the name of the references, and the name of the illuminent as simple strings
+    # TODO then compute this on the fly?
+    REFERENCE_COLOUR_CHECKER = IDTMetaData(
+        default_value=RGB_COLORCHECKER_CLASSIC_ACES,
+        description="The reference colour checker we want to use as a numpy array",
+        ui_category=UICategories.HIDDEN,
+    )
+
+    SIGMA = IDTMetaData(
+        default_value=16,
+        description="The sigma value used",
+        display_name="Sigma",
+        ui_type=UITypes.INT_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
+    FILE_TYPE = IDTMetaData(
+        default_value="",
+        description="The file type of the recorded footage is detected from "
+        "the archive",
+        display_name="File Type",
+        ui_type=UITypes.STRING_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
     ALL: ClassVar[tuple[IDTMetaData, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -329,4 +373,9 @@ class ProjectSettingsMetaDataConstants:
         DEBAYERING_SETTINGS,
         ENCODING_COLOUR_SPACE,
         DATA,
+        WORKING_DIR,
+        CLEAN_UP,
+        REFERENCE_COLOUR_CHECKER,
+        SIGMA,
+        FILE_TYPE,
     )

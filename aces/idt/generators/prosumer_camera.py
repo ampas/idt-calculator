@@ -218,7 +218,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             Unfiltered linearisation *LUT* for the camera samples.
         """
 
-        size = self._application.project_settings.lut_size
+        size = self.project_settings.lut_size
         logger.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
 
         self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
@@ -295,7 +295,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Standard deviation of the gaussian convolution kernel.
 
-        sigma = self._application.sigma
+        sigma = self.project_settings.sigma
         logger.info('Filtering unfiltered "LUT3x1D" with "%s" sigma...', sigma)
 
         filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
@@ -335,8 +335,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         Decode the samples produced by the image sampling process.
         """
 
-        decoding_method = self._application.project_settings.decoding_method
-        grey_card_reflectance = self._application.project_settings.grey_card_reference
+        decoding_method = self.project_settings.decoding_method
+        grey_card_reflectance = self.project_settings.grey_card_reference
 
         logger.info(
             'Decoding analysis samples using "%s" method and "%s" grey '
@@ -416,7 +416,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         """
 
         # Exposure values to use when computing the *IDT* matrix.
-        EV_range = tuple(self._application.project_settings.ev_range)
+        EV_range = tuple(self.project_settings.ev_range)
         # Normalised weights used to sum the exposure values. If not given, the median
         # of the exposure values is used.
         # TODO Where do these params live? project? generator? currently only exist
@@ -431,7 +431,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
         # ACES* v1 190 patches.
-        training_data = self._application.reference_colour_checker
+        training_data = self.project_settings.reference_colour_checker
 
         # Callable producing the objective function and the *CIE XYZ* to optimisation
         # colour model function.

@@ -4,6 +4,8 @@
 import json
 from pathlib import Path
 
+from numpy import ndarray
+
 
 class PathEncoder(json.JSONEncoder):
     """
@@ -25,6 +27,8 @@ class PathEncoder(json.JSONEncoder):
         if isinstance(obj, Path):
             # Convert the PosixPath to a string
             return str(obj)
+        if isinstance(obj, ndarray):
+            return str(obj.tolist())
         # Delegate other types to the default JSONEncoder
         return super().default(obj)
 
@@ -158,7 +162,8 @@ class BaseSerializable:
 
         for name, prop in item.properties:
             if prop.metadata.serialize_group == SerializableConstants.HEADER:
-                prop.setter(item, data[SerializableConstants.HEADER][name])
+                if name in data[SerializableConstants.HEADER]:
+                    prop.setter(item, data[SerializableConstants.HEADER][name])
             else:
                 prop.setter(item, data[SerializableConstants.DATA])
         return item
