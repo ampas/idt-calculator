@@ -300,7 +300,7 @@ class ProjectSettingsMetaDataConstants:
             DataFolderStructure.GREY_CARD: {},
         },
         description="The folder structure for the ",
-        display_name="Schema Version",
+        display_name="Folder Structure",
         ui_type=UITypes.FOLDER_STRUCTURE,
         serialize_group="",
         ui_category=UICategories.HIDDEN,

@@ -4,11 +4,15 @@ Common IDT Utilities
 """
 
 import contextlib
+import logging
 import os
 import re
+import shutil
+import tempfile
 import unicodedata
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 import matplotlib as mpl
 import numpy as np
@@ -16,6 +20,7 @@ import scipy.stats
 import xxhash
 
 mpl.use("Agg")
+logger = logging.getLogger(__name__)
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -181,3 +186,33 @@ def hash_file(path):
             x.update(chunk)
 
         return x.hexdigest()
+
+
+def extract_archive(archive: str, directory: Optional[str] = None):
+    """
+    Extract the archive to the given directory or a temporary directory.
+
+    Parameters
+    ----------
+    archive : str
+        Archive to extract.
+    directory : str, optional known directory
+
+    Returns
+    -------
+    str
+        Extracted directory.
+    """
+    if not directory:
+        directory = (
+            tempfile.TemporaryDirectory().name if directory is None else directory
+        )
+
+    logger.info(
+        'Extracting "%s" archive to "%s"...',
+        archive,
+        directory,
+    )
+
+    shutil.unpack_archive(archive, directory)
+    return directory

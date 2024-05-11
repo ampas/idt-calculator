@@ -1,0 +1,22 @@
+{
+  "aces_transform_id": "",
+  "aces_username": "",
+  "additional_camera_settings": "",
+  "camera_make": "",
+  "camera_model": "",
+  "cat": "CAT02",
+  "debayering_platform": "",
+  "debayering_settings": "",
+  "decoding_method": "Median",
+  "encoding_colourspace": "",
+  "ev_range": [-1.0, 0.0, 1.0],
+  "grey_card_reference": [0.18, 0.18, 0.18],
+  "illuminant_interpolator": "Linear",
+  "iso": 800,
+  "lighting_setup_description": "",
+  "lut_size": 1024,
+  "lut_smoothing": 32,
+  "optimisation_space": "Oklab",
+  "rgb_display_colourspace": "sRGB",
+  "temperature": 5600
+}

@@ -13,8 +13,7 @@ from aces.idt.core.utilities import (
     slugify,
     working_directory,
 )
-
-from .prosumer_camera import IDTGeneratorProsumerCamera
+from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
 __all__ = [
     "error_delta_E",
