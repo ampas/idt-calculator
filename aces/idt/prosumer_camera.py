@@ -52,13 +52,13 @@ from colour_checker_detection.detection import (
 )
 from scipy.optimize import minimize
 
-from aces.idt.common import (
+from aces.idt.core.common import (
     RGB_COLORCHECKER_CLASSIC_ACES,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
     clf_processing_elements,
 )
-from aces.idt.utilities import (
+from aces.idt.core.utilities import (
     list_sub_directories,
     mask_outliers,
     working_directory,
