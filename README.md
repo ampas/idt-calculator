@@ -206,12 +206,13 @@ It is also possible to use floating point exposure values by naming the director
 ![IDT Archive Implicit Structure - Floating Point Values](docs/_static/idt_archive_implicit_structure_fractional_ev.png)
 
 ## License
+
 This project is licensed under the terms of the [LICENSE](./LICENSE.md) agreement.
 
 ## Contributing
+
 Thank you for your interest in contributing to our project. Before any contributions can be accepted, we require contributors to sign a Contributor License Agreement (CLA) to ensure that the project can freely use your contributions. You can find more details and instructions on how to sign the CLA in the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
 
 ## Support
+
 For support, please visit [ACESCentral.com](https://acescentral.com)
-
-
