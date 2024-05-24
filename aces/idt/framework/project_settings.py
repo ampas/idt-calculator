@@ -2,6 +2,7 @@
 serialization, loading and saving of a project.
 
 """
+from aces.idt.core import common
 from aces.idt.core.constants import ProjectSettingsMetaDataConstants as PsMdC
 from aces.idt.core.structures import BaseSerializable, idt_metadata_property
 
@@ -64,6 +65,7 @@ class IDTProjectSettings(BaseSerializable):
         self._reference_colour_checker = (
             IDTProjectSettings.reference_colour_checker.metadata.default_value
         )
+        self._illuminant = IDTProjectSettings.illuminant.metadata.default_value
         self._sigma = IDTProjectSettings.sigma.metadata.default_value
         self._file_type = IDTProjectSettings.file_type.metadata.default_value
 
@@ -366,6 +368,17 @@ class IDTProjectSettings(BaseSerializable):
         """
         return self._reference_colour_checker
 
+    @idt_metadata_property(metadata=PsMdC.ILLUMINANT)
+    def illuminant(self):
+        """Return the illuminant
+
+        Returns
+        -------
+        NDArray
+            The reference illuminant
+        """
+        return self._illuminant
+
     @idt_metadata_property(metadata=PsMdC.SIGMA)
     def sigma(self):
         """Return the sigma
@@ -387,3 +400,16 @@ class IDTProjectSettings(BaseSerializable):
             The file_type
         """
         return self._file_type
+
+    def get_reference_colour_checker_samples(self):
+        """Return the reference_colour_checker samples
+
+        Returns
+        -------
+        NDArray
+            The reference colour checker samples
+        """
+        return common.generate_reference_colour_checker(
+            common.get_sds_colour_checker(self.reference_colour_checker),
+            common.get_sds_illuminant(self.illuminant),
+        )
