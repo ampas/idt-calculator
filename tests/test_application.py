@@ -27,7 +27,8 @@ class TestIDTApplication(TestIDTBase):
         idt_application = IDTGeneratorApplication()
         idt_application.idt_generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
-        idt_application.working_directory = idt_application.extract_archive(archive)
+        working_dir = idt_application.extract_archive(archive)
+        idt_application.project_settings.working_directory = working_dir
 
         generator = idt_application.idt_generator
         generator.sample()
@@ -55,7 +56,8 @@ class TestIDTApplication(TestIDTBase):
         idt_application = IDTGeneratorApplication()
         idt_application.idt_generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
-        idt_application.working_directory = idt_application.extract_archive(archive)
+        working_dir = idt_application.extract_archive(archive)
+        idt_application.project_settings.working_directory = working_dir
 
         generator = idt_application.idt_generator
         generator.sample()
