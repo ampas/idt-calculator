@@ -5,7 +5,6 @@ from typing import ClassVar
 
 import colour
 
-from .common import RGB_COLORCHECKER_CLASSIC_ACES
 from .structures import IDTMetaData
 
 
@@ -324,13 +323,22 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    # TODO I dont think we should store the actual array, would we be better to store
-    # TODO the name of the references, and the name of the illuminent as simple strings
-    # TODO then compute this on the fly?
+    # TODO Thomas, there must be a list of the options available in colour somewhere
     REFERENCE_COLOUR_CHECKER = IDTMetaData(
-        default_value=RGB_COLORCHECKER_CLASSIC_ACES,
-        description="The reference colour checker we want to use as a numpy array",
-        ui_category=UICategories.HIDDEN,
+        default_value="ISO 17321-1",
+        description="The reference colour checker we want to use",
+        ui_type=UITypes.OPTIONS_FIELD,
+        options=["ISO 17321-1"],
+        ui_category=UICategories.ADVANCED,
+    )
+
+    # TODO Thomas, there must be a list of the illuminants available in colour somewhere
+    ILLUMINANT = IDTMetaData(
+        default_value="D60",
+        description="The illuminant we want to use for the reference colour checker",
+        ui_type=UITypes.OPTIONS_FIELD,
+        options=["D60"],
+        ui_category=UICategories.ADVANCED,
     )
 
     SIGMA = IDTMetaData(
@@ -376,6 +384,7 @@ class ProjectSettingsMetaDataConstants:
         WORKING_DIR,
         CLEAN_UP,
         REFERENCE_COLOUR_CHECKER,
+        ILLUMINANT,
         SIGMA,
         FILE_TYPE,
     )
