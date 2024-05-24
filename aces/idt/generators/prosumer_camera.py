@@ -430,8 +430,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         EV_weights = None
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
-        # ACES* v1 190 patches.
-        training_data = self.project_settings.reference_colour_checker
+        # ACES* v1 190 patches but can be overridden in the project settings.
+        training_data = self.project_settings.get_reference_colour_checker_samples()
 
         # Callable producing the objective function and the *CIE XYZ* to optimisation
         # colour model function.

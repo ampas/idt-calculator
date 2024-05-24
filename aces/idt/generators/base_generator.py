@@ -275,6 +275,7 @@ class IDTBaseGenerator(ABC):
         paths = self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
             self._baseline_exposure
         ]
+
         with working_directory(self.project_settings.working_directory):
             logger.info(
                 'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
@@ -495,13 +496,13 @@ class IDTBaseGenerator(ABC):
         """
 
         logger.info("Sorting camera and reference samples...")
-        reference_colour_checker = self.project_settings.reference_colour_checker
+        ref_col_checker = self.project_settings.get_reference_colour_checker_samples()
         samples_camera = []
         samples_reference = []
         for EV, images in self._samples_analysis[
             DataFolderStructure.COLOUR_CHECKER
         ].items():
-            samples_reference.append(reference_colour_checker[-6:, ...] * pow(2, EV))
+            samples_reference.append(ref_col_checker[-6:, ...] * pow(2, EV))
             samples_EV = as_float_array(images["samples_median"])[-6:, ...]
             samples_camera.append(samples_EV)
 
@@ -566,8 +567,8 @@ class IDTBaseGenerator(ABC):
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
-        camera_make = self.project_settings.project_settings.camera_make
-        camera_model = self.project_settings.project_settings.camera_model
+        camera_make = self.project_settings.camera_make
+        camera_model = self.project_settings.camera_model
 
         clf_path = self.to_clf(output_directory, information)
 
@@ -612,7 +613,7 @@ class IDTBaseGenerator(ABC):
             information,
         )
 
-        project_settings = self.project_settings.project_settings
+        project_settings = self.project_settings
 
         aces_transform_id = project_settings.aces_transform_id
         aces_user_name = project_settings.aces_user_name
