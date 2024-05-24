@@ -34,6 +34,8 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
+    "get_sds_colour_checker",
+    "get_sds_illuminant",
     "SDS_COLORCHECKER_CLASSIC",
     "SD_ILLUMINANT_ACES",
     "SAMPLES_COUNT_DEFAULT",
@@ -47,14 +49,47 @@ __all__ = [
     "clf_processing_elements",
 ]
 
-SDS_COLORCHECKER_CLASSIC = tuple(SDS_COLOURCHECKERS["ISO 17321-1"].values())
+
+def get_sds_colour_checker(colour_checker_name):
+    """
+    Get the Reference reflectances for the given colour checker
+
+    Parameters
+    ----------
+    colour_checker_name: The name of the colour checker name
+
+    Returns
+    -------
+        SDS_COLORCHECKER : tuple
+
+    """
+    return tuple(SDS_COLOURCHECKERS[colour_checker_name].values())
+
+
+def get_sds_illuminant(illuminant_name):
+    """
+    Get *ACES* reference illuminant spectral distribution, for the given illuminant name
+
+    Parameters
+    ----------
+    illuminant_name: The name of the illuminant
+
+    Returns
+    -------
+        SpectralDistribution
+
+    """
+    return SDS_ILLUMINANTS[illuminant_name]
+
+
+SDS_COLORCHECKER_CLASSIC = get_sds_colour_checker("ISO 17321-1")
 """
 Reference reflectances for the *ColorChecker Classic*.
 
 SDS_COLORCHECKER_CLASSIC : tuple
 """
 
-SD_ILLUMINANT_ACES = SDS_ILLUMINANTS["D60"]
+SD_ILLUMINANT_ACES = get_sds_illuminant("D60")
 """
 *ACES* reference illuminant spectral distribution,
 i.e. ~*CIE Illuminant D Series D60*.
