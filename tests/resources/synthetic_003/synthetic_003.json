@@ -14,7 +14,7 @@
     "encoding_colourspace": "",
     "rgb_display_colourspace": "sRGB",
     "cat": "CAT02",
-    "optimisation_space": "Oklab",
+    "optimisation_space": "CIE Lab",
     "illuminant_interpolator": "Linear",
     "decoding_method": "Median",
     "ev_range": [-1.0, 0.0, 1.0],

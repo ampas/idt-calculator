@@ -23,7 +23,6 @@ from colour import (
     LUT3x1D,
 )
 from colour.algebra import smoothstep_function, vector_dot
-from colour.characterisation import optimisation_factory_rawtoaces_v1
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.utilities import (
@@ -428,7 +427,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Callable producing the objective function and the *CIE XYZ* to optimisation
         # colour model function.
-        optimisation_factory = optimisation_factory_rawtoaces_v1
+        optimisation_factory = self.project_settings.get_optimization_factory()
 
         # Parameters for :func:`scipy.optimize.minimize` definition.
         optimisation_kwargs = self.project_settings.optimization_kwargs

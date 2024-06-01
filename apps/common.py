@@ -15,10 +15,6 @@ from colour import (
     PchipInterpolator,
     SpragueInterpolator,
 )
-from colour.characterisation import (
-    optimisation_factory_Jzazbz,
-    optimisation_factory_rawtoaces_v1,
-)
 from dash_bootstrap_components import (
     Card,
     CardBody,
@@ -33,8 +29,6 @@ from dash_bootstrap_components import (
 
 from aces.idt import (
     clf_processing_elements,
-    optimisation_factory_IPT,
-    optimisation_factory_Oklab,
 )
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
@@ -58,7 +52,6 @@ __all__ = [
     "OPTIONS_INTERPOLATION",
     "INTERPOLATORS",
     "OPTIONS_OPTIMISATION_SPACES",
-    "OPTIMISATION_FACTORIES",
     "OPTIONS_DISPLAY_COLOURSPACES",
     "DELAY_TOOLTIP_DEFAULT",
     "TEMPLATE_DEFAULT_OUTPUT",
@@ -75,6 +68,8 @@ __all__ = [
     "format_vector_dctl",
     "format_idt_clf",
 ]
+
+from aces.idt.core.common import OPTIMISATION_FACTORIES
 
 COLOUR_ENVIRONMENT = None
 """
@@ -299,16 +294,13 @@ Spectral distribution interpolators.
 INTERPOLATORS : dict
 """
 
-OPTIMISATION_FACTORIES = {
-    "Oklab": optimisation_factory_Oklab,
-    "JzAzBz": optimisation_factory_Jzazbz,
-    "IPT": optimisation_factory_IPT,
-    "CIE Lab": optimisation_factory_rawtoaces_v1,
-}
+OPTIONS_OPTIMISATION_SPACES = [
+    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
+]
 """
-Optimisation factories.
+Optimisation colourspaces.
 
-OPTIMISATION_FACTORIES : dict
+OPTIONS_OPTIMISATION_SPACES : list
 """
 
 OPTIONS_DISPLAY_COLOURSPACES = [
@@ -320,14 +312,6 @@ Display colourspaces.
 OPTIONS_DISPLAY_COLOURSPACES : list
 """
 
-OPTIONS_OPTIMISATION_SPACES = [
-    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
-]
-"""
-Optimisation colourspaces.
-
-OPTIONS_OPTIMISATION_SPACES : list
-"""
 
 DELAY_TOOLTIP_DEFAULT = {"show": 500, "hide": 125}
 """

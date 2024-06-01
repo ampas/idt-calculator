@@ -6,10 +6,11 @@ import os
 from collections import OrderedDict
 
 from aces.idt.core import common
+from aces.idt.core.common import OPTIMISATION_FACTORIES
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.core.constants import ProjectSettingsMetaDataConstants as PsMdC
 from aces.idt.core.structures import BaseSerializable, idt_metadata_property
-from aces.idt.core.utilities import format_key, sort_exposure_key
+from aces.idt.core.utilities import format_exposure_key, sort_exposure_keys
 
 
 class IDTProjectSettings(BaseSerializable):
@@ -445,6 +446,19 @@ class IDTProjectSettings(BaseSerializable):
             common.get_sds_illuminant(self.illuminant),
         )
 
+    def get_optimization_factory(self):
+        """Return the optimisation factory based on the optimisation space
+
+        Returns
+        -------
+        The optimisation factory
+
+        """
+        result = OPTIMISATION_FACTORIES.get(self.optimisation_space, None)
+        if result is None:
+            raise ValueError(f"Optimisation space {self.optimisation_space} not found")
+        return result
+
     @classmethod
     def from_folder(cls, project_name, folder_path):
         """Create a new project settings for a given folder on disk and build the data
@@ -496,12 +510,12 @@ class IDTProjectSettings(BaseSerializable):
                 )
 
         sorted_keys = sorted(
-            data[DataFolderStructure.COLOUR_CHECKER], key=sort_exposure_key
+            data[DataFolderStructure.COLOUR_CHECKER], key=sort_exposure_keys
         )
 
         # Create a new OrderedDict with the sorted keys
         sorted_colour_checker = OrderedDict(
-            (format_key(key), data[DataFolderStructure.COLOUR_CHECKER][key])
+            (format_exposure_key(key), data[DataFolderStructure.COLOUR_CHECKER][key])
             for key in sorted_keys
         )
 

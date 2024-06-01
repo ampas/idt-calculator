@@ -34,6 +34,10 @@ __all__ = [
     "list_sub_directories",
     "mask_outliers",
     "working_directory",
+    "hash_file",
+    "extract_archive",
+    "sort_exposure_keys",
+    "format_exposure_key",
 ]
 
 
@@ -218,7 +222,7 @@ def extract_archive(archive: str, directory: Optional[str] = None):
     return directory
 
 
-def sort_exposure_key(key):
+def sort_exposure_keys(key):
     """
     Sort the data keys based on the +/- exposure.
 
@@ -238,7 +242,7 @@ def sort_exposure_key(key):
     return float(re.sub(r"[^\d.-]+", "", key))
 
 
-def format_key(key):
+def format_exposure_key(key):
     """Format the exposure keys for serialization so they encompass the + symbol.
 
     Parameters

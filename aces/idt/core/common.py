@@ -19,7 +19,11 @@ from colour import (
     sd_to_aces_relative_exposure_values,
 )
 from colour.algebra import euclidean_distance, vector_dot
-from colour.characterisation import whitepoint_preserving_matrix
+from colour.characterisation import (
+    optimisation_factory_Jzazbz,
+    optimisation_factory_rawtoaces_v1,
+    whitepoint_preserving_matrix,
+)
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
 from colour.utilities import as_float_array, zeros
 
@@ -36,6 +40,7 @@ __status__ = "Production"
 __all__ = [
     "get_sds_colour_checker",
     "get_sds_illuminant",
+    "OPTIMISATION_FACTORIES",
     "SDS_COLORCHECKER_CLASSIC",
     "SD_ILLUMINANT_ACES",
     "SAMPLES_COUNT_DEFAULT",
@@ -442,3 +447,16 @@ def clf_processing_elements(
     et_array.text = f"\n{format_array(matrix)}"
 
     return root
+
+
+OPTIMISATION_FACTORIES = {
+    "Oklab": optimisation_factory_Oklab,
+    "JzAzBz": optimisation_factory_Jzazbz,
+    "IPT": optimisation_factory_IPT,
+    "CIE Lab": optimisation_factory_rawtoaces_v1,
+}
+"""
+Optimisation factories.
+
+OPTIMISATION_FACTORIES : dict
+"""
