@@ -251,7 +251,7 @@ class ProjectSettingsMetaDataConstants:
     )
 
     TEMPERATURE = IDTMetaData(
-        default_value=5600,
+        default_value=6000,
         description="The temperature",
         display_name="Temperature",
         ui_type=UITypes.INT_FIELD,
