@@ -27,6 +27,7 @@ class UITypes:
     FOLDER_STRUCTURE: ClassVar[str] = "FOLDER_STRUCTURE"
     BOOLEAN_FIELD: ClassVar[str] = "BooleanField"
     ARRAY_FIELD: ClassVar[str] = "ArrayField"
+    MAP_FIELD: ClassVar[str] = "MapField"
 
 
 class UICategories:
@@ -369,6 +370,14 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
+    OPTIMIZATION_KWARGS = IDTMetaData(
+        default_value={},
+        description="Parameters for the optimization function scipy.optimize.minimize",
+        display_name="Optimization Kwargs",
+        ui_type=UITypes.MAP_FIELD,
+        ui_category=UICategories.HIDDEN,
+    )
+
     ALL: ClassVar[tuple[IDTMetaData, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -399,4 +408,5 @@ class ProjectSettingsMetaDataConstants:
         SIGMA,
         FILE_TYPE,
         EV_WEIGHTS,
+        OPTIMIZATION_KWARGS,
     )

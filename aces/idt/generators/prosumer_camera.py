@@ -431,7 +431,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         optimisation_factory = optimisation_factory_rawtoaces_v1
 
         # Parameters for :func:`scipy.optimize.minimize` definition.
-        optimisation_kwargs = None
+        optimisation_kwargs = self.project_settings.optimization_kwargs
 
         logger.info(
             'Optimising the "IDT" matrix using "%s" EV range, "%s" EV '
@@ -490,7 +490,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             "method": "BFGS",
             "jac": "2-point",
         }
-        if optimisation_kwargs is not None:
+        if not optimisation_kwargs:
             optimisation_settings.update(optimisation_kwargs)
 
         self._M = minimize(

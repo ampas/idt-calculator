@@ -69,6 +69,9 @@ class IDTProjectSettings(BaseSerializable):
         self._sigma = IDTProjectSettings.sigma.metadata.default_value
         self._file_type = IDTProjectSettings.file_type.metadata.default_value
         self._ev_weights = IDTProjectSettings.ev_weights.metadata.default_value
+        self._optimization_kwargs = (
+            IDTProjectSettings.optimization_kwargs.metadata.default_value
+        )
 
     @idt_metadata_property(metadata=PsMdC.SCHEMA_VERSION)
     def schema_version(self):
@@ -412,6 +415,17 @@ class IDTProjectSettings(BaseSerializable):
             The ev weights to use
         """
         return self._ev_weights
+
+    @idt_metadata_property(metadata=PsMdC.OPTIMIZATION_KWARGS)
+    def optimization_kwargs(self):
+        """Return the optimization_kwargs
+
+        Returns
+        -------
+        dict
+            The optimization_kwargs used
+        """
+        return self._optimization_kwargs
 
     def get_reference_colour_checker_samples(self):
         """Return the reference_colour_checker samples
