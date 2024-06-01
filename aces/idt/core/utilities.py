@@ -216,3 +216,45 @@ def extract_archive(archive: str, directory: Optional[str] = None):
 
     shutil.unpack_archive(archive, directory)
     return directory
+
+
+def sort_exposure_key(key):
+    """
+    Sort the data keys based on the +/- exposure.
+
+    Parameters
+    ----------
+    key
+        The key value for the exposure
+
+    Returns
+    -------
+    float
+        The sorted exposure key
+
+    """
+    # Allow for the removal of non-numeric characters while
+    # keeping negative sign and decimal point
+    return float(re.sub(r"[^\d.-]+", "", key))
+
+
+def format_key(key):
+    """Format the exposure keys for serialization so they encompass the + symbol.
+
+    Parameters
+    ----------
+    key
+        The key value for the exposure
+
+    Returns
+    -------
+    str
+        The key value with or without the + symbol
+
+    """
+    # Format keys to add '+' prefix for positive keys
+    key_float = float(re.sub(r"[^\d.-]+", "", key))
+    if key_float > 0:
+        return f"+{key_float:g}"
+    else:
+        return f"{key_float:g}"

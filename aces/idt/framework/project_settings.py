@@ -2,9 +2,14 @@
 serialization, loading and saving of a project.
 
 """
+import os
+from collections import OrderedDict
+
 from aces.idt.core import common
+from aces.idt.core.constants import DataFolderStructure
 from aces.idt.core.constants import ProjectSettingsMetaDataConstants as PsMdC
 from aces.idt.core.structures import BaseSerializable, idt_metadata_property
+from aces.idt.core.utilities import format_key, sort_exposure_key
 
 
 class IDTProjectSettings(BaseSerializable):
@@ -439,3 +444,81 @@ class IDTProjectSettings(BaseSerializable):
             common.get_sds_colour_checker(self.reference_colour_checker),
             common.get_sds_illuminant(self.illuminant),
         )
+
+    @classmethod
+    def from_folder(cls, project_name, folder_path):
+        """Create a new project settings for a given folder on disk and build the data
+        structure based on the files on disk
+
+        Parameters
+        ----------
+        project_name: str
+            The name of the project
+        folder_path : str
+            The folder path to the project root containing the image sequence folders
+        """
+
+        instance = cls()
+        data = {
+            DataFolderStructure.COLOUR_CHECKER: {},
+            DataFolderStructure.GREY_CARD: [],
+        }
+
+        # Validate folder paths for colour_checker and grey_card exist
+        colour_checker_path = os.path.join(
+            folder_path, DataFolderStructure.DATA, DataFolderStructure.COLOUR_CHECKER
+        )
+        grey_card_path = os.path.join(
+            folder_path, DataFolderStructure.DATA, DataFolderStructure.GREY_CARD
+        )
+
+        if not os.path.exists(colour_checker_path) or not os.path.exists(
+            grey_card_path
+        ):
+            raise ValueError(
+                "Required 'colour_checker' or 'grey_card' folder does not exist."
+            )
+
+        # Populate colour_checker data
+        for root, _, files in os.walk(colour_checker_path):
+            for file in files:
+                exposure_value = os.path.basename(
+                    root
+                )  # Assuming folder names are the exposure values
+                if os.path.basename(file).startswith("."):
+                    pass
+
+                if exposure_value not in data[DataFolderStructure.COLOUR_CHECKER]:
+                    data[DataFolderStructure.COLOUR_CHECKER][exposure_value] = []
+                absolute_file_path = os.path.join(root, file)
+                data[DataFolderStructure.COLOUR_CHECKER][exposure_value].append(
+                    os.path.relpath(absolute_file_path, start=folder_path)
+                )
+
+        sorted_keys = sorted(
+            data[DataFolderStructure.COLOUR_CHECKER], key=sort_exposure_key
+        )
+
+        # Create a new OrderedDict with the sorted keys
+        sorted_colour_checker = OrderedDict(
+            (format_key(key), data[DataFolderStructure.COLOUR_CHECKER][key])
+            for key in sorted_keys
+        )
+
+        data[DataFolderStructure.COLOUR_CHECKER] = sorted_colour_checker
+
+        # Populate grey_card data
+        for root, _, files in os.walk(grey_card_path):
+            files.sort()
+            for file in files:
+                if os.path.basename(file).startswith("."):
+                    continue
+                absolute_file_path = os.path.join(root, file)
+                data[DataFolderStructure.GREY_CARD].append(
+                    os.path.relpath(absolute_file_path, start=folder_path)
+                )
+
+        instance.data = data
+        output_file = os.path.join(folder_path, f"{project_name}.json")
+        instance.to_file(output_file)
+        return output_file

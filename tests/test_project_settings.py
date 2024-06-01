@@ -1,6 +1,7 @@
 """Module for unit testing the project settings
 
 """
+import json
 import os
 
 from test_utils import TestIDTBase
@@ -42,3 +43,24 @@ class TestIDTProjectSettings(TestIDTBase):
         new_settings = IDTProjectSettings.from_json(json_string)
         json_string_loaded = new_settings.to_json()
         self.assertEqual(json_string, json_string_loaded)
+
+    def test_from_folder(self):
+        """Test creating new project from folder"""
+        expected_file = os.path.join(
+            self.get_test_resources_folder(), "example_from_folder.json"
+        )
+
+        actual_file = os.path.join(
+            self.get_test_resources_folder(), "synthetic_001", "test_project.json"
+        )
+
+        folder_path = os.path.join(self.get_test_resources_folder(), "synthetic_001")
+        IDTProjectSettings.from_folder("test_project", folder_path)
+
+        with open(actual_file) as actual_handle:
+            actual = json.load(actual_handle)
+
+        with open(expected_file) as expected_handle:
+            expected = json.load(expected_handle)
+
+        self.assertEqual(actual, expected)
