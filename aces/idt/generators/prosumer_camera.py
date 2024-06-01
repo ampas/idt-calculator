@@ -427,7 +427,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         # TODO Project settings should be serialized and restored without the need for
         #  a ui so i anything generic
         #  should go there
-        EV_weights = None
+        EV_weights = self.project_settings.ev_weights
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
         # ACES* v1 190 patches but can be overridden in the project settings.
@@ -469,7 +469,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             ]
         )
 
-        if EV_weights is None:
+        if not EV_weights:
             self._samples_weighted = np.median(samples_normalised, axis=0)
         else:
             self._samples_weighted = np.sum(

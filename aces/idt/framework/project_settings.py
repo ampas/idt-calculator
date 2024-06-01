@@ -68,6 +68,7 @@ class IDTProjectSettings(BaseSerializable):
         self._illuminant = IDTProjectSettings.illuminant.metadata.default_value
         self._sigma = IDTProjectSettings.sigma.metadata.default_value
         self._file_type = IDTProjectSettings.file_type.metadata.default_value
+        self._ev_weights = IDTProjectSettings.ev_weights.metadata.default_value
 
     @idt_metadata_property(metadata=PsMdC.SCHEMA_VERSION)
     def schema_version(self):
@@ -400,6 +401,17 @@ class IDTProjectSettings(BaseSerializable):
             The file_type
         """
         return self._file_type
+
+    @idt_metadata_property(metadata=PsMdC.EV_WEIGHTS)
+    def ev_weights(self):
+        """Return the ev weights
+
+        Returns
+        -------
+        np.Array
+            The ev weights to use
+        """
+        return self._ev_weights
 
     def get_reference_colour_checker_samples(self):
         """Return the reference_colour_checker samples

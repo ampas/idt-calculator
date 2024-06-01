@@ -4,6 +4,7 @@
 from typing import ClassVar
 
 import colour
+import numpy as np
 
 from .structures import IDTMetaData
 
@@ -25,6 +26,7 @@ class UITypes:
     VECTOR3_FIELD: ClassVar[str] = "Vector3Field"
     FOLDER_STRUCTURE: ClassVar[str] = "FOLDER_STRUCTURE"
     BOOLEAN_FIELD: ClassVar[str] = "BooleanField"
+    ARRAY_FIELD: ClassVar[str] = "ArrayField"
 
 
 class UICategories:
@@ -358,6 +360,15 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.STANDARD,
     )
 
+    EV_WEIGHTS = IDTMetaData(
+        default_value=np.array([]),
+        description="Normalised weights used to sum the exposure values. If not given,"
+        "the median of the exposure values is used.",
+        display_name="EV Weights",
+        ui_type=UITypes.ARRAY_FIELD,
+        ui_category=UICategories.HIDDEN,
+    )
+
     ALL: ClassVar[tuple[IDTMetaData, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -387,4 +398,5 @@ class ProjectSettingsMetaDataConstants:
         ILLUMINANT,
         SIGMA,
         FILE_TYPE,
+        EV_WEIGHTS,
     )

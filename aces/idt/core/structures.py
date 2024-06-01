@@ -4,6 +4,8 @@
 import json
 from pathlib import Path
 
+import numpy as np
+
 
 class PathEncoder(json.JSONEncoder):
     """
@@ -25,6 +27,8 @@ class PathEncoder(json.JSONEncoder):
         if isinstance(obj, Path):
             # Convert the PosixPath to a string
             return str(obj)
+        if isinstance(obj, np.ndarray):
+            return list(obj)
         return super().default(obj)
 
 
