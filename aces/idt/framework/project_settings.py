@@ -2,6 +2,8 @@
 serialization, loading and saving of a project.
 
 """
+from __future__ import annotations
+
 import os
 from collections import OrderedDict
 
@@ -458,6 +460,23 @@ class IDTProjectSettings(BaseSerializable):
         if result is None:
             raise ValueError(f"Optimisation space {self.optimisation_space} not found")
         return result
+
+    def update(self, value: IDTProjectSettings):
+        """Update the project settings with the given value from another project
+        settings
+
+        Parameters
+        ----------
+        value: IDTProjectSettings
+            The project settings to update with
+
+        """
+        if not isinstance(value, IDTProjectSettings):
+            raise TypeError(f"Expected IDTProjectSettings, got {type(value)} instead")
+
+        for name, prop in value.properties:
+            value2 = prop.getter(value)
+            setattr(self, name, value2)
 
     @classmethod
     def from_folder(cls, project_name, folder_path):

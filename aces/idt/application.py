@@ -74,15 +74,17 @@ class IDTGeneratorApplication:
 
     @project_settings.setter
     def project_settings(self, value: IDTProjectSettings):
-        if not isinstance(value, IDTProjectSettings):
-            raise TypeError("project_settings must be of type IDTProjectSettings")
+        """
+        Set the project settings, maintains a single instance of the project settings,
+        and updates the values
 
-        # The application holds a single project settings object
-        # When a new project is set the properties are set rather than replace the
-        # object so this can be referenced throughout
-        for name, prop in value.properties:
-            value2 = prop.getter(value)
-            setattr(self._project_settings, name, value2)
+        Parameters
+        ----------
+        value: IDTProjectSettings
+            The project settings to update with
+
+        """
+        self._project_settings.update(value)
 
     def extract_archive(self, archive: str, directory: Optional[str] = None):
         """
