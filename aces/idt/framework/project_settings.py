@@ -7,6 +7,8 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 
+from colour.utilities import multiline_str
+
 from aces.idt.core import common
 from aces.idt.core.common import OPTIMISATION_FACTORIES
 from aces.idt.core.constants import DataFolderStructure
@@ -555,3 +557,27 @@ class IDTProjectSettings(BaseSerializable):
         output_file = os.path.join(folder_path, f"{project_name}.json")
         instance.to_file(output_file)
         return output_file
+
+    def __str__(self):
+        """
+        Return a formatted string representation of the project settings.
+
+        Returns
+        -------
+        :class:`str`
+            Formatted string representation.
+        """
+        attributes = [
+            {
+                "label": super().__repr__(),
+                "header": True,
+            },
+            {"line_break": True},
+        ]
+        for name, _ in self.properties:
+            attributes.append({"name": f"{name}", "label": f"{name}".title()})
+
+        attributes.append(
+            {"line_break": True},
+        )
+        return multiline_str(self, attributes)

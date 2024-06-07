@@ -154,27 +154,22 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         :class:`str`
             Formatted string representation.
         """
-        # TODO Can't do this can't have the __str__ method be dependent on an execution
-        #  state of the instance
-        #  _samples_analysis may not be populated yet
-        samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
-            self._baseline_exposure
-        )
-        if samples_analysis is not None:
-            samples_analysis = as_float_array(samples_analysis["samples_median"])
+        samples_analysis = None
+        if self._samples_analysis is not None:
+            samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
+                self._baseline_exposure
+            )
+            if samples_analysis is not None:
+                samples_analysis = as_float_array(samples_analysis["samples_median"])
 
         return multiline_str(
             self,
             [
                 {
-                    "label": "IDT Generator",
+                    "label": super().__repr__(),
                     "header": True,
                 },
                 {"line_break": True},
-                {"name": "_archive", "label": "Archive"},
-                {"name": "_image_format", "label": "Image Format"},
-                {"name": "_directory", "label": "Directory"},
-                {"name": "_specification", "label": "Specification"},
                 {"name": "_baseline_exposure", "label": "Baseline Exposure"},
                 {
                     "formatter": lambda x: str(samples_analysis),  # noqa: ARG005

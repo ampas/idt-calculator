@@ -22,6 +22,16 @@ class TestIDTApplication(TestIDTBase):
         """
         self.project_settings = IDTProjectSettings()
 
+    def test_string_overrides(self):
+        """Test the __str__ methods we override"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+        actual = str(idt_application.generator)
+        actual2 = str(idt_application.project_settings)
+
+        self.assertNotEqual(actual, "")
+        self.assertNotEqual(actual2, "")
+
     def test_prosumer_generator_sample(self):
         """Test the prosumer generator"""
         idt_application = IDTGeneratorApplication()
