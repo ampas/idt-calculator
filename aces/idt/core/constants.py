@@ -326,21 +326,19 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    # TODO Thomas, there must be a list of the options available in colour somewhere
     REFERENCE_COLOUR_CHECKER = IDTMetaData(
         default_value="ISO 17321-1",
         description="The reference colour checker we want to use",
         ui_type=UITypes.OPTIONS_FIELD,
-        options=["ISO 17321-1"],
+        options=sorted(colour.SDS_COLOURCHECKERS),
         ui_category=UICategories.ADVANCED,
     )
 
-    # TODO Thomas, there must be a list of the illuminants available in colour somewhere
     ILLUMINANT = IDTMetaData(
         default_value="D60",
         description="The illuminant we want to use for the reference colour checker",
         ui_type=UITypes.OPTIONS_FIELD,
-        options=["D60"],
+        options=sorted(colour.SDS_ILLUMINANTS),
         ui_category=UICategories.ADVANCED,
     )
 
