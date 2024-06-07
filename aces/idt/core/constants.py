@@ -77,15 +77,15 @@ class CAT:
     @classmethod
     @property
     def ALL(cls):
-        """
+        """Get all the chromatic adaptation transforms we can use
 
-        Returns A list of all the CATs
+        Returns
         -------
+        list
+            The list of chromatic adaptation transforms
 
         """
-        cats = list(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())
-        cats.sort()
-        return cats
+        return sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS)
 
 
 class OptimizationSpace:
