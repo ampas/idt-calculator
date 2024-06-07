@@ -57,7 +57,7 @@ class IDTGeneratorApplication:
         if value not in self.all_generators:
             raise ValueError(f"Invalid generator name: {value}")
 
-        generator_class = self._all_generators.get(value)
+        generator_class = self._all_generators[value]
         self._idt_generator = generator_class(self.project_settings)
 
     @property
