@@ -18,7 +18,8 @@ class PathEncoder(json.JSONEncoder):
 
         Parameters
         ----------
-        obj : object we want to serialize
+        obj : object
+            object we want to serialize
 
         Returns the JSON serializable object
         -------
@@ -40,7 +41,8 @@ class SerializableConstants:
 
 
 class IDTMetaData:
-    """Simple class to store metadata information for a property within an IDT project,
+    """
+    Simple class to store metadata information for a property within an IDT project,
     this data is not used in any calculations or computation and is primarily designed
     to store data which would be associated with how the property should be displayed
     in a UI.
@@ -67,7 +69,8 @@ class IDTMetaData:
 
 
 class IDTMetadataProperty:
-    """A property descriptor that stores IDTMetaData and supports
+    """
+    A property descriptor that stores IDTMetaData and supports
     both getter and setter functionality.
     """
 
