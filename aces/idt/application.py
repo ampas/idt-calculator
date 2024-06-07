@@ -12,6 +12,7 @@ from aces.idt.core import utilities
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
+from aces.idt.generators.base_generator import IDTBaseGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class IDTGeneratorApplication:
         return self._generator
 
     @generator.setter
-    def generator(self, value):
+    def generator(self, value: type[IDTBaseGenerator]):
         if value not in self.generator_names:
             raise ValueError(f"Invalid generator name: {value}")
 
@@ -86,6 +87,13 @@ class IDTGeneratorApplication:
     def extract_archive(self, archive: str, directory: Optional[str] = None):
         """
         Extract the specification from the *IDT* archive.
+
+        Parameters
+        ----------
+        archive : str
+            Archive to extract.
+        directory : str, optional
+            Known directory we want to extract the archive to
         """
         directory = utilities.extract_archive(archive, directory)
         extracted_directories = utilities.list_sub_directories(directory)
@@ -206,12 +214,13 @@ class IDTGeneratorApplication:
         else:
             self.project_settings.data[DataFolderStructure.GREY_CARD] = []
 
-    def process_from_archive(self, archive):
+    def process_from_archive(self, archive: str):
         """Process the IDT based on the zip archive provided
 
         Parameters
         ----------
-        archive: str The filepath to the archive
+        archive: str
+            The filepath to the archive
 
         Returns
         -------
@@ -287,7 +296,7 @@ class IDTGeneratorApplication:
 
         self.project_settings.file_type = file_types[0]
 
-    def zip(self, output_directory, archive_serialised_generator=False):
+    def zip(self, output_directory: str, archive_serialised_generator: bool = False):
         """Create a zip of the results from the idt creation
 
         Parameters
