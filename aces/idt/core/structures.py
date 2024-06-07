@@ -1,5 +1,5 @@
-"""Module contains a selection of helper classes used throughout the IDT
-
+"""
+Define various helper classes used throughout the IDT generator.
 """
 import json
 from pathlib import Path
