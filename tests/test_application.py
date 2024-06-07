@@ -25,12 +25,12 @@ class TestIDTApplication(TestIDTBase):
     def test_prosumer_generator_sample(self):
         """Test the prosumer generator"""
         idt_application = IDTGeneratorApplication()
-        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_dir = idt_application.extract_archive(archive)
         idt_application.project_settings.working_directory = working_dir
 
-        generator = idt_application.idt_generator
+        generator = idt_application.generator
         generator.sample()
         expected_file = os.path.join(
             self.get_test_resources_folder(), "samples_analysis.json"
@@ -54,12 +54,12 @@ class TestIDTApplication(TestIDTBase):
     def test_prosumer_generator_sort(self):
         """Test the prosumer generator sort"""
         idt_application = IDTGeneratorApplication()
-        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_dir = idt_application.extract_archive(archive)
         idt_application.project_settings.working_directory = working_dir
 
-        generator = idt_application.idt_generator
+        generator = idt_application.generator
         generator.sample()
         generator.sort()
 
@@ -85,7 +85,7 @@ class TestIDTApplication(TestIDTBase):
         """
 
         idt_application = IDTGeneratorApplication()
-        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
 
         idt_generator_1 = idt_application.process_from_archive(archive)
@@ -1145,7 +1145,7 @@ class TestIDTApplication(TestIDTBase):
         )
 
         idt_application2 = IDTGeneratorApplication()
-        idt_application2.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application2.generator = "IDTGeneratorProsumerCamera"
         archive2 = os.path.join(self.get_test_resources_folder(), "synthetic_002.zip")
         idt_generator_2 = idt_application2.process_from_archive(archive2)
 
@@ -1168,7 +1168,7 @@ class TestIDTApplication(TestIDTBase):
         )
 
         idt_application3 = IDTGeneratorApplication()
-        idt_application3.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application3.generator = "IDTGeneratorProsumerCamera"
 
         archive3 = os.path.join(self.get_test_resources_folder(), "synthetic_003.zip")
         idt_generator_3 = idt_application3.process_from_archive(archive3)
@@ -1200,7 +1200,7 @@ class TestIDTApplication(TestIDTBase):
     def test_prosumer_generator_from_archive_no_json(self):
         """Test the prosumer generator from archive without a json file"""
         idt_application = IDTGeneratorApplication()
-        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
         idt_application.process_from_archive(archive)
@@ -1208,7 +1208,7 @@ class TestIDTApplication(TestIDTBase):
     def test_prosumer_generator_from_archive_zip(self):
         """Test the prosumer generator from archive with a json file"""
         idt_application = IDTGeneratorApplication()
-        idt_application.idt_generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         idt_application.process_from_archive(archive)

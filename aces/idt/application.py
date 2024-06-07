@@ -11,7 +11,7 @@ from colour.utilities import attest
 from aces.idt.core import utilities
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
-from aces.idt.generators import ALL_GENERATORS
+from aces.idt.generators import GENERATORS
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +25,10 @@ class IDTGeneratorApplication:
 
     def __init__(self):
         self._project_settings = IDTProjectSettings()
-        self._all_generators = ALL_GENERATORS
-        self._idt_generator = None
+        self._generator = None
 
     @property
-    def all_generators(self):
+    def generator_names(self):
         """Return the names of the generators available
 
         Returns
@@ -38,10 +37,10 @@ class IDTGeneratorApplication:
             A list of names for the available generators
 
         """
-        return list(self._all_generators.keys())
+        return list(GENERATORS.keys())
 
     @property
-    def idt_generator(self):
+    def generator(self):
         """Return the current generator
 
         Returns
@@ -50,15 +49,15 @@ class IDTGeneratorApplication:
             The current generator
 
         """
-        return self._idt_generator
+        return self._generator
 
-    @idt_generator.setter
-    def idt_generator(self, value):
-        if value not in self.all_generators:
+    @generator.setter
+    def generator(self, value):
+        if value not in self.generator_names:
             raise ValueError(f"Invalid generator name: {value}")
 
-        generator_class = self._all_generators[value]
-        self._idt_generator = generator_class(self.project_settings)
+        generator_class = GENERATORS[value]
+        self._generator = generator_class(self.project_settings)
 
     @property
     def project_settings(self):
@@ -219,17 +218,17 @@ class IDTGeneratorApplication:
         IDTBaseGenerator
             returns the generator after it is finished
         """
-        if not self.idt_generator:
+        if not self.generator:
             raise ValueError("No Idt Generator Set")
 
         self.project_settings.working_directory = self.extract_archive(archive)
-        self.idt_generator.sample()
-        self.idt_generator.sort()
-        self.idt_generator.generate_LUT()
-        self.idt_generator.filter_LUT()
-        self.idt_generator.decode()
-        self.idt_generator.optimise()
-        return self.idt_generator
+        self.generator.sample()
+        self.generator.sort()
+        self.generator.generate_LUT()
+        self.generator.filter_LUT()
+        self.generator.decode()
+        self.generator.optimise()
+        return self.generator
 
     def process_from_project_settings(self):
         """Process an IDT based on the project settings stored within the application
@@ -239,7 +238,7 @@ class IDTGeneratorApplication:
         IDTBaseGenerator
             returns the generator after it is finished
         """
-        if not self.idt_generator:
+        if not self.generator:
             raise ValueError("No Idt Generator Set")
 
         # Ensuring that exposure values in the specification are floating point numbers.
@@ -257,13 +256,13 @@ class IDTGeneratorApplication:
                 float(exposure)
             ] = images
 
-        self.idt_generator.sample()
-        self.idt_generator.sort()
-        self.idt_generator.generate_LUT()
-        self.idt_generator.filter_LUT()
-        self.idt_generator.decode()
-        self.idt_generator.optimise()
-        return self.idt_generator
+        self.generator.sample()
+        self.generator.sort()
+        self.generator.generate_LUT()
+        self.generator.filter_LUT()
+        self.generator.decode()
+        self.generator.optimise()
+        return self.generator
 
     def _validate_images(self):
         """Validate that the images provided are all the same file extension, and store
@@ -303,9 +302,9 @@ class IDTGeneratorApplication:
         :class:`str`
             *Zip* file path.
         """
-        if not self.idt_generator:
+        if not self.generator:
             raise ValueError("No Idt Generator Set")
 
-        return self.idt_generator.zip(
+        return self.generator.zip(
             output_directory, archive_serialised_generator=archive_serialised_generator
         )
