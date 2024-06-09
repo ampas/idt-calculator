@@ -32,14 +32,14 @@ from colour.utilities import (
 )
 from scipy.optimize import minimize
 
-from aces.idt.core.constants import DataFolderStructure, DecodingMethods
+from aces.idt.core import DataFolderStructure, DecodingMethods
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
 # TODO are the mpl.use things needed in every file?
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
 __license__ = "Academy of Motion Picture Arts and Sciences License Terms"
 __maintainer__ = "Academy of Motion Picture Arts and Sciences"
@@ -50,7 +50,7 @@ __all__ = [
     "IDTGeneratorProsumerCamera",
 ]
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class IDTGeneratorProsumerCamera(IDTBaseGenerator):
@@ -213,7 +213,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         """
 
         size = self.project_settings.lut_size
-        logger.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
+        LOGGER.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
 
         self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
 
@@ -289,8 +289,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Standard deviation of the gaussian convolution kernel.
 
-        sigma = self.project_settings.sigma
-        logger.info('Filtering unfiltered "LUT3x1D" with "%s" sigma...', sigma)
+        sigma = self.project_settings.lut_smoothing
+        LOGGER.info('Filtering unfiltered "LUT3x1D" with "%s" sigma...', sigma)
 
         filter = scipy.ndimage.gaussian_filter1d  # noqa: A001
         filter_kwargs = {"sigma": sigma}
@@ -332,7 +332,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         decoding_method = self.project_settings.decoding_method
         grey_card_reflectance = self.project_settings.grey_card_reference
 
-        logger.info(
+        LOGGER.info(
             'Decoding analysis samples using "%s" method and "%s" grey '
             "card reflectance...",
             decoding_method,
@@ -427,7 +427,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         # Parameters for :func:`scipy.optimize.minimize` definition.
         optimisation_kwargs = self.project_settings.optimization_kwargs
 
-        logger.info(
+        LOGGER.info(
             'Optimising the "IDT" matrix using "%s" EV range, "%s" EV '
             'weights, "%s" training data, and "%s" optimisation factory...',
             EV_range,
@@ -439,7 +439,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         EV_range = as_float_array(EV_range)
         EV_range = [EV for EV in EV_range if EV in self._samples_decoded]
         if not EV_range:
-            logger.warning(
+            LOGGER.warning(
                 'Given "EV range" does not contain any existing exposure values, '
                 "falling back to center exposure value!"
             )
@@ -447,7 +447,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             EV_range = sorted(self._samples_decoded)
             EV_range = [EV_range[len(EV_range) // 2]]
 
-        logger.info('"EV range": %s"', EV_range)
+        LOGGER.info('"EV range": %s"', EV_range)
 
         samples_normalised = as_float_array(
             [
@@ -583,7 +583,7 @@ if __name__ == "__main__":
         resources_directory / "synthetic_001.zip", cleanup=True
     )
 
-    logger.info(idt_generator)
+    LOGGER.info(idt_generator)
 
     with open(
         resources_directory / "synthetic_001" / "synthetic_001.json"
@@ -594,4 +594,4 @@ if __name__ == "__main__":
         specification, resources_directory / "synthetic_001"
     )
 
-    logger.info(idt_generator)
+    LOGGER.info(idt_generator)

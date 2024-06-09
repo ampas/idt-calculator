@@ -4,10 +4,9 @@
 import json
 import os
 
-from test_utils import TestIDTBase
-
 from aces.idt.core import constants
 from aces.idt.framework.project_settings import IDTProjectSettings
+from tests.test_utils import TestIDTBase
 
 
 class TestIDTProjectSettings(TestIDTBase):
@@ -21,7 +20,7 @@ class TestIDTProjectSettings(TestIDTBase):
         """Tests the properties on the project settings"""
         class_props = list(self.project_settings.properties)
         self.assertEqual(
-            len(class_props), len(constants.ProjectSettingsMetaDataConstants.ALL)
+            len(class_props), len(constants.ProjectSettingsMetadataConstants.ALL)
         )
 
     def test_to_file(self):
@@ -62,5 +61,7 @@ class TestIDTProjectSettings(TestIDTBase):
 
         with open(expected_file) as expected_handle:
             expected = json.load(expected_handle)
+
+        self.maxDiff = None
 
         self.assertEqual(actual, expected)

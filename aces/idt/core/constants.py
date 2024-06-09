@@ -1,16 +1,43 @@
-"""Module which holds constants for the project
-
 """
+IDT Constants
+=============
+
+Define the constants for the project.
+"""
+
+from __future__ import annotations
+
 from typing import ClassVar
 
 import colour
 import numpy as np
+from colour.hints import Tuple
 
-from .structures import IDTMetaData
+from aces.idt.core.structures import IDTMetaData
+
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "DataFolderStructure",
+    "UITypes",
+    "UICategories",
+    "LUTSize",
+    "RGBDisplayColourspace",
+    "CAT",
+    "OptimizationSpace",
+    "Interpolators",
+    "DecodingMethods",
+    "ProjectSettingsMetadataConstants",
+]
 
 
 class DataFolderStructure:
-    """Constants for the folder names which make up the data structure"""
+    """Constants for the folder names which make up the data structure."""
 
     DATA: ClassVar[str] = "data"
     COLOUR_CHECKER: ClassVar[str] = "colour_checker"
@@ -18,7 +45,7 @@ class DataFolderStructure:
 
 
 class UITypes:
-    """Constants for the UI categories"""
+    """Constants for the UI categories."""
 
     INT_FIELD: ClassVar[str] = "IntField"
     STRING_FIELD: ClassVar[str] = "StringField"
@@ -31,7 +58,7 @@ class UITypes:
 
 
 class UICategories:
-    """Constants for the UI categories"""
+    """Constants for the UI categories."""
 
     ADVANCED: ClassVar[str] = "Advanced"
     STANDARD: ClassVar[str] = "Standard"
@@ -39,7 +66,7 @@ class UICategories:
 
 
 class LUTSize:
-    """Constants for the LUT sizes"""
+    """Constants for the LUT sizes."""
 
     LUT_1024: ClassVar[int] = 1024
     LUT_2048: ClassVar[int] = 2048
@@ -61,7 +88,7 @@ class LUTSize:
 
 
 class RGBDisplayColourspace:
-    """Constants for the RGB display colourspaces"""
+    """Constants for the RGB display colourspaces."""
 
     SRGB: ClassVar[str] = "sRGB"
     DCI_P3: ClassVar[str] = "Display P3"
@@ -70,26 +97,27 @@ class RGBDisplayColourspace:
 
 
 class CAT:
-    """Constants for the CATs"""
+    """Constants for the chromatic adaptation transforms."""
 
     DEFAULT: ClassVar[str] = "CAT02"
 
     @classmethod
     @property
-    def ALL(cls):
-        """Get all the chromatic adaptation transforms we can use
+    def ALL(cls) -> Tuple[str]:
+        """
+        Return all the available chromatic adaptation transforms.
 
         Returns
         -------
-        list
-            The list of chromatic adaptation transforms
-
+        :class:`tuple`
+            Available chromatic adaptation transforms.
         """
-        return sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS)
+
+        return tuple(sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS))
 
 
 class OptimizationSpace:
-    """Constants for the optimization spaces"""
+    """Constants for the optimization spaces."""
 
     OKLAB: ClassVar[str] = "Oklab"
     JZAZBZ: ClassVar[str] = "JzAzBz"
@@ -100,7 +128,7 @@ class OptimizationSpace:
 
 
 class Interpolators:
-    """Constants for the interpolators"""
+    """Constants for the interpolators."""
 
     CUBIC_SPLINE: ClassVar[str] = "Cubic Spline"
     LINEAR: ClassVar[str] = "Linear"
@@ -111,7 +139,7 @@ class Interpolators:
 
 
 class DecodingMethods:
-    """Decoding methods"""
+    """Decoding methods."""
 
     MEDIAN: ClassVar[str] = "Median"
     AVERAGE: ClassVar[str] = "Average"
@@ -121,8 +149,8 @@ class DecodingMethods:
     ALL: ClassVar[tuple[str, ...]] = (MEDIAN, AVERAGE, PER_CHANNEL, ACES)
 
 
-class ProjectSettingsMetaDataConstants:
-    """Constants for the project settings"""
+class ProjectSettingsMetadataConstants:
+    """Constants for the project settings."""
 
     SCHEMA_VERSION = IDTMetaData(
         default_value="0.1.0",
@@ -219,7 +247,7 @@ class ProjectSettingsMetaDataConstants:
     )
 
     LUT_SMOOTHING = IDTMetaData(
-        default_value=32,
+        default_value=16,
         description="The LUT smoothing",
         display_name="LUT Smoothing",
         ui_type=UITypes.INT_FIELD,
@@ -342,14 +370,6 @@ class ProjectSettingsMetaDataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    SIGMA = IDTMetaData(
-        default_value=16,
-        description="The sigma value used",
-        display_name="Sigma",
-        ui_type=UITypes.INT_FIELD,
-        ui_category=UICategories.STANDARD,
-    )
-
     FILE_TYPE = IDTMetaData(
         default_value="",
         description="The file type of the recorded footage is detected from "
@@ -403,7 +423,6 @@ class ProjectSettingsMetaDataConstants:
         CLEAN_UP,
         REFERENCE_COLOUR_CHECKER,
         ILLUMINANT,
-        SIGMA,
         FILE_TYPE,
         EV_WEIGHTS,
         OPTIMIZATION_KWARGS,

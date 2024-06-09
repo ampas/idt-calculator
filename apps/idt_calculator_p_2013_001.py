@@ -109,7 +109,7 @@ __all__ = [
     "compute_idt_p2013_001",
 ]
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
 """

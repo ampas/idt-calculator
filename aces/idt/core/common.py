@@ -1,21 +1,36 @@
 """
 Common IDT Utilities
 ====================
+
+Define common IDT utilities objects.
 """
 
+from __future__ import annotations
+
 import base64
+import contextlib
 import io
+import logging
+import os
 import re
+import shutil
+import tempfile
+import unicodedata
 import xml.etree.ElementTree as Et
+from functools import partial
+from pathlib import Path
 
 import colour
 import colour_checker_detection
 import cv2
 import matplotlib as mpl
 import numpy as np
+import scipy.stats
+import xxhash
 from colour import (
     SDS_COLOURCHECKERS,
     SDS_ILLUMINANTS,
+    SpectralDistribution,
     sd_to_aces_relative_exposure_values,
 )
 from colour.algebra import euclidean_distance, vector_dot
@@ -24,13 +39,24 @@ from colour.characterisation import (
     optimisation_factory_rawtoaces_v1,
     whitepoint_preserving_matrix,
 )
+from colour.hints import (
+    Any,
+    ArrayLike,
+    Callable,
+    Dict,
+    List,
+    NDArrayBoolean,
+    NDArrayFloat,
+    Sequence,
+    Tuple,
+)
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
 from colour.utilities import as_float_array, zeros
 
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal"
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
 __license__ = "Academy of Motion Picture Arts and Sciences License Terms"
 __maintainer__ = "Academy of Motion Picture Arts and Sciences"
@@ -40,7 +66,6 @@ __status__ = "Production"
 __all__ = [
     "get_sds_colour_checker",
     "get_sds_illuminant",
-    "OPTIMISATION_FACTORIES",
     "SDS_COLORCHECKER_CLASSIC",
     "SD_ILLUMINANT_ACES",
     "SAMPLES_COUNT_DEFAULT",
@@ -52,71 +77,80 @@ __all__ = [
     "error_delta_E",
     "png_compare_colour_checkers",
     "clf_processing_elements",
+    "OPTIMISATION_FACTORIES",
+    "slugify",
+    "list_sub_directories",
+    "mask_outliers",
+    "working_directory",
+    "hash_file",
+    "extract_archive",
+    "sort_exposure_keys",
+    "format_exposure_key",
 ]
 
+LOGGER = logging.getLogger(__name__)
 
-def get_sds_colour_checker(colour_checker_name):
+
+def get_sds_colour_checker(colour_checker_name: str) -> Tuple[SpectralDistribution]:
     """
-    Get the Reference reflectances for the given colour checker
+    Return the reference reflectances for the given colour checker.
 
     Parameters
     ----------
-    colour_checker_name: The name of the colour checker name
+    colour_checker_name
+        Name of the colour checker name.
 
     Returns
     -------
-        SDS_COLORCHECKER : tuple
-
+    :class:`tuple`
+        Reference reflectances.
     """
+
     return tuple(SDS_COLOURCHECKERS[colour_checker_name].values())
 
 
-def get_sds_illuminant(illuminant_name):
+def get_sds_illuminant(illuminant_name: str) -> SpectralDistribution:
     """
-    Get *ACES* reference illuminant spectral distribution, for the given illuminant name
+    Return the *ACES* reference illuminant spectral distribution, for the given
+    illuminant name.
 
     Parameters
     ----------
-    illuminant_name: The name of the illuminant
+    illuminant_name
+        Name of the illuminant.
 
     Returns
     -------
-        SpectralDistribution
-
+    :class:`SpectralDistribution`
     """
+
     return SDS_ILLUMINANTS[illuminant_name]
 
 
-SDS_COLORCHECKER_CLASSIC = get_sds_colour_checker("ISO 17321-1")
+SDS_COLORCHECKER_CLASSIC: Tuple[SpectralDistribution] = get_sds_colour_checker(
+    "ISO 17321-1"
+)
 """
 Reference reflectances for the *ColorChecker Classic*.
-
-SDS_COLORCHECKER_CLASSIC : tuple
 """
 
-SD_ILLUMINANT_ACES = get_sds_illuminant("D60")
+SD_ILLUMINANT_ACES: SpectralDistribution = get_sds_illuminant("D60")
 """
 *ACES* reference illuminant spectral distribution,
 i.e. ~*CIE Illuminant D Series D60*.
-
-SD_ILLUMINANT_ACES : SpectralDistribution
 """
 
-SAMPLES_COUNT_DEFAULT = 24
+SAMPLES_COUNT_DEFAULT: int = 24
 """
 Default samples count.
-
-SAMPLES_COUNT_DEFAULT : int
 """
 
-SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC = (
+SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC: Dict = (
     colour_checker_detection.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.copy()
 )
 """
 Settings for the segmentation of the *X-Rite* *ColorChecker Classic* and
 *X-Rite* *ColorChecker Passport* for a typical *Prosumer Camera* shoot.
-
-SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC : dict
 """
 
 SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
@@ -135,10 +169,10 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
 
 
 def generate_reference_colour_checker(
-    sds=SDS_COLORCHECKER_CLASSIC,
-    illuminant=SD_ILLUMINANT_ACES,
+    sds: Tuple[SpectralDistribution] = SDS_COLORCHECKER_CLASSIC,
+    illuminant: SpectralDistribution = SD_ILLUMINANT_ACES,
     chromatic_adaptation_transform="CAT02",
-):
+) -> NDArrayFloat:
     """
     Generate the reference *ACES* *RGB* values for the *ColorChecker Classic*.
 
@@ -154,7 +188,7 @@ def generate_reference_colour_checker(
 
     Returns
     -------
-    NDArray
+    :class:`np.ndarray`
         Reference *ACES* *RGB* values.
     """
 
@@ -170,20 +204,18 @@ def generate_reference_colour_checker(
     )
 
 
-RGB_COLORCHECKER_CLASSIC_ACES = generate_reference_colour_checker()
+RGB_COLORCHECKER_CLASSIC_ACES: NDArrayFloat = generate_reference_colour_checker()
 """
 Reference *ACES* *RGB* values for the *ColorChecker Classic*.
-
-RGB_COLORCHECKER_CLASSIC_ACES : NDArray
 """
 
 
-def optimisation_factory_Oklab():
+def optimisation_factory_Oklab() -> Tuple[NDArrayFloat, Callable, Callable, Callable]:
     """
     Produce the objective function and *CIE XYZ* colourspace to optimisation
     colourspace/colour model function based on the *Oklab* colourspace.
 
-    The objective function returns the euclidean distance between the training
+    The objective function returns the Euclidean distance between the training
     data *RGB* tristimulus values and the training data *CIE XYZ* tristimulus
     values** in the *Oklab* colourspace.
 
@@ -241,12 +273,12 @@ finaliser_function at 0x...>)
     )
 
 
-def optimisation_factory_IPT():
+def optimisation_factory_IPT() -> Tuple[NDArrayFloat, Callable, Callable, Callable]:
     """
     Produce the objective function and *CIE XYZ* colourspace to optimisation
     colourspace/colour model function based on the *IPT* colourspace.
 
-    The objective function returns the euclidean distance between the training
+    The objective function returns the Euclidean distance between the training
     data *RGB* tristimulus values and the training data *CIE XYZ* tristimulus
     values** in the *IPT* colourspace.
 
@@ -304,21 +336,23 @@ finaliser_function at 0x...>)
     )
 
 
-def error_delta_E(samples_test, samples_reference):
+def error_delta_E(
+    samples_test: ArrayLike, samples_reference: ArrayLike
+) -> NDArrayFloat:
     """
     Compute the difference :math:`\\Delta E_{00}` between two given *RGB*
     colourspace arrays.
 
     Parameters
     ----------
-    samples_test : array_like
+    samples_test
         Test samples.
-    samples_reference : array_like
+    samples_reference
         Reference samples.
 
     Returns
     -------
-    NDArray
+    :class:`np.ndarray`
         :math:`\\Delta E_{00}`.
     """
 
@@ -340,17 +374,19 @@ def error_delta_E(samples_test, samples_reference):
     return colour.delta_E(Lab_test, Lab_reference)
 
 
-def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
+def png_compare_colour_checkers(
+    samples_test: ArrayLike, samples_reference: ArrayLike, columns: int = 6
+) -> str:
     """
     Return the colour checkers comparison as *PNG* data.
 
     Parameters
     ----------
-    samples_test : array_like
+    samples_test
         Test samples.
-    samples_reference : array_like
+    samples_reference
         Reference samples.
-    columns : integer, optional
+    columns
         Number of columns for the colour checkers comparison.
 
     Returns
@@ -379,36 +415,36 @@ def png_compare_colour_checkers(samples_test, samples_reference, columns=6):
 
 
 def clf_processing_elements(
-    root,
-    matrix,
-    multipliers,
-    k_factor,
-    use_range=True,
-):
+    root: Et.Element,
+    matrix: ArrayLike,
+    multipliers: ArrayLike,
+    k_factor: float,
+    use_range: bool = True,
+) -> Et.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
     multipliers and exposure factor :math:`k` to given *XML* sub-element.
 
     Parameters
     ----------
-    matrix : ArrayLike
+    matrix
         *IDT* matrix.
-    multipliers : ArrayLike
+    multipliers
         *IDT* multipliers.
-    k_factor : float
+    k_factor
         Exposure factor :math:`k` that results in a nominally "18% gray" object
         in the scene producing ACES values [0.18, 0.18, 0.18].
-    use_range : bool
+    use_range
         Whether to use the range node to clamp the graph before the exposure
         factor :math:`k`.
 
     Returns
     -------
-    Et.SubElement
+    :class:`Et.SubElement`
         *XML* sub-element.
     """
 
-    def format_array(a):
+    def format_array(a: NDArrayFloat) -> str:
         """Format given array :math:`a`."""
 
         return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
@@ -449,7 +485,7 @@ def clf_processing_elements(
     return root
 
 
-OPTIMISATION_FACTORIES = {
+OPTIMISATION_FACTORIES: Dict = {
     "Oklab": optimisation_factory_Oklab,
     "JzAzBz": optimisation_factory_Jzazbz,
     "IPT": optimisation_factory_IPT,
@@ -457,6 +493,231 @@ OPTIMISATION_FACTORIES = {
 }
 """
 Optimisation factories.
-
-OPTIMISATION_FACTORIES : dict
 """
+
+
+def slugify(object_: Any, allow_unicode: bool = False) -> str:
+    """
+    Generate a *SEO* friendly and human-readable slug from given object.
+
+    Convert to ASCII if ``allow_unicode`` is *False*. Convert spaces or
+    repeated dashes to single dashes. Remove characters that aren't
+    alphanumerics, underscores, or hyphens. Convert to lowercase. Also strip
+    leading and trailing whitespace, dashes, and underscores.
+
+    Parameters
+    ----------
+    object_
+        Object to convert to a slug.
+    allow_unicode
+        Whether to allow unicode characters in the generated slug.
+
+    Returns
+    -------
+    :class:`str`
+        Generated slug.
+
+    References
+    ----------
+    -   https://github.com/django/django/blob/\
+0dd29209091280ccf34e07c9468746c396b7778e/django/utils/text.py#L400
+
+    Examples
+    --------
+    >>> slugify(
+    ...     " Jack & Jill like numbers 1,2,3 and 4 and silly characters ?%.$!/"
+    ... )
+    'jack-jill-like-numbers-123-and-4-and-silly-characters'
+    """
+
+    value = str(object_)
+
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
+def list_sub_directories(
+    directory: str,
+    filterers: Sequence[Callable] = (
+        lambda path: "__MACOSX" not in path.name,
+        lambda path: path.is_dir(),
+    ),
+) -> List[str]:
+    """
+    List the sub-directories in given directory.
+
+    Parameters
+    ----------
+    directory
+        Directory to list the sub-directories from.
+    filterers
+        List of callables used to filter the sub-directories, each callable
+        takes a :class:`Path` class instance as argument and returns whether to
+        include or exclude the sub-directory as a bool.
+
+    Returns
+    -------
+    :class:`list`
+        Sub-directories in given directory.
+    """
+
+    sub_directories = [
+        path
+        for path in Path(directory).iterdir()
+        if all(filterer(path) for filterer in filterers)
+    ]
+
+    return sub_directories
+
+
+def mask_outliers(
+    a: ArrayLike, axis: None | int = None, z_score: int = 3
+) -> NDArrayBoolean:
+    """
+    Return the mask for the outliers of given array :math:`a` using the
+    z-score.
+
+    Parameters
+    ----------
+    a
+        Array :math:`a` to return the outliers mask of.
+    axis
+        Axis along which to operate. Default is 0. If None, compute over
+        the whole array `a`.
+    z_score
+        z-score threshold to mask the outliers.
+
+    Returns
+    -------
+    :class:`np.ndarray`
+        Mask for the outliers of given array :math:`a`.
+    """
+
+    return np.abs(scipy.stats.zscore(a, axis=axis)) > z_score
+
+
+@contextlib.contextmanager
+def working_directory(directory: str) -> None:
+    """
+    Define a context manager that temporarily sets the current working
+    directory.
+
+    Parameters
+    ----------
+    directory
+        Current working directory to set.
+    """
+
+    current_working_directory = os.getcwd()
+    try:
+        os.chdir(directory)
+        yield
+    finally:
+        os.chdir(current_working_directory)
+
+
+def hash_file(path: str) -> str:
+    """
+    Hash the file a given path.
+
+    Parameters
+    ----------
+    path
+        Path to the file to hash.
+
+    Returns
+    -------
+    :class:`str`
+        File hash.
+    """
+
+    with open(path, "rb") as input_file:
+        x = xxhash.xxh3_64()
+        for chunk in iter(partial(input_file.read, 2**32), b""):
+            x.update(chunk)
+
+        return x.hexdigest()
+
+
+def extract_archive(archive: str, directory: None | str = None) -> str:
+    """
+    Extract the archive to the given directory or a temporary directory.
+
+    Parameters
+    ----------
+    archive : str
+        Archive to extract.
+    directory : str, optional known directory
+
+    Returns
+    -------
+    :class:`str`
+        Extracted directory.
+    """
+
+    if not directory:
+        directory = (
+            tempfile.TemporaryDirectory().name if directory is None else directory
+        )
+
+    LOGGER.info(
+        'Extracting "%s" archive to "%s"...',
+        archive,
+        directory,
+    )
+
+    shutil.unpack_archive(archive, directory)
+    return directory
+
+
+def sort_exposure_keys(key: str) -> float:
+    """
+    Sort the data keys based on the +/- exposure.
+
+    Parameters
+    ----------
+    key
+        The key value for the exposure
+
+    Returns
+    -------
+    :class`float`
+        The sorted exposure key
+    """
+
+    # Allow for the removal of non-numeric characters while
+    # keeping negative sign and decimal point
+    return float(re.sub(r"[^\d.-]+", "", key))
+
+
+def format_exposure_key(key: str) -> str:
+    """
+    Format the exposure keys for serialization, so they encompass the "+" symbol.
+
+    Parameters
+    ----------
+    key
+        The key value for the exposure
+
+    Returns
+    -------
+    :class`str`
+        The key value with or without the + symbol
+    """
+
+    # Format keys to add '+' prefix for positive keys
+    key_float = float(re.sub(r"[^\d.-]+", "", key))
+    if key_float > 0:
+        return f"+{key_float:g}"
+    else:
+        return f"{key_float:g}"

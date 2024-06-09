@@ -27,9 +27,7 @@ from dash_bootstrap_components import (
     Tooltip,
 )
 
-from aces.idt import (
-    clf_processing_elements,
-)
+from aces.idt import OPTIMISATION_FACTORIES, clf_processing_elements
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
 __copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
@@ -68,8 +66,6 @@ __all__ = [
     "format_vector_dctl",
     "format_idt_clf",
 ]
-
-from aces.idt.core.common import OPTIMISATION_FACTORIES
 
 COLOUR_ENVIRONMENT = None
 """
@@ -311,7 +307,6 @@ Display colourspaces.
 
 OPTIONS_DISPLAY_COLOURSPACES : list
 """
-
 
 DELAY_TOOLTIP_DEFAULT = {"show": 500, "hide": 125}
 """

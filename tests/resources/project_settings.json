@@ -15,7 +15,7 @@
   "iso": 800,
   "lighting_setup_description": "",
   "lut_size": 1024,
-  "lut_smoothing": 32,
+  "lut_smoothing": 16,
   "optimisation_space": "Oklab",
   "rgb_display_colourspace": "sRGB",
   "temperature": 5600

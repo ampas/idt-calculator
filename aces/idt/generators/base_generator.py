@@ -2,6 +2,7 @@
 Module holds a common base generator class for which all other IDT generators inherit
 from
 """
+
 import base64
 import io
 import logging
@@ -28,12 +29,27 @@ from colour_checker_detection.detection import (
 )
 from matplotlib import pyplot as plt
 
-from aces.idt import clf_processing_elements
-from aces.idt.core import common
-from aces.idt.core.constants import DataFolderStructure
-from aces.idt.core.utilities import mask_outliers, working_directory
+from aces.idt.core import (
+    SAMPLES_COUNT_DEFAULT,
+    SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+    DataFolderStructure,
+    clf_processing_elements,
+    mask_outliers,
+    working_directory,
+)
 
-logger = logging.getLogger(__name__)
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "IDTBaseGenerator",
+]
+
+LOGGER = logging.getLogger(__name__)
 
 
 class IDTBaseGenerator(ABC):
@@ -239,9 +255,9 @@ class IDTBaseGenerator(ABC):
         Sample the images from the *IDT* specification.
         """
 
-        logger.info('Sampling "IDT" specification images...')
+        LOGGER.info('Sampling "IDT" specification images...')
 
-        settings = Structure(**common.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC)
+        settings = Structure(**SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC)
         working_width = settings.working_width
         working_height = settings.working_height
 
@@ -268,7 +284,7 @@ class IDTBaseGenerator(ABC):
                 self.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys()
             )
             self._baseline_exposure = EVs[len(EVs) // 2]
-            logger.warning(
+            LOGGER.warning(
                 "Baseline exposure is different from zero: %s", self._baseline_exposure
             )
 
@@ -277,7 +293,7 @@ class IDTBaseGenerator(ABC):
         ]
 
         with working_directory(self.project_settings.working_directory):
-            logger.info(
+            LOGGER.info(
                 'Reading EV "%s" baseline exposure "ColourChecker" from "%s"...',
                 self._baseline_exposure,
                 paths[0],
@@ -292,7 +308,7 @@ class IDTBaseGenerator(ABC):
         ) = segmenter_default(
             image,
             additional_data=True,
-            **common.SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+            **SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
         ).values
 
         quadrilateral = rectangles[0]
@@ -306,7 +322,7 @@ class IDTBaseGenerator(ABC):
         )
 
         data_detection_colour_checker_EV0 = sample_colour_checker(
-            image, quadrilateral, rectangle, common.SAMPLES_COUNT_DEFAULT, **settings
+            image, quadrilateral, rectangle, SAMPLES_COUNT_DEFAULT, **settings
         )
 
         # Disabling orientation as we now have an oriented quadrilateral
@@ -318,14 +334,14 @@ class IDTBaseGenerator(ABC):
             self._samples_analysis["flatfield"] = {"samples_sequence": []}
             for path in self.project_settings.data.get("flatfield", []):
                 with working_directory(self.working_directory):
-                    logger.info('Reading flatfield image from "%s"...', path)
+                    LOGGER.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
                 data_detection_flatfield = sample_colour_checker(
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    common.SAMPLES_COUNT_DEFAULT,
+                    SAMPLES_COUNT_DEFAULT,
                     **settings,
                 )
 
@@ -364,14 +380,14 @@ class IDTBaseGenerator(ABC):
                 DataFolderStructure.GREY_CARD, []
             ):
                 with working_directory(self.project_settings.working_directory):
-                    logger.info('Reading grey card image from "%s"...', path)
+                    LOGGER.info('Reading grey card image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
                 data_detection_grey_card = sample_colour_checker(
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    common.SAMPLES_COUNT_DEFAULT,
+                    SAMPLES_COUNT_DEFAULT,
                     **settings_grey_card,
                 )
 
@@ -437,7 +453,7 @@ class IDTBaseGenerator(ABC):
                 EV
             ]:
                 with working_directory(self.project_settings.working_directory):
-                    logger.info(
+                    LOGGER.info(
                         'Reading EV "%s" "ColourChecker" from "%s"...',
                         EV,
                         path,
@@ -449,7 +465,7 @@ class IDTBaseGenerator(ABC):
                     image,
                     data_detection_colour_checker_EV0.quadrilateral,
                     rectangle,
-                    common.SAMPLES_COUNT_DEFAULT,
+                    SAMPLES_COUNT_DEFAULT,
                     **settings,
                 )
 
@@ -495,7 +511,7 @@ class IDTBaseGenerator(ABC):
             Reference *ACES* *RGB* values for the *ColorChecker Classic*.
         """
 
-        logger.info("Sorting camera and reference samples...")
+        LOGGER.info("Sorting camera and reference samples...")
         ref_col_checker = self.project_settings.get_reference_colour_checker_samples()
         samples_camera = []
         samples_reference = []
@@ -558,7 +574,7 @@ class IDTBaseGenerator(ABC):
         #  for us to write it out
         information = information or {}
 
-        logger.info(
+        LOGGER.info(
             'Zipping the "CLF" resulting from the "IDT" generation '
             'process in "%s" output directory using given information: "%s".',
             output_directory,
@@ -606,7 +622,7 @@ class IDTBaseGenerator(ABC):
             *CLF* file path.
         """
 
-        logger.info(
+        LOGGER.info(
             'Converting "IDT" generation process data to "CLF" in "%s"'
             'output directory using given information: "%s".',
             output_directory,

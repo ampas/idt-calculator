@@ -8,13 +8,23 @@ from typing import Optional
 
 from colour.utilities import attest
 
-from aces.idt.core import utilities
+import aces.idt.core.common
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
-logger = logging.getLogger(__name__)
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "IDTGeneratorApplication",
+]
+LOGGER = logging.getLogger(__name__)
 
 
 class IDTGeneratorApplication:
@@ -97,8 +107,8 @@ class IDTGeneratorApplication:
         directory : str, optional
             Known directory we want to extract the archive to
         """
-        directory = utilities.extract_archive(archive, directory)
-        extracted_directories = utilities.list_sub_directories(directory)
+        directory = aces.idt.core.common.extract_archive(archive, directory)
+        extracted_directories = aces.idt.core.common.list_sub_directories(directory)
         root_directory = extracted_directories[0]
 
         json_files = list(root_directory.glob("*.json"))
@@ -106,12 +116,12 @@ class IDTGeneratorApplication:
             raise ValueError("Multiple JSON files found in the root directory.")
 
         elif len(json_files) == 1:
-            logger.info(
+            LOGGER.info(
                 'Found explicit "%s" "IDT" project settings file.', json_files[0]
             )
             self.project_settings = IDTProjectSettings.from_file(json_files[0])
         else:
-            logger.info('Assuming implicit "IDT" specification...')
+            LOGGER.info('Assuming implicit "IDT" specification...')
             self.project_settings.camera_model = Path(archive).stem
             self._update_data_from_file_structure(root_directory)
 

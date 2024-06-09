@@ -6,11 +6,11 @@ import os
 
 import numpy as np
 from colour.constants import TOLERANCE_ABSOLUTE_TESTS
-from test_utils import TestIDTBase
 
 from aces.idt.application import IDTGeneratorApplication
 from aces.idt.core.constants import DataFolderStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
+from tests.test_utils import TestIDTBase
 
 
 class TestIDTApplication(TestIDTBase):

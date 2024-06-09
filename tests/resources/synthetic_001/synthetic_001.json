@@ -20,12 +20,11 @@
     "ev_range": [-1.0, 0.0, 1.0],
     "grey_card_reference": [0.18, 0.18, 0.18],
     "lut_size": 1024,
-    "lut_smoothing": 32,
+    "lut_smoothing": 16,
     "working_directory": "",
     "cleanup": false,
     "reference_colour_checker": "ISO 17321-1",
     "illuminant": "D60",
-    "sigma": 16,
     "file_type": "",
     "ev_weights": [],
     "optimization_kwargs": {}

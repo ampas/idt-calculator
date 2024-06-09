@@ -5,25 +5,46 @@ serialization, loading and saving of a project.
 from __future__ import annotations
 
 import os
-from collections import OrderedDict
 
+from colour.hints import Dict, List, NDArrayFloat
 from colour.utilities import multiline_str
 
-from aces.idt.core import common
-from aces.idt.core.common import OPTIMISATION_FACTORIES
-from aces.idt.core.constants import DataFolderStructure
-from aces.idt.core.constants import ProjectSettingsMetaDataConstants as PsMdC
-from aces.idt.core.structures import BaseSerializable, idt_metadata_property
-from aces.idt.core.utilities import format_exposure_key, sort_exposure_keys
+from aces.idt.core import (
+    OPTIMISATION_FACTORIES,
+    BaseSerializable,
+    DataFolderStructure,
+)
+from aces.idt.core import ProjectSettingsMetadataConstants as MetadataConstants
+from aces.idt.core import (
+    format_exposure_key,
+    generate_reference_colour_checker,
+    get_sds_colour_checker,
+    get_sds_illuminant,
+    idt_metadata_property,
+    sort_exposure_keys,
+)
+
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "IDTProjectSettings",
+]
 
 
 class IDTProjectSettings(BaseSerializable):
-    """Class which holds the project settings for the IDT maker. The order the
-    properties are created is the order they are serialized and deserialized.
+    """
+    Hold the project settings for the *IDT* application. The order the
+    properties are defined is the order they are serialized and deserialized.
     """
 
     def __init__(self):
         super().__init__()
+
         self._schema_version = IDTProjectSettings.schema_version.metadata.default_value
         self._aces_transform_id = (
             IDTProjectSettings.aces_transform_id.metadata.default_value
@@ -76,421 +97,448 @@ class IDTProjectSettings(BaseSerializable):
             IDTProjectSettings.reference_colour_checker.metadata.default_value
         )
         self._illuminant = IDTProjectSettings.illuminant.metadata.default_value
-        self._sigma = IDTProjectSettings.sigma.metadata.default_value
         self._file_type = IDTProjectSettings.file_type.metadata.default_value
         self._ev_weights = IDTProjectSettings.ev_weights.metadata.default_value
         self._optimization_kwargs = (
             IDTProjectSettings.optimization_kwargs.metadata.default_value
         )
 
-    @idt_metadata_property(metadata=PsMdC.SCHEMA_VERSION)
-    def schema_version(self):
-        """Return the schema version
+    @idt_metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
+    def schema_version(self) -> str:
+        """
+        Return the schema version.
 
         Returns
         -------
-        str
+        :class:`str`
             The project settings schema version
-
         """
+
         return self._schema_version
 
-    @idt_metadata_property(metadata=PsMdC.ACES_TRANSFORM_ID)
-    def aces_transform_id(self):
-        """Return the aces transform id
+    @idt_metadata_property(metadata=MetadataConstants.ACES_TRANSFORM_ID)
+    def aces_transform_id(self) -> str:
+        """
+        Return the *ACEStransformID*.
 
         Returns
         -------
-        str
-            The ACES transform ID
-
+        :class:`str`
+            *ACEStransformID*.
         """
+
         return self._aces_transform_id
 
-    @idt_metadata_property(metadata=PsMdC.ACES_USER_NAME)
-    def aces_user_name(self):
-        """Return the aces user name
+    @idt_metadata_property(metadata=MetadataConstants.ACES_USER_NAME)
+    def aces_user_name(self) -> str:
+        """Return the *ACESuserName*.
 
         Returns
         -------
-        str
-            The ACES user name
-
+        :class:`str`
+           *ACESuserName*.
         """
+
         return self._aces_user_name
 
-    @idt_metadata_property(metadata=PsMdC.CAMERA_MAKE)
-    def camera_make(self):
-        """Return the camera make
+    @idt_metadata_property(metadata=MetadataConstants.CAMERA_MAKE)
+    def camera_make(self) -> str:
+        """
+        Return the camera make.
 
         Returns
         -------
-        str
-            The camera make
-
+        :class:`str`
+            Camera make.
         """
+
         return self._camera_make
 
-    @idt_metadata_property(metadata=PsMdC.CAMERA_MODEL)
-    def camera_model(self):
-        """Return the camera model
+    @idt_metadata_property(metadata=MetadataConstants.CAMERA_MODEL)
+    def camera_model(self) -> str:
+        """
+        Return the camera model.
 
         Returns
         -------
-        str
-            The camera model
-
+        :class:`str`
+            Camera model.
         """
+
         return self._camera_model
 
-    @idt_metadata_property(metadata=PsMdC.ISO)
-    def iso(self):
-        """Return the ISO
+    @idt_metadata_property(metadata=MetadataConstants.ISO)
+    def iso(self) -> int:
+        """
+        Return the camera ISO value.
 
         Returns
         -------
-        int
-            The ISO
-
+        :class:`int`
+            Camera ISO value.
         """
+
         return self._iso
 
-    @idt_metadata_property(metadata=PsMdC.TEMPERATURE)
-    def temperature(self):
-        """Return the colour temperature in kelvin
+    @idt_metadata_property(metadata=MetadataConstants.TEMPERATURE)
+    def temperature(self) -> int:
+        """Return the camera white-balance colour temperature in Kelvin degrees.
 
         Returns
         -------
-        int
-            The temperature
-
+        :class:`int`
+            Camera white-balance colour temperature in Kelvin degrees.
         """
         return self._temperature
 
-    @idt_metadata_property(metadata=PsMdC.ADDITIONAL_CAMERA_SETTINGS)
-    def additional_camera_settings(self):
-        """Return the additional camera settings
+    @idt_metadata_property(metadata=MetadataConstants.ADDITIONAL_CAMERA_SETTINGS)
+    def additional_camera_settings(self) -> str:
+        """Return the additional camera settings.
 
         Returns
         -------
-        str
-            The additional camera settings
-
+        :class:`str`
+            Additional camera settings.
         """
+
         return self._additional_camera_settings
 
-    @idt_metadata_property(metadata=PsMdC.LIGHTING_SETUP_DESCRIPTION)
-    def lighting_setup_description(self):
-        """Return the lighting setup description
+    @idt_metadata_property(metadata=MetadataConstants.LIGHTING_SETUP_DESCRIPTION)
+    def lighting_setup_description(self) -> str:
+        """
+        Return the lighting setup description.
 
         Returns
         -------
-        str
-            The lighting setup description
-
+        :class:`str`
+            Lighting setup description.
         """
+
         return self._lighting_setup_description
 
-    @idt_metadata_property(metadata=PsMdC.DEBAYERING_PLATFORM)
-    def debayering_platform(self):
-        """Return the debayering platform
+    @idt_metadata_property(metadata=MetadataConstants.DEBAYERING_PLATFORM)
+    def debayering_platform(self) -> str:
+        """
+        Return the debayering platform name.
 
         Returns
         -------
-        str
-            The debayering platform
-
+        :class:`str`
+            Debayering platform name.
         """
+
         return self._debayering_platform
 
-    @idt_metadata_property(metadata=PsMdC.DEBAYERING_SETTINGS)
-    def debayering_settings(self):
-        """Return the debayering settings settings
+    @idt_metadata_property(metadata=MetadataConstants.DEBAYERING_SETTINGS)
+    def debayering_settings(self) -> str:
+        """
+        Return the debayering platform settings.
 
         Returns
         -------
-        str
-            The debayering settings
-
+        :class:`str`
+            The debayering platform settings
         """
+
         return self._debayering_settings
 
-    @idt_metadata_property(metadata=PsMdC.ENCODING_COLOUR_SPACE)
-    def encoding_colourspace(self):
-        """Return the encoding colour space
+    @idt_metadata_property(metadata=MetadataConstants.ENCODING_COLOUR_SPACE)
+    def encoding_colourspace(self) -> str:
+        """
+        Return the encoding colour space.
 
         Returns
         -------
-        str
-            The encoding colour space
-
+        :class:`str`
+            Encoding colour space.
         """
+
         return self._encoding_colourspace
 
-    @idt_metadata_property(metadata=PsMdC.RGB_DISPLAY_COLOURSPACE)
-    def rgb_display_colourspace(self):
-        """Return the rgb display colour space
+    @idt_metadata_property(metadata=MetadataConstants.RGB_DISPLAY_COLOURSPACE)
+    def rgb_display_colourspace(self) -> str:
+        """
+        Return the *RGB* display colour space.
 
         Returns
         -------
-        str
-            The RGB display colourspace
-
+        :class:`str`
+            *RGB* display colourspace.
         """
+
         return self._rgb_display_colourspace
 
-    @idt_metadata_property(metadata=PsMdC.CAT)
-    def cat(self):
-        """Return the name of the CAT
+    @idt_metadata_property(metadata=MetadataConstants.CAT)
+    def cat(self) -> str:
+        """Return the chromatic adaptation transform name.
 
         Returns
         -------
-        str
-            The CAT
-
+        :class:`str`
+            Chromatic adaptation transform name.
         """
+
         return self._cat
 
-    @idt_metadata_property(metadata=PsMdC.OPTIMISATION_SPACE)
-    def optimisation_space(self):
-        """Return the optimisation space
+    @idt_metadata_property(metadata=MetadataConstants.OPTIMISATION_SPACE)
+    def optimisation_space(self) -> str:
+        """
+        Return the optimisation space name.
 
         Returns
         -------
-        str
-            The optimisation space
-
+        :class:`str`
+            Optimisation space name
         """
+
         return self._optimisation_space
 
-    @idt_metadata_property(metadata=PsMdC.ILLUMINANT_INTERPOLATOR)
-    def illuminant_interpolator(self):
-        """Return the illuminant interpolator
+    @idt_metadata_property(metadata=MetadataConstants.ILLUMINANT_INTERPOLATOR)
+    def illuminant_interpolator(self) -> str:
+        """
+        Return the illuminant interpolator name.
 
         Returns
         -------
-        str
-            The illuminant interpolator
-
+        :class:`str`
+            Illuminant interpolator name.
         """
+
         return self._illuminant_interpolator
 
-    @idt_metadata_property(metadata=PsMdC.DECODING_METHOD)
-    def decoding_method(self):
-        """Return the decoding method
+    @idt_metadata_property(metadata=MetadataConstants.DECODING_METHOD)
+    def decoding_method(self) -> str:
+        """
+        Return the decoding method name.
 
         Returns
         -------
-        str
-            The decoding method
-
+        :class:`str`
+            Decoding method name.
         """
+
         return self._decoding_method
 
-    @idt_metadata_property(metadata=PsMdC.EV_RANGE)
-    def ev_range(self):
-        """Return the ev range
+    @idt_metadata_property(metadata=MetadataConstants.EV_RANGE)
+    def ev_range(self) -> List:
+        """
+        Return the EV range.
 
         Returns
         -------
-        list
-            The EV range
-
+        :class:`list`
+            EV range.
         """
+
         return self._ev_range
 
-    @idt_metadata_property(metadata=PsMdC.GREY_CARD_REFERENCE)
-    def grey_card_reference(self):
-        """Return the grey card reference values
+    @idt_metadata_property(metadata=MetadataConstants.GREY_CARD_REFERENCE)
+    def grey_card_reference(self) -> List:
+        """
+        Return the grey card reference values.
 
         Returns
         -------
-        list
-            The grey card reference
-
+        :class:`list`
+            Grey card reference values.
         """
+
         return self._grey_card_reference
 
-    @idt_metadata_property(metadata=PsMdC.LUT_SIZE)
-    def lut_size(self):
-        """Return the lut size
+    @idt_metadata_property(metadata=MetadataConstants.LUT_SIZE)
+    def lut_size(self) -> int:
+        """
+        Return the *LUT* size.
 
         Returns
         -------
-        int
-            The size of the lut
-
+        :class:`int`
+            Size of the *LUT*.
         """
+
         return self._lut_size
 
-    @idt_metadata_property(metadata=PsMdC.LUT_SMOOTHING)
+    @idt_metadata_property(metadata=MetadataConstants.LUT_SMOOTHING)
     def lut_smoothing(self):
-        """Return the lut smoothing
+        """Return the *LUT* smoothing.
 
         Returns
         -------
-        int
-            The smoothing amount for the lut
-
+        :class:`int`
+            Smoothing amount for the *LUT*.
         """
+
         return self._lut_smoothing
 
-    @idt_metadata_property(metadata=PsMdC.DATA)
-    def data(self):
-        """Return the data structure to hold the image sequences
+    @idt_metadata_property(metadata=MetadataConstants.DATA)
+    def data(self) -> Dict:
+        """
+        Return the data structure holding the image sequences.
 
         Returns
         -------
-        dict
+        :class:`dict`
             The data structure to hold the image sequences
-
         """
+
         return self._data
 
-    @idt_metadata_property(metadata=PsMdC.WORKING_DIR)
-    def working_directory(self):
-        """Return the working directory for the project
+    @idt_metadata_property(metadata=MetadataConstants.WORKING_DIR)
+    def working_directory(self) -> str:
+        """
+        Return the working directory for the project.
 
         Returns
         -------
-        str
-            The working directory for the project
-
+        :class:`str`
+            Working directory for the project.
         """
+
         return self._working_directory
 
-    @idt_metadata_property(metadata=PsMdC.CLEAN_UP)
-    def cleanup(self):
-        """Return whether we want to cleanup the working dir or not
+    @idt_metadata_property(metadata=MetadataConstants.CLEAN_UP)
+    def cleanup(self) -> bool:
+        """
+        Return whether the working directory should be cleaned up.
 
         Returns
         -------
-        bool
-            Whether we are cleaning up the working dir or not
-
+        :class:`bool`
+            Whether the working directory should be cleaned up.
         """
+
         return self._cleanup
 
-    @idt_metadata_property(metadata=PsMdC.REFERENCE_COLOUR_CHECKER)
-    def reference_colour_checker(self):
-        """Return the reference_colour_checker
+    @idt_metadata_property(metadata=MetadataConstants.REFERENCE_COLOUR_CHECKER)
+    def reference_colour_checker(self) -> str:
+        """
+        Return the reference colour checker name.
 
         Returns
         -------
-        NDArray
-            The reference colour checker
+        :class:`str`
+            Reference colour checker name.
         """
+
         return self._reference_colour_checker
 
-    @idt_metadata_property(metadata=PsMdC.ILLUMINANT)
-    def illuminant(self):
-        """Return the illuminant
+    @idt_metadata_property(metadata=MetadataConstants.ILLUMINANT)
+    def illuminant(self) -> str:
+        """
+        Return the illuminant name.
 
         Returns
         -------
-        NDArray
-            The reference illuminant
+        :class:`str`
+            Illuminant name.
         """
+
         return self._illuminant
 
-    @idt_metadata_property(metadata=PsMdC.SIGMA)
-    def sigma(self):
-        """Return the sigma
+    @idt_metadata_property(metadata=MetadataConstants.FILE_TYPE)
+    def file_type(self) -> str:
+        """
+        Return the file type, i.e., file extension.
 
         Returns
         -------
-        int
-            The sigma
+        :class:`str`
+            File type, i.e., file extension.
         """
-        return self._sigma
 
-    @idt_metadata_property(metadata=PsMdC.FILE_TYPE)
-    def file_type(self):
-        """Return the file_type
-
-        Returns
-        -------
-        int
-            The file_type
-        """
         return self._file_type
 
-    @idt_metadata_property(metadata=PsMdC.EV_WEIGHTS)
-    def ev_weights(self):
-        """Return the ev weights
+    @idt_metadata_property(metadata=MetadataConstants.EV_WEIGHTS)
+    def ev_weights(self) -> NDArrayFloat:
+        """
+        Return the *EV* weights.
 
         Returns
         -------
-        np.Array
-            The ev weights to use
+        :class:`np.ndarray`
+            *EV* weights.
         """
+
         return self._ev_weights
 
-    @idt_metadata_property(metadata=PsMdC.OPTIMIZATION_KWARGS)
-    def optimization_kwargs(self):
-        """Return the optimization_kwargs
+    @idt_metadata_property(metadata=MetadataConstants.OPTIMIZATION_KWARGS)
+    def optimization_kwargs(self) -> Dict:
+        """
+        Return the optimization keyword arguments.
 
         Returns
         -------
-        dict
-            The optimization_kwargs used
+        :class:`dict`
+            Optimization keyword arguments.
         """
+
         return self._optimization_kwargs
 
-    def get_reference_colour_checker_samples(self):
-        """Return the reference_colour_checker samples
+    def get_reference_colour_checker_samples(self) -> NDArrayFloat:
+        """
+        Return the reference colour checker samples.
 
         Returns
         -------
-        NDArray
-            The reference colour checker samples
+        :class:`np.ndarray`
+            Reference colour checker samples.
         """
-        return common.generate_reference_colour_checker(
-            common.get_sds_colour_checker(self.reference_colour_checker),
-            common.get_sds_illuminant(self.illuminant),
+
+        return generate_reference_colour_checker(
+            get_sds_colour_checker(self.reference_colour_checker),
+            get_sds_illuminant(self.illuminant),
         )
 
-    def get_optimization_factory(self):
-        """Return the optimisation factory based on the optimisation space
+    def get_optimization_factory(self) -> callable:
+        """
+        Return the optimisation factory based on the optimisation space.
 
         Returns
         -------
-        The optimisation factory
-
+        :class:`callable`
+            Optimisation factory.
         """
-        result = OPTIMISATION_FACTORIES.get(self.optimisation_space, None)
-        if result is None:
-            raise ValueError(f"Optimisation space {self.optimisation_space} not found")
-        return result
+
+        factory = OPTIMISATION_FACTORIES.get(self.optimisation_space)
+
+        if factory is None:
+            raise ValueError(
+                f'Optimisation space "{self.optimisation_space}" was not found!'
+            )
+
+        return factory
 
     def update(self, value: IDTProjectSettings):
-        """Update the project settings with the given value from another project
-        settings
+        """
+        Update the project settings with the given value from another project
+        settings.
 
         Parameters
         ----------
-        value: IDTProjectSettings
-            The project settings to update with
-
+        value
+            The project settings to update with.
         """
+
         if not isinstance(value, IDTProjectSettings):
-            raise TypeError(f"Expected IDTProjectSettings, got {type(value)} instead")
+            raise TypeError(
+                f'Expected an "IDTProjectSettings" type, got "{type(value)}" instead!'
+            )
 
         for name, prop in value.properties:
-            value2 = prop.getter(value)
-            setattr(self, name, value2)
+            setattr(self, name, prop.getter(value))
 
     @classmethod
-    def from_folder(cls, project_name, folder_path):
-        """Create a new project settings for a given folder on disk and build the data
-        structure based on the files on disk
+    def from_folder(cls, project_name: str, folder_path: str) -> str:
+        """
+        Create a new project settings for a given folder on disk and build the
+        data structure based on the files on disk.
 
         Parameters
         ----------
-        project_name: str
-            The name of the project
+        project_name
+            Name of the project
         folder_path : str
-            The folder path to the project root containing the image sequence folders
+            Folder path to the project root containing the image sequence folders.
         """
 
         instance = cls()
@@ -534,11 +582,10 @@ class IDTProjectSettings(BaseSerializable):
             data[DataFolderStructure.COLOUR_CHECKER], key=sort_exposure_keys
         )
 
-        # Create a new OrderedDict with the sorted keys
-        sorted_colour_checker = OrderedDict(
-            (format_exposure_key(key), data[DataFolderStructure.COLOUR_CHECKER][key])
+        sorted_colour_checker = {
+            format_exposure_key(key): data[DataFolderStructure.COLOUR_CHECKER][key]
             for key in sorted_keys
-        )
+        }
 
         data[DataFolderStructure.COLOUR_CHECKER] = sorted_colour_checker
 
@@ -558,7 +605,7 @@ class IDTProjectSettings(BaseSerializable):
         instance.to_file(output_file)
         return output_file
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a formatted string representation of the project settings.
 
@@ -567,6 +614,7 @@ class IDTProjectSettings(BaseSerializable):
         :class:`str`
             Formatted string representation.
         """
+
         attributes = [
             {
                 "label": super().__repr__(),

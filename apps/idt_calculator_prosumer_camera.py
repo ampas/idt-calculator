@@ -108,7 +108,7 @@ __all__ = [
     "compute_idt_prosumer_camera",
 ]
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 colour.plotting.colour_style()
 
@@ -1206,7 +1206,7 @@ def compute_idt_prosumer_camera(
 
     if _HASH_IDT_ARCHIVE is None:
         _HASH_IDT_ARCHIVE = hash_file(_PATH_UPLOADED_IDT_ARCHIVE)
-        logger.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
+        LOGGER.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
 
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
         _IDT_GENERATOR.extract()
@@ -1297,7 +1297,7 @@ def compute_idt_prosumer_camera(
     )
 
     if _IDT_GENERATOR.baseline_exposure != 0:
-        logger.warning(
+        LOGGER.warning(
             "Compensating display and metric computations for non-zero "
             "baseline exposure!"
         )

@@ -1,9 +1,9 @@
 """
 Unit tests for the common module
 """
-from test_utils import TestIDTBase
 
 from aces.idt.core import common
+from tests.test_utils import TestIDTBase
 
 
 class Test_IDTCommon(TestIDTBase):
