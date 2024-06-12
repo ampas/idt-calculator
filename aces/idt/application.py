@@ -159,10 +159,11 @@ class IDTGeneratorApplication:
                     EV
                 ] = list((colour_checker_directory / exposure_directory).glob("*.*"))
 
-        # TODO Is flatfield used? ive only ever scene colour checker and grey_card used
-        flatfield_directory = root_directory / DirectoryStructure.DATA / "flatfield"
+        flatfield_directory = (
+            root_directory / DirectoryStructure.DATA / DirectoryStructure.FLATFIELD
+        )
         if flatfield_directory.exists():
-            self.project_settings.data["flatfield"] = list(
+            self.project_settings.data[DirectoryStructure.FLATFIELD] = list(
                 flatfield_directory.glob("*.*")
             )
         grey_card_directory = (
@@ -197,18 +198,19 @@ class IDTGeneratorApplication:
                 float(exposure)
             ] = images
 
-        # TODO Is flatfield used? ive only ever scene colour checker and grey_card used
-        if self.project_settings.data.get("flatfield", []):
+        if self.project_settings.data.get(DirectoryStructure.FLATFIELD, []):
             images = [
                 Path(root_directory) / image
-                for image in self.project_settings.data.get("flatfield", [])
+                for image in self.project_settings.data.get(
+                    DirectoryStructure.FLATFIELD, []
+                )
             ]
             for image in images:
                 attest(image.exists())
 
-            self.project_settings.data["flatfield"] = images
+            self.project_settings.data[DirectoryStructure.FLATFIELD] = images
         else:
-            self.project_settings.data["flatfield"] = []
+            self.project_settings.data[DirectoryStructure.FLATFIELD] = []
 
         if self.project_settings.data.get(DirectoryStructure.GREY_CARD, []):
             images = [

@@ -328,11 +328,14 @@ class IDTBaseGenerator(ABC):
         # Disabling orientation as we now have an oriented quadrilateral
         settings.reference_values = None
 
-        # TODO Again are we using this?
         # Flatfield
-        if self.project_settings.data.get("flatfield"):
-            self._samples_analysis["flatfield"] = {"samples_sequence": []}
-            for path in self.project_settings.data.get("flatfield", []):
+        if self.project_settings.data.get(DirectoryStructure.FLATFIELD):
+            self._samples_analysis[DirectoryStructure.FLATFIELD] = {
+                "samples_sequence": []
+            }
+            for path in self.project_settings.data.get(
+                DirectoryStructure.FLATFIELD, []
+            ):
                 with working_directory(self.working_directory):
                     LOGGER.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
@@ -345,24 +348,28 @@ class IDTBaseGenerator(ABC):
                     **settings,
                 )
 
-                self._samples_analysis["flatfield"]["samples_sequence"].append(
-                    data_detection_flatfield.swatch_colours.tolist()
-                )
+                self._samples_analysis[DirectoryStructure.FLATFIELD][
+                    "samples_sequence"
+                ].append(data_detection_flatfield.swatch_colours.tolist())
 
             samples_sequence = as_float_array(
                 [
                     samples[0]
-                    for samples in self._samples_analysis["flatfield"][
+                    for samples in self._samples_analysis[DirectoryStructure.FLATFIELD][
                         "samples_sequence"
                     ]
                 ]
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis["flatfield"]["samples_median"] = np.median(
-                as_float_array(self._samples_analysis["flatfield"]["samples_sequence"])[
-                    mask
-                ],
+            self._samples_analysis[DirectoryStructure.FLATFIELD][
+                "samples_median"
+            ] = np.median(
+                as_float_array(
+                    self._samples_analysis[DirectoryStructure.FLATFIELD][
+                        "samples_sequence"
+                    ]
+                )[mask],
                 (0, 1),
             ).tolist()
 
