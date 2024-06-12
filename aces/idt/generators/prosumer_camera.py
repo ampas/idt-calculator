@@ -32,7 +32,7 @@ from colour.utilities import (
 )
 from scipy.optimize import minimize
 
-from aces.idt.core import DataFolderStructure, DecodingMethods
+from aces.idt.core import DecodingMethods, DirectoryStructure
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
 # TODO are the mpl.use things needed in every file?
@@ -363,9 +363,9 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             )
 
         self._LUT_decoding.name = "LUT - Decoding"
-        if self._samples_analysis[DataFolderStructure.GREY_CARD]:
+        if self._samples_analysis[DirectoryStructure.GREY_CARD]:
             sampled_grey_card_reflectance = self._samples_analysis[
-                DataFolderStructure.GREY_CARD
+                DirectoryStructure.GREY_CARD
             ]["samples_median"]
 
             linear_gain = grey_card_reflectance / self._LUT_decoding.apply(
@@ -387,10 +387,10 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
-        for EV in sorted(self._samples_analysis[DataFolderStructure.COLOUR_CHECKER]):
+        for EV in sorted(self._samples_analysis[DirectoryStructure.COLOUR_CHECKER]):
             self._samples_decoded[EV] = self._LUT_decoding.apply(
                 as_float_array(
-                    self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+                    self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
                         "samples_median"
                     ]
                 )

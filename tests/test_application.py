@@ -8,7 +8,7 @@ import numpy as np
 from colour.constants import TOLERANCE_ABSOLUTE_TESTS
 
 from aces.idt.application import IDTGeneratorApplication
-from aces.idt.core.constants import DataFolderStructure
+from aces.idt.core.constants import DirectoryStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from tests.test_utils import TestIDTBase
 
@@ -49,16 +49,16 @@ class TestIDTApplication(TestIDTBase):
             expected = json.load(file)
 
         colour_checkers_result = generator.samples_analysis.get(
-            DataFolderStructure.COLOUR_CHECKER
+            DirectoryStructure.COLOUR_CHECKER
         )
-        expected_colour_checkers = expected.get(DataFolderStructure.COLOUR_CHECKER)
+        expected_colour_checkers = expected.get(DirectoryStructure.COLOUR_CHECKER)
         for key in colour_checkers_result:
             a = colour_checkers_result[key]
             e = expected_colour_checkers[str(key)]
             self.assertEqual(a, e)
 
-        grey_result = generator.samples_analysis.get(DataFolderStructure.GREY_CARD)
-        grey_expected = expected.get(DataFolderStructure.GREY_CARD)
+        grey_result = generator.samples_analysis.get(DirectoryStructure.GREY_CARD)
+        grey_expected = expected.get(DirectoryStructure.GREY_CARD)
         self.assertEqual(grey_result, grey_expected)
 
     def test_prosumer_generator_sort(self):

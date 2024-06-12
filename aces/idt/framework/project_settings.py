@@ -12,7 +12,7 @@ from colour.utilities import multiline_str
 from aces.idt.core import (
     OPTIMISATION_FACTORIES,
     BaseSerializable,
-    DataFolderStructure,
+    DirectoryStructure,
 )
 from aces.idt.core import ProjectSettingsMetadataConstants as MetadataConstants
 from aces.idt.core import (
@@ -528,31 +528,29 @@ class IDTProjectSettings(BaseSerializable):
             setattr(self, name, prop.getter(value))
 
     @classmethod
-    def from_folder(cls, project_name: str, folder_path: str) -> str:
+    def from_directory(cls, directory: str) -> IDTProjectSettings:
         """
-        Create a new project settings for a given folder on disk and build the
+        Create a new project settings for a given directory on disk and build the
         data structure based on the files on disk.
 
         Parameters
         ----------
-        project_name
-            Name of the project
-        folder_path : str
-            Folder path to the project root containing the image sequence folders.
+        directory : str
+            The directory  to the project root containing the image sequence folders.
         """
 
         instance = cls()
         data = {
-            DataFolderStructure.COLOUR_CHECKER: {},
-            DataFolderStructure.GREY_CARD: [],
+            DirectoryStructure.COLOUR_CHECKER: {},
+            DirectoryStructure.GREY_CARD: [],
         }
 
         # Validate folder paths for colour_checker and grey_card exist
         colour_checker_path = os.path.join(
-            folder_path, DataFolderStructure.DATA, DataFolderStructure.COLOUR_CHECKER
+            directory, DirectoryStructure.DATA, DirectoryStructure.COLOUR_CHECKER
         )
         grey_card_path = os.path.join(
-            folder_path, DataFolderStructure.DATA, DataFolderStructure.GREY_CARD
+            directory, DirectoryStructure.DATA, DirectoryStructure.GREY_CARD
         )
 
         if not os.path.exists(colour_checker_path) or not os.path.exists(
@@ -571,23 +569,23 @@ class IDTProjectSettings(BaseSerializable):
                 if os.path.basename(file).startswith("."):
                     pass
 
-                if exposure_value not in data[DataFolderStructure.COLOUR_CHECKER]:
-                    data[DataFolderStructure.COLOUR_CHECKER][exposure_value] = []
+                if exposure_value not in data[DirectoryStructure.COLOUR_CHECKER]:
+                    data[DirectoryStructure.COLOUR_CHECKER][exposure_value] = []
                 absolute_file_path = os.path.join(root, file)
-                data[DataFolderStructure.COLOUR_CHECKER][exposure_value].append(
-                    os.path.relpath(absolute_file_path, start=folder_path)
+                data[DirectoryStructure.COLOUR_CHECKER][exposure_value].append(
+                    os.path.relpath(absolute_file_path, start=directory)
                 )
 
         sorted_keys = sorted(
-            data[DataFolderStructure.COLOUR_CHECKER], key=sort_exposure_keys
+            data[DirectoryStructure.COLOUR_CHECKER], key=sort_exposure_keys
         )
 
         sorted_colour_checker = {
-            format_exposure_key(key): data[DataFolderStructure.COLOUR_CHECKER][key]
+            format_exposure_key(key): data[DirectoryStructure.COLOUR_CHECKER][key]
             for key in sorted_keys
         }
 
-        data[DataFolderStructure.COLOUR_CHECKER] = sorted_colour_checker
+        data[DirectoryStructure.COLOUR_CHECKER] = sorted_colour_checker
 
         # Populate grey_card data
         for root, _, files in os.walk(grey_card_path):
@@ -596,14 +594,12 @@ class IDTProjectSettings(BaseSerializable):
                 if os.path.basename(file).startswith("."):
                     continue
                 absolute_file_path = os.path.join(root, file)
-                data[DataFolderStructure.GREY_CARD].append(
-                    os.path.relpath(absolute_file_path, start=folder_path)
+                data[DirectoryStructure.GREY_CARD].append(
+                    os.path.relpath(absolute_file_path, start=directory)
                 )
 
         instance.data = data
-        output_file = os.path.join(folder_path, f"{project_name}.json")
-        instance.to_file(output_file)
-        return output_file
+        return instance
 
     def __str__(self) -> str:
         """

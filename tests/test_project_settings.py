@@ -43,8 +43,8 @@ class TestIDTProjectSettings(TestIDTBase):
         json_string_loaded = new_settings.to_json()
         self.assertEqual(json_string, json_string_loaded)
 
-    def test_from_folder(self):
-        """Test creating new project from folder"""
+    def test_from_directory(self):
+        """Test creating new project from directory"""
         expected_file = os.path.join(
             self.get_test_resources_folder(), "example_from_folder.json"
         )
@@ -54,7 +54,8 @@ class TestIDTProjectSettings(TestIDTBase):
         )
 
         folder_path = os.path.join(self.get_test_resources_folder(), "synthetic_001")
-        IDTProjectSettings.from_folder("test_project", folder_path)
+        new_settings = IDTProjectSettings.from_directory(folder_path)
+        new_settings.to_file(actual_file)
 
         with open(actual_file) as actual_handle:
             actual = json.load(actual_handle)

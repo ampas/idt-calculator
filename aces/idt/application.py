@@ -9,7 +9,7 @@ from typing import Optional
 from colour.utilities import attest
 
 import aces.idt.core.common
-from aces.idt.core.constants import DataFolderStructure
+from aces.idt.core.constants import DirectoryStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
 from aces.idt.generators.base_generator import IDTBaseGenerator
@@ -149,29 +149,27 @@ class IDTGeneratorApplication:
 
         """
         colour_checker_directory = (
-            root_directory
-            / DataFolderStructure.DATA
-            / DataFolderStructure.COLOUR_CHECKER
+            root_directory / DirectoryStructure.DATA / DirectoryStructure.COLOUR_CHECKER
         )
         attest(colour_checker_directory.exists())
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
-                self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
                     EV
                 ] = list((colour_checker_directory / exposure_directory).glob("*.*"))
 
         # TODO Is flatfield used? ive only ever scene colour checker and grey_card used
-        flatfield_directory = root_directory / DataFolderStructure.DATA / "flatfield"
+        flatfield_directory = root_directory / DirectoryStructure.DATA / "flatfield"
         if flatfield_directory.exists():
             self.project_settings.data["flatfield"] = list(
                 flatfield_directory.glob("*.*")
             )
         grey_card_directory = (
-            root_directory / DataFolderStructure.DATA / DataFolderStructure.GREY_CARD
+            root_directory / DirectoryStructure.DATA / DirectoryStructure.GREY_CARD
         )
         if grey_card_directory.exists():
-            self.project_settings.data[DataFolderStructure.GREY_CARD] = list(
+            self.project_settings.data[DirectoryStructure.GREY_CARD] = list(
                 flatfield_directory.glob("*.*")
             )
 
@@ -183,19 +181,19 @@ class IDTGeneratorApplication:
         root_directory : Path
         """
         for exposure in list(
-            self.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys()
+            self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
         ):
             images = [
                 Path(root_directory) / image
                 for image in self.project_settings.data[
-                    DataFolderStructure.COLOUR_CHECKER
+                    DirectoryStructure.COLOUR_CHECKER
                 ].pop(exposure)
             ]
 
             for image in images:
                 attest(image.exists())
 
-            self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+            self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
                 float(exposure)
             ] = images
 
@@ -212,19 +210,19 @@ class IDTGeneratorApplication:
         else:
             self.project_settings.data["flatfield"] = []
 
-        if self.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
+        if self.project_settings.data.get(DirectoryStructure.GREY_CARD, []):
             images = [
                 Path(root_directory) / image
                 for image in self.project_settings.data.get(
-                    DataFolderStructure.GREY_CARD, []
+                    DirectoryStructure.GREY_CARD, []
                 )
             ]
             for image in images:
                 attest(image.exists())
 
-            self.project_settings.data[DataFolderStructure.GREY_CARD] = images
+            self.project_settings.data[DirectoryStructure.GREY_CARD] = images
         else:
-            self.project_settings.data[DataFolderStructure.GREY_CARD] = []
+            self.project_settings.data[DirectoryStructure.GREY_CARD] = []
 
     def process_from_archive(self, archive: str):
         """Process the IDT based on the zip archive provided
@@ -264,16 +262,16 @@ class IDTGeneratorApplication:
 
         # Ensuring that exposure values in the specification are floating point numbers.
         for exposure in list(
-            self.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys()
+            self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
         ):
             images = [  # noqa: C416
                 image
                 for image in self.project_settings.data[
-                    DataFolderStructure.COLOUR_CHECKER
+                    DirectoryStructure.COLOUR_CHECKER
                 ].pop(exposure)
             ]
 
-            self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+            self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
                 float(exposure)
             ] = images
 
@@ -291,14 +289,14 @@ class IDTGeneratorApplication:
         """
         file_types = []
         for _, value in self.project_settings.data[
-            DataFolderStructure.COLOUR_CHECKER
+            DirectoryStructure.COLOUR_CHECKER
         ].items():
             for item in value:
                 if not item.exists():
                     raise ValueError(f"File does not exist: {item}")
                 file_types.append(item.suffix)
 
-        for item in self.project_settings.data[DataFolderStructure.GREY_CARD]:
+        for item in self.project_settings.data[DirectoryStructure.GREY_CARD]:
             if not item.exists():
                 raise ValueError(f"File does not exist: {item}")
             file_types.append(item.suffix)

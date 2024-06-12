@@ -24,8 +24,8 @@ from .common import (
 )
 from .constants import (
     CAT,
-    DataFolderStructure,
     DecodingMethods,
+    DirectoryStructure,
     Interpolators,
     LUTSize,
     OptimizationSpace,
@@ -70,7 +70,7 @@ __all__ = [
 
 __all__ += [
     "CAT",
-    "DataFolderStructure",
+    "DirectoryStructure",
     "DecodingMethods",
     "Interpolators",
     "LUTSize",

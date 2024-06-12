@@ -23,7 +23,7 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "DataFolderStructure",
+    "DirectoryStructure",
     "UITypes",
     "UICategories",
     "LUTSize",
@@ -36,8 +36,8 @@ __all__ = [
 ]
 
 
-class DataFolderStructure:
-    """Constants for the folder names which make up the data structure."""
+class DirectoryStructure:
+    """Constants for the directory names which make up the data structure."""
 
     DATA: ClassVar[str] = "data"
     COLOUR_CHECKER: ClassVar[str] = "colour_checker"
@@ -328,8 +328,8 @@ class ProjectSettingsMetadataConstants:
 
     DATA = IDTMetaData(
         default_value={
-            DataFolderStructure.COLOUR_CHECKER: {},
-            DataFolderStructure.GREY_CARD: {},
+            DirectoryStructure.COLOUR_CHECKER: {},
+            DirectoryStructure.GREY_CARD: {},
         },
         description="The folder structure for the ",
         display_name="Folder Structure",

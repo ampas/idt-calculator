@@ -32,7 +32,7 @@ from matplotlib import pyplot as plt
 from aces.idt.core import (
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    DataFolderStructure,
+    DirectoryStructure,
     clf_processing_elements,
     mask_outliers,
     working_directory,
@@ -279,16 +279,16 @@ class IDTBaseGenerator(ABC):
 
         self._samples_analysis = deepcopy(self.project_settings.data)
         # Baseline exposure value, it can be different from zero.
-        if 0 not in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
+        if 0 not in self.project_settings.data[DirectoryStructure.COLOUR_CHECKER]:
             EVs = sorted(
-                self.project_settings.data[DataFolderStructure.COLOUR_CHECKER].keys()
+                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
             )
             self._baseline_exposure = EVs[len(EVs) // 2]
             LOGGER.warning(
                 "Baseline exposure is different from zero: %s", self._baseline_exposure
             )
 
-        paths = self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+        paths = self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
             self._baseline_exposure
         ]
 
@@ -367,8 +367,8 @@ class IDTBaseGenerator(ABC):
             ).tolist()
 
         # Grey Card
-        if self.project_settings.data.get(DataFolderStructure.GREY_CARD, []):
-            self._samples_analysis[DataFolderStructure.GREY_CARD] = {
+        if self.project_settings.data.get(DirectoryStructure.GREY_CARD, []):
+            self._samples_analysis[DirectoryStructure.GREY_CARD] = {
                 "samples_sequence": []
             }
 
@@ -377,7 +377,7 @@ class IDTBaseGenerator(ABC):
             settings_grey_card.swatches_vertical = 1
 
             for path in self.project_settings.data.get(
-                DataFolderStructure.GREY_CARD, []
+                DirectoryStructure.GREY_CARD, []
             ):
                 with working_directory(self.project_settings.working_directory):
                     LOGGER.info('Reading grey card image from "%s"...', path)
@@ -393,25 +393,25 @@ class IDTBaseGenerator(ABC):
 
                 grey_card_colour = np.ravel(data_detection_grey_card.swatch_colours)
 
-                self._samples_analysis[DataFolderStructure.GREY_CARD][
+                self._samples_analysis[DirectoryStructure.GREY_CARD][
                     "samples_sequence"
                 ].append(grey_card_colour.tolist())
 
             samples_sequence = as_float_array(
                 [
                     samples[0]
-                    for samples in self._samples_analysis[
-                        DataFolderStructure.GREY_CARD
-                    ]["samples_sequence"]
+                    for samples in self._samples_analysis[DirectoryStructure.GREY_CARD][
+                        "samples_sequence"
+                    ]
                 ]
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis[DataFolderStructure.GREY_CARD][
+            self._samples_analysis[DirectoryStructure.GREY_CARD][
                 "samples_median"
             ] = np.median(
                 as_float_array(
-                    self._samples_analysis[DataFolderStructure.GREY_CARD][
+                    self._samples_analysis[DirectoryStructure.GREY_CARD][
                         "samples_sequence"
                     ]
                 )[mask],
@@ -443,13 +443,13 @@ class IDTBaseGenerator(ABC):
             )
 
         # ColourChecker Classic Samples per EV
-        self._samples_analysis[DataFolderStructure.COLOUR_CHECKER] = {}
-        for EV in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER]:
-            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV] = {}
-            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+        self._samples_analysis[DirectoryStructure.COLOUR_CHECKER] = {}
+        for EV in self.project_settings.data[DirectoryStructure.COLOUR_CHECKER]:
+            self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV] = {}
+            self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
                 "samples_sequence"
             ] = []
-            for path in self.project_settings.data[DataFolderStructure.COLOUR_CHECKER][
+            for path in self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
                 EV
             ]:
                 with working_directory(self.project_settings.working_directory):
@@ -469,7 +469,7 @@ class IDTBaseGenerator(ABC):
                     **settings,
                 )
 
-                self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+                self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
                     "samples_sequence"
                 ].append(data_detection_colour_checker.swatch_colours.tolist())
 
@@ -477,17 +477,17 @@ class IDTBaseGenerator(ABC):
                 [
                     samples[21]
                     for samples in self._samples_analysis[
-                        DataFolderStructure.COLOUR_CHECKER
+                        DirectoryStructure.COLOUR_CHECKER
                     ][EV]["samples_sequence"]
                 ]
             )
             mask = np.all(~mask_outliers(sequence_neutral_5), axis=-1)
 
-            self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+            self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
                 "samples_median"
             ] = np.median(
                 as_float_array(
-                    self._samples_analysis[DataFolderStructure.COLOUR_CHECKER][EV][
+                    self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
                         "samples_sequence"
                     ]
                 )[mask],
@@ -516,7 +516,7 @@ class IDTBaseGenerator(ABC):
         samples_camera = []
         samples_reference = []
         for EV, images in self._samples_analysis[
-            DataFolderStructure.COLOUR_CHECKER
+            DirectoryStructure.COLOUR_CHECKER
         ].items():
             samples_reference.append(ref_col_checker[-6:, ...] * pow(2, EV))
             samples_EV = as_float_array(images["samples_median"])[-6:, ...]
