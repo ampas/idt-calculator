@@ -11,8 +11,8 @@ from colour.utilities import multiline_str
 
 from aces.idt.core import (
     OPTIMISATION_FACTORIES,
-    BaseSerializable,
     DirectoryStructure,
+    MixinSerializableProperties,
 )
 from aces.idt.core import ProjectSettingsMetadataConstants as MetadataConstants
 from aces.idt.core import (
@@ -20,7 +20,7 @@ from aces.idt.core import (
     generate_reference_colour_checker,
     get_sds_colour_checker,
     get_sds_illuminant,
-    idt_metadata_property,
+    metadata_property,
     sort_exposure_keys,
 )
 
@@ -36,77 +36,141 @@ __all__ = [
 ]
 
 
-class IDTProjectSettings(BaseSerializable):
+class IDTProjectSettings(MixinSerializableProperties):
     """
-    Hold the project settings for the *IDT* application. The order the
-    properties are defined is the order they are serialized and deserialized.
+    Define the project settings for an *IDT* generator.
+
+    The properties are serialized and deserialized in the order they are
+    defined in this class.
+
+    Other Parameters
+    ----------------
+    kwargs
+        Optional keyword arguments used to initialise the project settings.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs: Dict):
         super().__init__()
 
         self._schema_version = IDTProjectSettings.schema_version.metadata.default_value
-        self._aces_transform_id = (
-            IDTProjectSettings.aces_transform_id.metadata.default_value
+
+        self._aces_transform_id = kwargs.get(
+            "aces_transform_id",
+            IDTProjectSettings.aces_transform_id.metadata.default_value,
         )
-        self._aces_user_name = IDTProjectSettings.aces_user_name.metadata.default_value
-        self._camera_make = IDTProjectSettings.camera_make.metadata.default_value
-        self._camera_model = IDTProjectSettings.camera_model.metadata.default_value
-        self._iso = IDTProjectSettings.iso.metadata.default_value
-        self._temperature = IDTProjectSettings.temperature.metadata.default_value
-        self._additional_camera_settings = (
-            IDTProjectSettings.additional_camera_settings.metadata.default_value
+        self._aces_user_name = kwargs.get(
+            "aces_user_name",
+            IDTProjectSettings.aces_user_name.metadata.default_value,
         )
-        self._lighting_setup_description = (
-            IDTProjectSettings.lighting_setup_description.metadata.default_value
+        self._camera_make = kwargs.get(
+            "camera_make",
+            IDTProjectSettings.camera_make.metadata.default_value,
         )
-        self._debayering_platform = (
-            IDTProjectSettings.debayering_platform.metadata.default_value
+        self._camera_model = kwargs.get(
+            "camera_model",
+            IDTProjectSettings.camera_model.metadata.default_value,
         )
-        self._debayering_settings = (
-            IDTProjectSettings.debayering_settings.metadata.default_value
+        self._iso = kwargs.get(
+            "iso",
+            IDTProjectSettings.iso.metadata.default_value,
         )
-        self._encoding_colourspace = (
-            IDTProjectSettings.encoding_colourspace.metadata.default_value
+        self._temperature = kwargs.get(
+            "temperature",
+            IDTProjectSettings.temperature.metadata.default_value,
         )
-        self._rgb_display_colourspace = (
-            IDTProjectSettings.rgb_display_colourspace.metadata.default_value
+        self._additional_camera_settings = kwargs.get(
+            "additional_camera_settings",
+            IDTProjectSettings.additional_camera_settings.metadata.default_value,
         )
-        self._cat = IDTProjectSettings.cat.metadata.default_value
-        self._optimisation_space = (
-            IDTProjectSettings.optimisation_space.metadata.default_value
+        self._lighting_setup_description = kwargs.get(
+            "lighting_setup_description",
+            IDTProjectSettings.lighting_setup_description.metadata.default_value,
         )
-        self._illuminant_interpolator = (
-            IDTProjectSettings.illuminant_interpolator.metadata.default_value
+        self._debayering_platform = kwargs.get(
+            "debayering_platform",
+            IDTProjectSettings.debayering_platform.metadata.default_value,
         )
-        self._decoding_method = (
-            IDTProjectSettings.decoding_method.metadata.default_value
+        self._debayering_settings = kwargs.get(
+            "debayering_settings",
+            IDTProjectSettings.debayering_settings.metadata.default_value,
         )
-        self._ev_range = IDTProjectSettings.ev_range.metadata.default_value
-        self._grey_card_reference = (
-            IDTProjectSettings.grey_card_reference.metadata.default_value
+        self._encoding_colourspace = kwargs.get(
+            "encoding_colourspace",
+            IDTProjectSettings.encoding_colourspace.metadata.default_value,
         )
-        self._lut_size = IDTProjectSettings.lut_size.metadata.default_value
-        self._lut_smoothing = IDTProjectSettings.lut_smoothing.metadata.default_value
-        self._data = IDTProjectSettings.data.metadata.default_value
-        self._working_directory = (
-            IDTProjectSettings.working_directory.metadata.default_value
+        self._rgb_display_colourspace = kwargs.get(
+            "rgb_display_colourspace",
+            IDTProjectSettings.rgb_display_colourspace.metadata.default_value,
         )
-        self._cleanup = IDTProjectSettings.cleanup.metadata.default_value
-        self._reference_colour_checker = (
-            IDTProjectSettings.reference_colour_checker.metadata.default_value
+        self._cat = kwargs.get(
+            "cat",
+            IDTProjectSettings.cat.metadata.default_value,
         )
-        self._illuminant = IDTProjectSettings.illuminant.metadata.default_value
-        self._file_type = IDTProjectSettings.file_type.metadata.default_value
-        self._ev_weights = IDTProjectSettings.ev_weights.metadata.default_value
-        self._optimization_kwargs = (
-            IDTProjectSettings.optimization_kwargs.metadata.default_value
+        self._optimisation_space = kwargs.get(
+            "optimisation_space",
+            IDTProjectSettings.optimisation_space.metadata.default_value,
+        )
+        self._illuminant_interpolator = kwargs.get(
+            "illuminant_interpolator",
+            IDTProjectSettings.illuminant_interpolator.metadata.default_value,
+        )
+        self._decoding_method = kwargs.get(
+            "decoding_method",
+            IDTProjectSettings.decoding_method.metadata.default_value,
+        )
+        self._ev_range = kwargs.get(
+            "ev_range",
+            IDTProjectSettings.ev_range.metadata.default_value,
+        )
+        self._grey_card_reference = kwargs.get(
+            "grey_card_reference",
+            IDTProjectSettings.grey_card_reference.metadata.default_value,
+        )
+        self._lut_size = kwargs.get(
+            "lut_size",
+            IDTProjectSettings.lut_size.metadata.default_value,
+        )
+        self._lut_smoothing = kwargs.get(
+            "lut_smoothing",
+            IDTProjectSettings.lut_smoothing.metadata.default_value,
         )
 
-    @idt_metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
+        self._data = IDTProjectSettings.data.metadata.default_value
+
+        self._working_directory = kwargs.get(
+            "working_directory",
+            IDTProjectSettings.working_directory.metadata.default_value,
+        )
+        self._cleanup = kwargs.get(
+            "cleanup",
+            IDTProjectSettings.cleanup.metadata.default_value,
+        )
+
+        self._reference_colour_checker = kwargs.get(
+            "reference_colour_checker",
+            IDTProjectSettings.reference_colour_checker.metadata.default_value,
+        )
+        self._illuminant = kwargs.get(
+            "illuminant",
+            IDTProjectSettings.illuminant.metadata.default_value,
+        )
+        self._file_type = kwargs.get(
+            "file_type",
+            IDTProjectSettings.file_type.metadata.default_value,
+        )
+        self._ev_weights = kwargs.get(
+            "ev_weights",
+            IDTProjectSettings.ev_weights.metadata.default_value,
+        )
+        self._optimization_kwargs = kwargs.get(
+            "optimization_kwargs",
+            IDTProjectSettings.optimization_kwargs.metadata.default_value,
+        )
+
+    @metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
     def schema_version(self) -> str:
         """
-        Return the schema version.
+        Getter property for the schema version.
 
         Returns
         -------
@@ -116,10 +180,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._schema_version
 
-    @idt_metadata_property(metadata=MetadataConstants.ACES_TRANSFORM_ID)
+    @metadata_property(metadata=MetadataConstants.ACES_TRANSFORM_ID)
     def aces_transform_id(self) -> str:
         """
-        Return the *ACEStransformID*.
+        Getter property for the *ACEStransformID*.
 
         Returns
         -------
@@ -129,9 +193,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._aces_transform_id
 
-    @idt_metadata_property(metadata=MetadataConstants.ACES_USER_NAME)
+    @metadata_property(metadata=MetadataConstants.ACES_USER_NAME)
     def aces_user_name(self) -> str:
-        """Return the *ACESuserName*.
+        """
+        Getter property for the *ACESuserName*.
 
         Returns
         -------
@@ -141,10 +206,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._aces_user_name
 
-    @idt_metadata_property(metadata=MetadataConstants.CAMERA_MAKE)
+    @metadata_property(metadata=MetadataConstants.CAMERA_MAKE)
     def camera_make(self) -> str:
         """
-        Return the camera make.
+        Getter property for the camera make.
 
         Returns
         -------
@@ -154,10 +219,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._camera_make
 
-    @idt_metadata_property(metadata=MetadataConstants.CAMERA_MODEL)
+    @metadata_property(metadata=MetadataConstants.CAMERA_MODEL)
     def camera_model(self) -> str:
         """
-        Return the camera model.
+        Getter property for the camera model.
 
         Returns
         -------
@@ -167,10 +232,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._camera_model
 
-    @idt_metadata_property(metadata=MetadataConstants.ISO)
+    @metadata_property(metadata=MetadataConstants.ISO)
     def iso(self) -> int:
         """
-        Return the camera ISO value.
+        Getter property for the camera ISO value.
 
         Returns
         -------
@@ -180,9 +245,11 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._iso
 
-    @idt_metadata_property(metadata=MetadataConstants.TEMPERATURE)
+    @metadata_property(metadata=MetadataConstants.TEMPERATURE)
     def temperature(self) -> int:
-        """Return the camera white-balance colour temperature in Kelvin degrees.
+        """
+        Getter property for the camera white-balance colour temperature in
+        Kelvin degrees.
 
         Returns
         -------
@@ -191,9 +258,10 @@ class IDTProjectSettings(BaseSerializable):
         """
         return self._temperature
 
-    @idt_metadata_property(metadata=MetadataConstants.ADDITIONAL_CAMERA_SETTINGS)
+    @metadata_property(metadata=MetadataConstants.ADDITIONAL_CAMERA_SETTINGS)
     def additional_camera_settings(self) -> str:
-        """Return the additional camera settings.
+        """
+        Getter property for the additional camera settings.
 
         Returns
         -------
@@ -203,10 +271,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._additional_camera_settings
 
-    @idt_metadata_property(metadata=MetadataConstants.LIGHTING_SETUP_DESCRIPTION)
+    @metadata_property(metadata=MetadataConstants.LIGHTING_SETUP_DESCRIPTION)
     def lighting_setup_description(self) -> str:
         """
-        Return the lighting setup description.
+        Getter property for the lighting setup description.
 
         Returns
         -------
@@ -216,10 +284,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._lighting_setup_description
 
-    @idt_metadata_property(metadata=MetadataConstants.DEBAYERING_PLATFORM)
+    @metadata_property(metadata=MetadataConstants.DEBAYERING_PLATFORM)
     def debayering_platform(self) -> str:
         """
-        Return the debayering platform name.
+        Getter property for the debayering platform name.
 
         Returns
         -------
@@ -229,10 +297,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._debayering_platform
 
-    @idt_metadata_property(metadata=MetadataConstants.DEBAYERING_SETTINGS)
+    @metadata_property(metadata=MetadataConstants.DEBAYERING_SETTINGS)
     def debayering_settings(self) -> str:
         """
-        Return the debayering platform settings.
+        Getter property for the debayering platform settings.
 
         Returns
         -------
@@ -242,10 +310,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._debayering_settings
 
-    @idt_metadata_property(metadata=MetadataConstants.ENCODING_COLOUR_SPACE)
+    @metadata_property(metadata=MetadataConstants.ENCODING_COLOUR_SPACE)
     def encoding_colourspace(self) -> str:
         """
-        Return the encoding colour space.
+        Getter property for the encoding colour space.
 
         Returns
         -------
@@ -255,10 +323,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._encoding_colourspace
 
-    @idt_metadata_property(metadata=MetadataConstants.RGB_DISPLAY_COLOURSPACE)
+    @metadata_property(metadata=MetadataConstants.RGB_DISPLAY_COLOURSPACE)
     def rgb_display_colourspace(self) -> str:
         """
-        Return the *RGB* display colour space.
+        Getter property for the *RGB* display colour space.
 
         Returns
         -------
@@ -268,9 +336,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._rgb_display_colourspace
 
-    @idt_metadata_property(metadata=MetadataConstants.CAT)
+    @metadata_property(metadata=MetadataConstants.CAT)
     def cat(self) -> str:
-        """Return the chromatic adaptation transform name.
+        """
+        Getter property for the chromatic adaptation transform name.
 
         Returns
         -------
@@ -280,10 +349,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._cat
 
-    @idt_metadata_property(metadata=MetadataConstants.OPTIMISATION_SPACE)
+    @metadata_property(metadata=MetadataConstants.OPTIMISATION_SPACE)
     def optimisation_space(self) -> str:
         """
-        Return the optimisation space name.
+        Getter property for the optimisation space name.
 
         Returns
         -------
@@ -293,10 +362,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._optimisation_space
 
-    @idt_metadata_property(metadata=MetadataConstants.ILLUMINANT_INTERPOLATOR)
+    @metadata_property(metadata=MetadataConstants.ILLUMINANT_INTERPOLATOR)
     def illuminant_interpolator(self) -> str:
         """
-        Return the illuminant interpolator name.
+        Getter property for the illuminant interpolator name.
 
         Returns
         -------
@@ -306,10 +375,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._illuminant_interpolator
 
-    @idt_metadata_property(metadata=MetadataConstants.DECODING_METHOD)
+    @metadata_property(metadata=MetadataConstants.DECODING_METHOD)
     def decoding_method(self) -> str:
         """
-        Return the decoding method name.
+        Getter property for the decoding method name.
 
         Returns
         -------
@@ -319,10 +388,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._decoding_method
 
-    @idt_metadata_property(metadata=MetadataConstants.EV_RANGE)
+    @metadata_property(metadata=MetadataConstants.EV_RANGE)
     def ev_range(self) -> List:
         """
-        Return the EV range.
+        Getter property for the EV range.
 
         Returns
         -------
@@ -332,10 +401,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._ev_range
 
-    @idt_metadata_property(metadata=MetadataConstants.GREY_CARD_REFERENCE)
+    @metadata_property(metadata=MetadataConstants.GREY_CARD_REFERENCE)
     def grey_card_reference(self) -> List:
         """
-        Return the grey card reference values.
+        Getter property for the grey card reference values.
 
         Returns
         -------
@@ -345,10 +414,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._grey_card_reference
 
-    @idt_metadata_property(metadata=MetadataConstants.LUT_SIZE)
+    @metadata_property(metadata=MetadataConstants.LUT_SIZE)
     def lut_size(self) -> int:
         """
-        Return the *LUT* size.
+        Getter property for the *LUT* size.
 
         Returns
         -------
@@ -358,9 +427,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._lut_size
 
-    @idt_metadata_property(metadata=MetadataConstants.LUT_SMOOTHING)
+    @metadata_property(metadata=MetadataConstants.LUT_SMOOTHING)
     def lut_smoothing(self):
-        """Return the *LUT* smoothing.
+        """
+        Getter property for the *LUT* smoothing.
 
         Returns
         -------
@@ -370,10 +440,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._lut_smoothing
 
-    @idt_metadata_property(metadata=MetadataConstants.DATA)
+    @metadata_property(metadata=MetadataConstants.DATA)
     def data(self) -> Dict:
         """
-        Return the data structure holding the image sequences.
+        Getter property for the data structure holding the image sequences.
 
         Returns
         -------
@@ -383,10 +453,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._data
 
-    @idt_metadata_property(metadata=MetadataConstants.WORKING_DIR)
+    @metadata_property(metadata=MetadataConstants.WORKING_DIR)
     def working_directory(self) -> str:
         """
-        Return the working directory for the project.
+        Getter property for the working directory for the project.
 
         Returns
         -------
@@ -396,10 +466,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._working_directory
 
-    @idt_metadata_property(metadata=MetadataConstants.CLEAN_UP)
+    @metadata_property(metadata=MetadataConstants.CLEAN_UP)
     def cleanup(self) -> bool:
         """
-        Return whether the working directory should be cleaned up.
+        Getter property for whether the working directory should be cleaned up.
 
         Returns
         -------
@@ -409,10 +479,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._cleanup
 
-    @idt_metadata_property(metadata=MetadataConstants.REFERENCE_COLOUR_CHECKER)
+    @metadata_property(metadata=MetadataConstants.REFERENCE_COLOUR_CHECKER)
     def reference_colour_checker(self) -> str:
         """
-        Return the reference colour checker name.
+        Getter property for the reference colour checker name.
 
         Returns
         -------
@@ -422,10 +492,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._reference_colour_checker
 
-    @idt_metadata_property(metadata=MetadataConstants.ILLUMINANT)
+    @metadata_property(metadata=MetadataConstants.ILLUMINANT)
     def illuminant(self) -> str:
         """
-        Return the illuminant name.
+        Getter property for the illuminant name.
 
         Returns
         -------
@@ -435,10 +505,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._illuminant
 
-    @idt_metadata_property(metadata=MetadataConstants.FILE_TYPE)
+    @metadata_property(metadata=MetadataConstants.FILE_TYPE)
     def file_type(self) -> str:
         """
-        Return the file type, i.e., file extension.
+        Getter property for the file type, i.e., file extension.
 
         Returns
         -------
@@ -448,10 +518,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._file_type
 
-    @idt_metadata_property(metadata=MetadataConstants.EV_WEIGHTS)
+    @metadata_property(metadata=MetadataConstants.EV_WEIGHTS)
     def ev_weights(self) -> NDArrayFloat:
         """
-        Return the *EV* weights.
+        Getter property for the *EV* weights.
 
         Returns
         -------
@@ -461,10 +531,10 @@ class IDTProjectSettings(BaseSerializable):
 
         return self._ev_weights
 
-    @idt_metadata_property(metadata=MetadataConstants.OPTIMIZATION_KWARGS)
+    @metadata_property(metadata=MetadataConstants.OPTIMIZATION_KWARGS)
     def optimization_kwargs(self) -> Dict:
         """
-        Return the optimization keyword arguments.
+        Getter property for the optimization keyword arguments.
 
         Returns
         -------
@@ -530,13 +600,14 @@ class IDTProjectSettings(BaseSerializable):
     @classmethod
     def from_directory(cls, directory: str) -> IDTProjectSettings:
         """
-        Create a new project settings for a given directory on disk and build the
-        data structure based on the files on disk.
+        Create a new project settings for a given directory on disk and build
+        the data structure based on the files on disk.
 
         Parameters
         ----------
         directory : str
-            The directory  to the project root containing the image sequence folders.
+            The directory to the project root containing the image sequence
+            directories.
         """
 
         instance = cls()
@@ -557,7 +628,7 @@ class IDTProjectSettings(BaseSerializable):
             grey_card_path
         ):
             raise ValueError(
-                "Required 'colour_checker' or 'grey_card' folder does not exist."
+                'Required "colour_checker" or "grey_card" folder does not exist.'
             )
 
         # Populate colour_checker data
@@ -618,10 +689,10 @@ class IDTProjectSettings(BaseSerializable):
             },
             {"line_break": True},
         ]
-        for name, _ in self.properties:
+
+        for name, _descriptor in self.properties:
             attributes.append({"name": f"{name}", "label": f"{name}".title()})
 
-        attributes.append(
-            {"line_break": True},
-        )
+        attributes.append({"line_break": True})
+
         return multiline_str(self, attributes)

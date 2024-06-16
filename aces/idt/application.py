@@ -1,12 +1,16 @@
-"""Module holds the main application class that controls all idt generation
-
 """
+IDT Generator Application
+=========================
+
+Define the *IDT* generator application class.
+"""
+
 import logging
 import re
 from pathlib import Path
-from typing import Optional
 
-from colour.utilities import attest
+from colour.hints import List
+from colour.utilities import attest, optional
 
 import aces.idt.core.common
 from aces.idt.core.constants import DirectoryStructure
@@ -24,115 +28,102 @@ __status__ = "Production"
 __all__ = [
     "IDTGeneratorApplication",
 ]
+
 LOGGER = logging.getLogger(__name__)
 
 
 class IDTGeneratorApplication:
-    """The main application class which handles project loading and saving, the
-    generator selection and execution, as well as any other analytical computation not
-    related to the generators, such as calculating data needed for display
+    """
+    Define the *IDT* generator application that handles project loading and
+    saving, generator selection and execution, as well as any other analytical
+    computations not related to the generators, such as calculating the data
+    required for display.
 
+    Parameters
+    ----------
+    generator
+        Name of the *IDT* generator to use.
+    project_settings
+        *IDT* project settings.
     """
 
-    def __init__(self):
-        self._project_settings = IDTProjectSettings()
+    def __init__(
+        self,
+        generator: str = "IDTGeneratorProsumerCamera",
+        project_settings: IDTProjectSettings | None = None,
+    ) -> None:
+        self._project_settings = optional(project_settings, IDTProjectSettings())
         self._generator = None
+        self.generator = generator
 
     @property
-    def generator_names(self):
-        """Return the names of the generators available
+    def generator_names(self) -> List:
+        """
+        Getter property for the available *IDT* generator names.
 
         Returns
         -------
-        list
-            A list of names for the available generators
-
+        :class:`list`
+            Available *IDT* generator names.
         """
-        return list(GENERATORS.keys())
+
+        return list(GENERATORS)
 
     @property
-    def generator(self):
-        """Return the current generator
+    def generator(self) -> IDTBaseGenerator:
+        """
+        Getter and setter property for the selected *IDT* generator type.
 
         Returns
         -------
-        IDTBaseGenerator
-            The current generator
-
+        :class`IDTBaseGenerator`:
+            Selected *IDT* generator type.
         """
+
         return self._generator
 
     @generator.setter
-    def generator(self, value: type[IDTBaseGenerator]):
-        if value not in self.generator_names:
-            raise ValueError(f"Invalid generator name: {value}")
+    def generator(self, value: str):
+        """Setter for the **self.generator** property."""
 
-        generator_class = GENERATORS[value]
-        self._generator = generator_class(self.project_settings)
+        if value not in self.generator_names:
+            raise ValueError(
+                f'"{value}" generator is invalid, must be one of '
+                f'"{self.generator_names}"!'
+            )
+
+        self._generator = GENERATORS[value](self.project_settings)
 
     @property
-    def project_settings(self):
-        """Return the current project settings
+    def project_settings(self) -> IDTProjectSettings:
+        """
+        Getter and setter property for the *IDT* project settings.
+
+        A single instance of the *IDT* project settings exists within the class
+        and its values are updated rather than replaced with the new passed
+        instance.
 
         Returns
         -------
-        IDTProjectSettings
-            The current project settings
-
+        :class:`IDTProjectSettings`
+            *IDT* project settings.
         """
+
         return self._project_settings
 
     @project_settings.setter
     def project_settings(self, value: IDTProjectSettings):
-        """
-        Set the project settings, maintains a single instance of the project settings,
-        and updates the values
+        """Setter for the **self.project_settings** property."""
 
-        Parameters
-        ----------
-        value: IDTProjectSettings
-            The project settings to update with
-
-        """
         self._project_settings.update(value)
 
-    def extract_archive(self, archive: str, directory: Optional[str] = None):
+    def _update_project_settings_from_implicit_directory_structure(
+        self, root_directory: Path
+    ) -> None:
         """
-        Extract the specification from the *IDT* archive.
-
-        Parameters
-        ----------
-        archive : str
-            Archive to extract.
-        directory : str, optional
-            Known directory we want to extract the archive to
-        """
-        directory = aces.idt.core.common.extract_archive(archive, directory)
-        extracted_directories = aces.idt.core.common.list_sub_directories(directory)
-        root_directory = extracted_directories[0]
-
-        json_files = list(root_directory.glob("*.json"))
-        if len(json_files) > 1:
-            raise ValueError("Multiple JSON files found in the root directory.")
-
-        elif len(json_files) == 1:
-            LOGGER.info(
-                'Found explicit "%s" "IDT" project settings file.', json_files[0]
-            )
-            self.project_settings = IDTProjectSettings.from_file(json_files[0])
-        else:
-            LOGGER.info('Assuming implicit "IDT" specification...')
-            self.project_settings.camera_model = Path(archive).stem
-            self._update_data_from_file_structure(root_directory)
-
-        self._update_data_with_posix_paths(root_directory)
-        self._validate_images()
-        return directory
-
-    def _update_data_from_file_structure(self, root_directory: Path):
-        """For the root directory of the extracted archive, update the project
-        settings 'data' with the file structure found on disk, when no project_settings
-        file is stored on disk. Assuming the following structure:
+        Update the *IDT* project settings using the sub-directory structure under
+        given root directory. The sub-directory structure should be defined as
+        follows::
 
             data
                 colour_checker
@@ -145,9 +136,10 @@ class IDTGeneratorApplication:
 
         Parameters
         ----------
-        root_directory: The folder we want to parse
-
+        root_directory:
+            Root directory holding the sub-directory structure.
         """
+
         colour_checker_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.COLOUR_CHECKER
         )
@@ -166,6 +158,7 @@ class IDTGeneratorApplication:
             self.project_settings.data[DirectoryStructure.FLATFIELD] = list(
                 flatfield_directory.glob("*.*")
             )
+
         grey_card_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.GREY_CARD
         )
@@ -174,13 +167,17 @@ class IDTGeneratorApplication:
                 flatfield_directory.glob("*.*")
             )
 
-    def _update_data_with_posix_paths(self, root_directory: Path):
-        """Update the project settings 'data' with the POSIX paths vs string paths.
+    def _verify_archive(self, root_directory: Path | str) -> None:
+        """
+        Verify the *IDT* archive at given root directory.
 
         Parameters
         ----------
-        root_directory : Path
+        root_directory
+            Root directory holding the *IDT* archive and that needs to be
+            verified.
         """
+
         for exposure in list(
             self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
         ):
@@ -226,43 +223,95 @@ class IDTGeneratorApplication:
         else:
             self.project_settings.data[DirectoryStructure.GREY_CARD] = []
 
-    def process_from_archive(self, archive: str):
-        """Process the IDT based on the zip archive provided
+    def _verify_file_type(self) -> None:
+        """
+        Verify that the *IDT* archive contains a unique file type and set the
+        used file type accordingly.
+        """
+
+        file_types = set()
+        for _, value in self.project_settings.data[
+            DirectoryStructure.COLOUR_CHECKER
+        ].items():
+            for item in value:
+                file_types.add(item.suffix)
+
+        for item in self.project_settings.data[DirectoryStructure.GREY_CARD]:
+            file_types.add(item.suffix)
+
+        if len(file_types) > 1:
+            raise ValueError(
+                f'Multiple file types found in the project settings: "{file_types}"'
+            )
+
+        self.project_settings.file_type = next(iter(file_types))
+
+    def extract(self, archive: str, directory: str | None = None) -> str:
+        """
+        Extract the *IDT* archive.
 
         Parameters
         ----------
-        archive: str
-            The filepath to the archive
+        archive
+            Archive to extract.
+        directory
+            Directory to extract the archive to.
 
         Returns
         -------
-        IDTBaseGenerator
-            returns the generator after it is finished
+        :class:`str`
+            Extracted directory.
         """
-        if not self.generator:
-            raise ValueError("No Idt Generator Set")
 
-        self.project_settings.working_directory = self.extract_archive(archive)
-        self.generator.sample()
-        self.generator.sort()
-        self.generator.generate_LUT()
-        self.generator.filter_LUT()
-        self.generator.decode()
-        self.generator.optimise()
-        return self.generator
+        directory = aces.idt.core.common.extract_archive(archive, directory)
+        extracted_directories = aces.idt.core.common.list_sub_directories(directory)
+        root_directory = next(iter(extracted_directories))
 
-    def process_from_project_settings(self):
-        """Process an IDT based on the project settings stored within the application
+        json_files = list(root_directory.glob("*.json"))
+
+        if len(json_files) > 1:
+            raise ValueError('Multiple "JSON" files found in the root directory!')
+        elif len(json_files) == 1:
+            json_file = next(iter(json_files))
+            LOGGER.info('Found explicit "%s" "IDT" project settings file.', json_file)
+            self.project_settings = IDTProjectSettings.from_file(json_file)
+        else:
+            LOGGER.info('Assuming implicit "IDT" specification...')
+            self.project_settings.camera_model = Path(archive).stem
+            self._update_project_settings_from_implicit_directory_structure(
+                root_directory
+            )
+
+        self.project_settings.working_directory = root_directory
+
+        self._verify_archive(root_directory)
+        self._verify_file_type()
+
+        return directory
+
+    def process(self, archive: str | None) -> IDTBaseGenerator:
+        """
+        Compute the *IDT* either using given archive *zip* file path or the
+        current *IDT* project settings if not given.
+
+        Parameters
+        ----------
+        archive
+            Archive *zip* file path.
 
         Returns
         -------
-        IDTBaseGenerator
-            returns the generator after it is finished
+        :class:`IDTBaseGenerator`
+            Instantiated *IDT* generator.
         """
-        if not self.generator:
-            raise ValueError("No Idt Generator Set")
 
-        # Ensuring that exposure values in the specification are floating point numbers.
+        if self.generator is None:
+            raise ValueError('No "IDT" generator was selected!')
+
+        if archive is not None:
+            self.project_settings.working_directory = self.extract(archive)
+
+        # Enforcing exposure values as floating point numbers.
         for exposure in list(
             self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
         ):
@@ -283,33 +332,14 @@ class IDTGeneratorApplication:
         self.generator.filter_LUT()
         self.generator.decode()
         self.generator.optimise()
+
         return self.generator
 
-    def _validate_images(self):
-        """Validate that the images provided are all the same file extension, and store
-        this in the file type property
+    def zip(
+        self, output_directory: Path | str, archive_serialised_generator: bool = False
+    ) -> str:
         """
-        file_types = []
-        for _, value in self.project_settings.data[
-            DirectoryStructure.COLOUR_CHECKER
-        ].items():
-            for item in value:
-                if not item.exists():
-                    raise ValueError(f"File does not exist: {item}")
-                file_types.append(item.suffix)
-
-        for item in self.project_settings.data[DirectoryStructure.GREY_CARD]:
-            if not item.exists():
-                raise ValueError(f"File does not exist: {item}")
-            file_types.append(item.suffix)
-
-        if len(set(file_types)) > 1:
-            raise ValueError("Multiple file types found in the project settings")
-
-        self.project_settings.file_type = file_types[0]
-
-    def zip(self, output_directory: str, archive_serialised_generator: bool = False):
-        """Create a zip of the results from the idt creation
+        Create a *zip* file with the output of the *IDT* application process.
 
         Parameters
         ----------
@@ -323,6 +353,7 @@ class IDTGeneratorApplication:
         :class:`str`
             *Zip* file path.
         """
+
         if not self.generator:
             raise ValueError("No Idt Generator Set")
 

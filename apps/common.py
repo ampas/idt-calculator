@@ -27,7 +27,7 @@ from dash_bootstrap_components import (
     Tooltip,
 )
 
-from aces.idt import OPTIMISATION_FACTORIES, clf_processing_elements
+from aces.idt import IDTProjectSettings, clf_processing_elements
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
 __copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
@@ -240,18 +240,17 @@ MSDS_CAMERA_SENSITIVITIES : dict
 """
 
 OPTIONS_CAMERA_SENSITIVITIES = [
-    {"label": key, "value": key} for key in sorted(MSDS_CAMERA_SENSITIVITIES)
+    {"label": key, "value": key}
+    for key in ["Custom", *sorted(MSDS_CAMERA_SENSITIVITIES)]
 ]
 """
 Camera sensitivities options for a :class:`Dropdown` class instance.
 
 OPTIONS_CAMERA_SENSITIVITIES : list
 """
-OPTIONS_CAMERA_SENSITIVITIES.insert(0, {"label": "Custom", "value": "Custom"})
 
 OPTIONS_CAT = [
-    {"label": key, "value": key}
-    for key in sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())
+    {"label": key, "value": key} for key in IDTProjectSettings.cat.metadata.options
 ]
 """
 *Chromatic adaptation transform* options for a :class:`Dropdown` class
@@ -259,23 +258,20 @@ instance.
 
 OPTIONS_CAT : list
 """
-OPTIONS_CAT.append({"label": "None", "value": None})
 
 OPTIONS_ILLUMINANT = [
-    {"label": key, "value": key} for key in sorted(colour.SDS_ILLUMINANTS.keys())
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.illuminant.metadata.options
 ]
 """
 Illuminant options for a :class:`Dropdown`class instance.
 
 ILLUMINANTS_OPTIONS : list
 """
-OPTIONS_ILLUMINANT.insert(0, {"label": "Custom", "value": "Custom"})
-OPTIONS_ILLUMINANT.insert(1, {"label": "Blackbody", "value": "Blackbody"})
-OPTIONS_ILLUMINANT.insert(1, {"label": "Daylight", "value": "Daylight"})
 
 OPTIONS_INTERPOLATION = [
     {"label": key, "value": key}
-    for key in ["Cubic Spline", "Linear", "PCHIP", "Sprague (1880)"]
+    for key in IDTProjectSettings.illuminant_interpolator.metadata.options
 ]
 
 INTERPOLATORS = {
@@ -291,7 +287,8 @@ INTERPOLATORS : dict
 """
 
 OPTIONS_OPTIMISATION_SPACES = [
-    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.optimisation_space.metadata.options
 ]
 """
 Optimisation colourspaces.
@@ -300,7 +297,8 @@ OPTIONS_OPTIMISATION_SPACES : list
 """
 
 OPTIONS_DISPLAY_COLOURSPACES = [
-    {"label": key, "value": key} for key in ["sRGB", "Display P3"]
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.rgb_display_colourspace.metadata.options
 ]
 """
 Display colourspaces.

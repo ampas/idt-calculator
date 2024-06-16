@@ -35,12 +35,12 @@ from .constants import (
     UITypes,
 )
 from .structures import (
-    BaseSerializable,
-    IDTMetaData,
-    IDTMetadataProperty,
+    Metadata,
+    MetadataProperty,
+    MixinSerializableProperties,
     PathEncoder,
     SerializableConstants,
-    idt_metadata_property,
+    metadata_property,
 )
 
 __all__ = [
@@ -82,10 +82,10 @@ __all__ += [
 ]
 
 __all__ += [
-    "BaseSerializable",
-    "IDTMetaData",
-    "IDTMetadataProperty",
+    "Metadata",
+    "MetadataProperty",
+    "MixinSerializableProperties",
     "PathEncoder",
     "SerializableConstants",
-    "idt_metadata_property",
+    "metadata_property",
 ]

@@ -1,8 +1,9 @@
 """
-IDT Structures
-==============
+Structures
+==========
 
-Define various helper classes used throughout the IDT generator.
+Define various helper classes, especially to serialize properties to and from
+*JSON*.
 """
 
 from __future__ import annotations
@@ -24,10 +25,10 @@ __status__ = "Production"
 __all__ = [
     "PathEncoder",
     "SerializableConstants",
-    "IDTMetaData",
-    "IDTMetadataProperty",
-    "idt_metadata_property",
-    "BaseSerializable",
+    "Metadata",
+    "MetadataProperty",
+    "metadata_property",
+    "MixinSerializableProperties",
 ]
 
 
@@ -70,13 +71,12 @@ class SerializableConstants:
 
 
 @dataclass
-class IDTMetaData:
+class Metadata:
     """
-    Store the metadata information for a property within an IDT project.
+    Store the metadata information for a serializable property.
 
-    This data is not used in any calculations or computation and is primarily
-    designed to store data which would be associated with how the property
-    should be displayed in a UI.
+    This metadata is primarily designed to store data associated with how the
+    property might be displayed in a UI.
     """
 
     default_value: Any = field(default=None)
@@ -88,17 +88,17 @@ class IDTMetaData:
     options: Any = field(default=None)
 
 
-class IDTMetadataProperty:
+class MetadataProperty:
     """
-    Define a property descriptor storing a :class:`IDTMetaData` class instance
-    and supporting getter and setter functionality.
+    Define a property storing a :class:`Metadata` class instance with support
+    for getter and setter functionality.
     """
 
     def __init__(
         self,
         getter: Callable,
         setter: Callable | None = None,
-        metadata: IDTMetaData | None = None,
+        metadata: Metadata | None = None,
     ):
         self.getter = getter
         self.setter = setter
@@ -106,44 +106,46 @@ class IDTMetadataProperty:
 
     def __get__(self, instance: Any, owner: Any) -> Any:
         """Get the value of the property."""
+
         if instance is None:
-            # Return the descriptor itself when accessed from the class
+            # Return the object itself when accessed from the class.
             return self
+
         return self.getter(instance)
 
     def __set__(self, instance: Any, value: Any) -> Any:
         """Set the value of the property."""
+
         if self.setter:
             self.setter(instance, value)
         else:
             raise AttributeError("No setter defined for this property")
 
 
-def idt_metadata_property(metadata: IDTMetaData | None = None) -> Any:
+def metadata_property(metadata: Metadata | None = None) -> Any:
     """
-    Create a property from given :class`IDTMetaData` class instance, supporting
-    both getter and setter functionality.
+    Decorate a class attribute to create a property using given :class`Metadata`
+    class instance, supporting both getter and setter functionality.
     """
 
     def wrapper(getter):
-        # Define a setter function to handle setting the value
         def setter(instance, value):
             setattr(instance, f"_{getter.__name__}", value)
 
-        # Create a IDTMetadataProperty descriptor with both getter and setter
-        return IDTMetadataProperty(getter, setter, metadata)
+        return MetadataProperty(getter, setter, metadata)
 
     return wrapper
 
 
-class BaseSerializable:
+class MixinSerializableProperties:
     """
-    Define a base class for serializable objects with IDTMetadataProperties
-    that can be converted to and from *JSON*.
+    Define a mixin class for serializable objects containing
+    :class:`IDTMetadataProperty` class instances that can be converted to and
+    from *JSON*.
     """
 
     @property
-    def properties(self) -> Tuple[str, IDTMetadataProperty]:
+    def properties(self) -> Tuple[str, MetadataProperty]:
         """
         Generator for the properties of the object getting the name and
         property as a tuple.
@@ -153,9 +155,9 @@ class BaseSerializable:
         :class:`tuple`
         """
 
-        for name, descriptor in self.__class__.__dict__.items():
-            if isinstance(descriptor, IDTMetadataProperty):
-                yield name, descriptor
+        for name, object_ in self.__class__.__dict__.items():
+            if isinstance(object_, MetadataProperty):
+                yield name, object_
 
     def to_json(self) -> str:
         """
@@ -176,7 +178,7 @@ class BaseSerializable:
         return json.dumps(output, indent=4, cls=PathEncoder)
 
     @classmethod
-    def from_json(cls, data: Any) -> BaseSerializable:
+    def from_json(cls, data: Any) -> MixinSerializableProperties:
         """
         Create a new instance of the class from the given object or *JSON*
         string.
@@ -188,7 +190,7 @@ class BaseSerializable:
 
         Returns
         -------
-        :class:`BaseSerializable`
+        :class:`MixinSerializableProperties`
             Loaded object.
         """
 
@@ -202,6 +204,7 @@ class BaseSerializable:
                     prop.setter(item, data[SerializableConstants.HEADER][name])
             else:
                 prop.setter(item, data[SerializableConstants.DATA])
+
         return item
 
     def to_file(self, filepath: str):
@@ -218,7 +221,7 @@ class BaseSerializable:
             f.write(self.to_json())
 
     @classmethod
-    def from_file(cls, filepath: str) -> BaseSerializable:
+    def from_file(cls, filepath: str) -> MixinSerializableProperties:
         """
         Load the object from a *JSON* file.
 
@@ -229,7 +232,7 @@ class BaseSerializable:
 
         Returns
         -------
-        :class:`BaseSerializable`
+        :class:`MixinSerializableProperties`
             Loaded object.
         """
 

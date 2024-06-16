@@ -1,13 +1,13 @@
 """
-Input Device Transform (IDT) Prosumer Camera Utilities
-======================================================
+IDT Prosumer Camera Generator
+=============================
+
+Define the *IDT* generator class for a *Prosumer Camera*.
 """
 
 import base64
 import io
-import json
 import logging
-from pathlib import Path
 
 import colour
 import matplotlib as mpl
@@ -23,6 +23,7 @@ from colour import (
     LUT3x1D,
 )
 from colour.algebra import smoothstep_function, vector_dot
+from colour.hints import NDArrayFloat, Tuple
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.utilities import (
@@ -59,56 +60,31 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
     Parameters
     ----------
-    archive : str, optional
-        *IDT* archive path, i.e. a zip file path.
-    image_format : str, optional
-        Image format to filter.
-    directory : str, optional
-        Working directory.
-    specification : dict, optional
-        *IDT* archive specification.
-    cleanup : bool, optional
-        Whether to cleanup, i.e. remove, the working directory.
+    project_settings : IDTProjectSettings, optional
+        *IDT* generator settings.
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_colour_checker_segmentation`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.image_grey_card_sampling`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.baseline_exposure`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_analysis`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_camera`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_reference`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_decoded`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_weighted`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.LUT_unfiltered`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.LUT_filtered`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.LUT_decoding`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.M`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.RGB_w`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.k`
+    -   :attr:`~aces.idt.IDTBaseGenerator.GENERATOR_NAME`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_decoded`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_weighted`
 
     Methods
     -------
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.from_specification`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.sample`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.sort`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.generate_LUT`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.filter_LUT`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.decode`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.optimise`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.to_clf`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.zip`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_colour_checker_segmentation`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_grey_card_sampling`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_measured_camera_samples`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_extrapolated_camera_samples`
+    -   :meth:`~aces.idt.IDTBaseGenerator.__str__`
+    -   :meth:`~aces.idt.IDTBaseGenerator.generate_LUT`
+    -   :meth:`~aces.idt.IDTBaseGenerator.filter_LUT`
+    -   :meth:`~aces.idt.IDTBaseGenerator.decode`
+    -   :meth:`~aces.idt.IDTBaseGenerator.optimise`
+    -   :meth:`~aces.idt.IDTBaseGenerator.png_measured_camera_samples`
+    -   :meth:`~aces.idt.IDTBaseGenerator.png_extrapolated_camera_samples`
     """
 
-    generator_name = "IDTGeneratorProsumerCamera"
+    GENERATOR_NAME = "IDTGeneratorProsumerCamera"
+    """*IDT* generator name."""
 
-    def __init__(self, application):
-        super().__init__(application)
+    def __init__(self, project_settings):
+        super().__init__(project_settings)
 
         self._lut_blending_edge_left = None
         self._lut_blending_edge_right = None
@@ -117,7 +93,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         self._samples_weighted = None
 
     @property
-    def samples_decoded(self):
+    def samples_decoded(self) -> NDArrayFloat | None:
         """
         Getter property for the samples of the camera decoded by applying the
         filtered *LUT*.
@@ -131,7 +107,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         return self._samples_decoded
 
     @property
-    def samples_weighted(self):
+    def samples_weighted(self) -> NDArrayFloat | None:
         """
         Getter property for the decoded samples of the camera weighted across
         multiple exposures.
@@ -145,7 +121,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         return self._samples_weighted
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a formatted string representation of the *IDT* generator.
 
@@ -154,8 +130,12 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         :class:`str`
             Formatted string representation.
         """
+
         samples_analysis = None
-        if self._samples_analysis is not None:
+        if (
+            self._samples_analysis is not None
+            and self._samples_analysis.get("data") is not None
+        ):
             samples_analysis = self._samples_analysis["data"]["colour_checker"].get(
                 self._baseline_exposure
             )
@@ -185,7 +165,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             ],
         )
 
-    def generate_LUT(self):
+    def generate_LUT(self) -> LUT3x1D:
         """
         Generate an unfiltered linearisation *LUT* for the camera samples.
 
@@ -270,7 +250,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         return self._LUT_unfiltered
 
-    def filter_LUT(self):
+    def filter_LUT(self) -> LUT3x1D:
         """
         Filter/smooth the linearisation *LUT* for the camera samples.
 
@@ -324,7 +304,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         return self._LUT_filtered
 
-    def decode(self):
+    def decode(self) -> None:
         """
         Decode the samples produced by the image sampling process.
         """
@@ -396,7 +376,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                 )
             )
 
-    def optimise(self):
+    def optimise(self) -> Tuple[NDArrayFloat]:
         """
         Compute the *IDT* matrix.
 
@@ -412,8 +392,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         # Exposure values to use when computing the *IDT* matrix.
         EV_range = tuple(self.project_settings.ev_range)
 
-        # Normalised weights used to sum the exposure values. If not given, the median
-        # of the exposure values is used.
+        # Normalised weights used to sum the exposure values. If not given, the
+        # median of the exposure values is used.
         EV_weights = self.project_settings.ev_weights
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
@@ -498,7 +478,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         return self._M, self._RGB_w, self._k
 
-    def png_measured_camera_samples(self):
+    def png_measured_camera_samples(self) -> str | None:
         """
         Return the measured camera samples as *PNG* data.
 
@@ -527,7 +507,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         return data_png
 
-    def png_extrapolated_camera_samples(self):
+    def png_extrapolated_camera_samples(self) -> str | None:
         """
         Return the extrapolated camera samples as *PNG* data.
 
@@ -536,6 +516,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         :class:`str` or None
             *PNG* data.
         """
+
         # TODO This looks specific to the prosumer camera as its using the blending
         #  edges, so will keep this as an override of the base class
         if (
@@ -571,27 +552,3 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         plt.close()
 
         return data_png
-
-
-if __name__ == "__main__":
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
-
-    resources_directory = Path(__file__).parent / "tests" / "resources"
-
-    idt_generator = IDTGeneratorProsumerCamera.from_archive(
-        resources_directory / "synthetic_001.zip", cleanup=True
-    )
-
-    LOGGER.info(idt_generator)
-
-    with open(
-        resources_directory / "synthetic_001" / "synthetic_001.json"
-    ) as json_file:
-        specification = json.load(json_file)
-
-    idt_generator = IDTGeneratorProsumerCamera.from_specification(
-        specification, resources_directory / "synthetic_001"
-    )
-
-    LOGGER.info(idt_generator)

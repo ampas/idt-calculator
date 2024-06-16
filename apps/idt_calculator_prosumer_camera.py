@@ -3,7 +3,6 @@ Input Device Transform (IDT) Calculator - Prosumer Camera
 =========================================================
 """
 
-import datetime
 import logging
 import os
 import tempfile
@@ -23,7 +22,7 @@ from colour import (
 from colour.characterisation import camera_RGB_to_ACES2065_1
 from colour.models import RGB_COLOURSPACE_ACES2065_1
 from colour.temperature import CCT_to_xy_CIE_D
-from colour.utilities import CACHE_REGISTRY, as_float, as_int_scalar, optional
+from colour.utilities import CACHE_REGISTRY, as_float
 from dash.dash_table import DataTable
 from dash.dash_table.Format import Format, Scheme
 from dash.dcc import Download, Link, Location, Markdown, Tab, Tabs, send_file
@@ -65,7 +64,9 @@ from dash_bootstrap_components import (
 from dash_uploader import Upload, callback, configure_upload
 
 from aces.idt import (
-    IDTGeneratorProsumerCamera,
+    DirectoryStructure,
+    IDTGeneratorApplication,
+    IDTProjectSettings,
     error_delta_E,
     generate_reference_colour_checker,
     hash_file,
@@ -78,7 +79,6 @@ from apps.common import (
     DATATABLE_DECIMALS,
     DELAY_TOOLTIP_DEFAULT,
     INTERPOLATORS,
-    OPTIMISATION_FACTORIES,
     OPTIONS_CAT,
     OPTIONS_DISPLAY_COLOURSPACES,
     OPTIONS_ILLUMINANT,
@@ -157,7 +157,7 @@ configure_upload(APP, _ROOT_UPLOADED_IDT_ARCHIVE)
 
 _PATH_UPLOADED_IDT_ARCHIVE = None
 _HASH_IDT_ARCHIVE = None
-_IDT_GENERATOR = None
+_IDT_GENERATOR_APPLICATION = None
 _PATH_IDT_ZIP = None
 
 _CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
@@ -165,7 +165,8 @@ _CACHE_DATA_ARCHIVE_TO_SAMPLES = CACHE_REGISTRY.register_cache(
 )
 
 _OPTIONS_DECODING_METHOD = [
-    {"label": key, "value": key} for key in ["Median", "Average", "Per Channel", "ACES"]
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.decoding_method.metadata.options
 ]
 
 
@@ -714,12 +715,6 @@ LAYOUT : Div
 """
 
 
-def _attribute_value(attribute, default):
-    """Return given attribute value from the IDT specification."""
-
-    return optional(_IDT_GENERATOR.specification["header"].get(attribute), default)
-
-
 @callback(
     output=Output(_uid("compute-idt-card"), "style"),
     id=_uid("idt-archive-upload"),
@@ -953,6 +948,8 @@ def download_idt_zip(
         Name of the debayering platform, e.g. "Resolve".
     debayering_settings : str
         Debayering platform settings.
+    encoding_colourspace : str
+        Encoding colourspace, e.g. "ARRI LogC4".
 
     Returns
     -------
@@ -961,25 +958,27 @@ def download_idt_zip(
         Download component.
     """
 
-    _IDT_GENERATOR.specification["header"]["aces_transform_id"] = str(aces_transform_id)
-    _IDT_GENERATOR.specification["header"]["aces_user_name"] = str(aces_user_name)
-    _IDT_GENERATOR.specification["header"]["camera_make"] = str(camera_make)
-    _IDT_GENERATOR.specification["header"]["camera_model"] = str(camera_model)
-    _IDT_GENERATOR.specification["header"]["iso"] = float(iso)
-    _IDT_GENERATOR.specification["header"]["temperature"] = float(temperature)
-    _IDT_GENERATOR.specification["header"]["additional_camera_settings"] = str(
+    _IDT_GENERATOR_APPLICATION.project_settings.aces_transform_id = str(
+        aces_transform_id
+    )
+    _IDT_GENERATOR_APPLICATION.project_settings.aces_user_name = str(aces_user_name)
+    _IDT_GENERATOR_APPLICATION.project_settings.camera_make = str(camera_make)
+    _IDT_GENERATOR_APPLICATION.project_settings.camera_model = str(camera_model)
+    _IDT_GENERATOR_APPLICATION.project_settings.iso = float(iso)
+    _IDT_GENERATOR_APPLICATION.project_settings.temperature = float(temperature)
+    _IDT_GENERATOR_APPLICATION.project_settings.additional_camera_settings = str(
         additional_camera_settings
     )
-    _IDT_GENERATOR.specification["header"]["lighting_setup_description"] = str(
+    _IDT_GENERATOR_APPLICATION.project_settings.lighting_setup_description = str(
         lighting_setup_description
     )
-    _IDT_GENERATOR.specification["header"]["debayering_platform"] = str(
+    _IDT_GENERATOR_APPLICATION.project_settings.debayering_platform = str(
         debayering_platform
     )
-    _IDT_GENERATOR.specification["header"]["debayering_settings"] = str(
+    _IDT_GENERATOR_APPLICATION.project_settings.debayering_settings = str(
         debayering_settings
     )
-    _IDT_GENERATOR.specification["header"]["encoding_colourspace"] = str(
+    _IDT_GENERATOR_APPLICATION.project_settings.encoding_colourspace = str(
         encoding_colourspace
     )
 
@@ -987,9 +986,8 @@ def download_idt_zip(
 
     global _PATH_IDT_ZIP  # noqa: PLW0603
 
-    _PATH_IDT_ZIP = _IDT_GENERATOR.zip(
+    _PATH_IDT_ZIP = _IDT_GENERATOR_APPLICATION.zip(
         os.path.dirname(_PATH_UPLOADED_IDT_ARCHIVE),
-        _IDT_GENERATOR.information,
     )
 
     return send_file(_PATH_IDT_ZIP)
@@ -1038,7 +1036,6 @@ def download_idt_zip(
         State(_uid("grey-card-reflectance"), "value"),
         State(_uid("lut-size-select"), "value"),
         State(_uid("lut-smoothing-input-number"), "value"),
-        State(_uid("url"), "href"),
     ],
     prevent_initial_call=True,
 )
@@ -1066,7 +1063,6 @@ def compute_idt_prosumer_camera(
     grey_card_reflectance,
     LUT_size,
     LUT_smoothing,
-    href,
 ):
     """
     Compute the *Input Device Transform* (IDT) for a prosumer camera.
@@ -1124,8 +1120,6 @@ def compute_idt_prosumer_camera(
     LUT_smoothing : integer
         Standard deviation of the gaussian convolution kernel used for
         smoothing.
-    href
-        URL.
 
     Returns
     -------
@@ -1197,11 +1191,24 @@ def compute_idt_prosumer_camera(
         chromatic_adaptation_transform=chromatic_adaptation_transform,
     )
 
-    global _IDT_GENERATOR  # noqa: PLW0603
+    global _IDT_GENERATOR_APPLICATION  # noqa: PLW0603
     global _HASH_IDT_ARCHIVE  # noqa: PLW0603
 
-    _IDT_GENERATOR = IDTGeneratorProsumerCamera(
-        _PATH_UPLOADED_IDT_ARCHIVE, cleanup=True
+    project_settings = IDTProjectSettings(
+        aces_transform_id=aces_transform_id,
+        aces_user_name=aces_user_name,
+        camera_make=camera_make,
+        camera_model=camera_model,
+        iso=iso,
+        temperature=temperature,
+        additional_camera_settings=additional_camera_settings,
+        lighting_setup_description=lighting_setup_description,
+        debayering_platform=debayering_platform,
+        debayering_settings=debayering_settings,
+        encoding_colourspace=encoding_colourspace,
+    )
+    _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
+        "IDTGeneratorProsumerCamera", project_settings
     )
 
     if _HASH_IDT_ARCHIVE is None:
@@ -1209,64 +1216,31 @@ def compute_idt_prosumer_camera(
         LOGGER.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
 
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
-        _IDT_GENERATOR.extract()
+        _IDT_GENERATOR_APPLICATION.extract(_PATH_UPLOADED_IDT_ARCHIVE)
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
-        _IDT_GENERATOR.sample()
+        _IDT_GENERATOR_APPLICATION.generator.sample()
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE] = (
-            _IDT_GENERATOR.specification,
-            _IDT_GENERATOR.samples_analysis,
-            _IDT_GENERATOR.baseline_exposure,
+            _IDT_GENERATOR_APPLICATION.project_settings.data,
+            _IDT_GENERATOR_APPLICATION.generator.samples_analysis,
+            _IDT_GENERATOR_APPLICATION.generator.baseline_exposure,
         )
     else:
         (
-            _IDT_GENERATOR._specification,
-            _IDT_GENERATOR._samples_analysis,
-            _IDT_GENERATOR._baseline_exposure,
+            _IDT_GENERATOR_APPLICATION.project_settings.data,
+            _IDT_GENERATOR_APPLICATION.generator._samples_analysis,
+            _IDT_GENERATOR_APPLICATION.generator._baseline_exposure,
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE]
 
-    aces_transform_id = _IDT_GENERATOR.specification["header"][
-        "aces_transform_id"
-    ] = _attribute_value("aces_transform_id", aces_transform_id)
-    aces_user_name = _IDT_GENERATOR.specification["header"][
-        "aces_user_name"
-    ] = _attribute_value("aces_user_name", aces_user_name)
-    camera_make = _IDT_GENERATOR.specification["header"][
-        "camera_make"
-    ] = _attribute_value("camera_make", camera_make)
-    camera_model = _IDT_GENERATOR.specification["header"][
-        "camera_model"
-    ] = _attribute_value("camera_model", camera_model)
-    iso = _IDT_GENERATOR.specification["header"]["iso"] = _attribute_value("iso", iso)
-    temperature = _IDT_GENERATOR.specification["header"][
-        "temperature"
-    ] = _attribute_value("temperature", temperature)
-    additional_camera_settings = _IDT_GENERATOR.specification["header"][
-        "additional_camera_settings"
-    ] = _attribute_value("additional_camera_settings", additional_camera_settings)
-    lighting_setup_description = _IDT_GENERATOR.specification["header"][
-        "lighting_setup_description"
-    ] = _attribute_value("lighting_setup_description", lighting_setup_description)
-    debayering_platform = _IDT_GENERATOR.specification["header"][
-        "debayering_platform"
-    ] = _attribute_value("debayering_platform", debayering_platform)
-    debayering_settings = _IDT_GENERATOR.specification["header"][
-        "debayering_settings"
-    ] = _attribute_value("debayering_settings", debayering_settings)
-    encoding_colourspace = _IDT_GENERATOR.specification["header"][
-        "encoding_colourspace"
-    ] = _attribute_value("encoding_colourspace", encoding_colourspace)
+    generator = _IDT_GENERATOR_APPLICATION.generator
+    project_settings = _IDT_GENERATOR_APPLICATION.project_settings
 
-    _IDT_GENERATOR.sort(reference_colour_checker)
-    _IDT_GENERATOR.generate_LUT(as_int_scalar(LUT_size))
-    _IDT_GENERATOR.filter_LUT(as_int_scalar(LUT_smoothing))
-    _IDT_GENERATOR.decode(decoding_method, np.loadtxt([grey_card_reflectance]))
-    _IDT_GENERATOR.optimise(
-        np.loadtxt([EV_range]),
-        training_data=reference_colour_checker,
-        optimisation_factory=OPTIMISATION_FACTORIES[optimisation_space],
-    )
+    generator.sort()
+    generator.generate_LUT()
+    generator.filter_LUT()
+    generator.decode()
+    generator.optimise()
 
-    logging.info(str(_IDT_GENERATOR))
+    logging.info(str(generator))
 
     def RGB_working_to_RGB_display(RGB):
         """
@@ -1281,35 +1255,34 @@ def compute_idt_prosumer_camera(
             apply_cctf_encoding=True,
         )
 
-    samples_median = _IDT_GENERATOR.samples_analysis["data"]["colour_checker"][
-        _IDT_GENERATOR.baseline_exposure
-    ]["samples_median"]
+    samples_median = _IDT_GENERATOR_APPLICATION.generator.samples_analysis[
+        DirectoryStructure.COLOUR_CHECKER
+    ][generator.baseline_exposure]["samples_median"]
 
     samples_idt = camera_RGB_to_ACES2065_1(
         # "camera_RGB_to_ACES2065_1" divides RGB by "min(RGB_w)" for highlights
         # recovery, this is not required here as the images are expected to be
         # fully processed, thus we pre-emptively multiply by "min(RGB_w)".
-        _IDT_GENERATOR.LUT_decoding.apply(samples_median)
-        * np.min(_IDT_GENERATOR.RGB_w),
-        _IDT_GENERATOR.M,
-        _IDT_GENERATOR.RGB_w,
-        _IDT_GENERATOR.k,
+        generator.LUT_decoding.apply(samples_median) * np.min(generator.RGB_w),
+        generator.M,
+        generator.RGB_w,
+        generator.k,
     )
 
-    if _IDT_GENERATOR.baseline_exposure != 0:
+    if generator.baseline_exposure != 0:
         LOGGER.warning(
             "Compensating display and metric computations for non-zero "
             "baseline exposure!"
         )
 
-        samples_idt *= pow(2, -_IDT_GENERATOR.baseline_exposure)
+        samples_idt *= pow(2, -generator.baseline_exposure)
 
     compare_colour_checkers_idt_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_idt),
         RGB_working_to_RGB_display(reference_colour_checker),
     )
 
-    samples_decoded = _IDT_GENERATOR.LUT_decoding.apply(samples_median)
+    samples_decoded = generator.LUT_decoding.apply(samples_median)
     compare_colour_checkers_LUT_correction = png_compare_colour_checkers(
         RGB_working_to_RGB_display(samples_decoded),
         RGB_working_to_RGB_display(reference_colour_checker),
@@ -1351,7 +1324,7 @@ def compute_idt_prosumer_camera(
     ]
 
     # Segmentation
-    colour_checker_segmentation = _IDT_GENERATOR.png_colour_checker_segmentation()
+    colour_checker_segmentation = generator.png_colour_checker_segmentation()
     if colour_checker_segmentation is not None:
         components += [
             H3("Segmentation", style={"textAlign": "center"}),
@@ -1360,7 +1333,7 @@ def compute_idt_prosumer_camera(
                 style={"width": "100%"},
             ),
         ]
-    grey_card_sampling = _IDT_GENERATOR.png_grey_card_sampling()
+    grey_card_sampling = generator.png_grey_card_sampling()
     if grey_card_sampling is not None:
         components += [
             Img(
@@ -1370,8 +1343,8 @@ def compute_idt_prosumer_camera(
         ]
 
     # Camera Samples
-    measured_camera_samples = _IDT_GENERATOR.png_measured_camera_samples()
-    extrapolated_camera_samples = _IDT_GENERATOR.png_extrapolated_camera_samples()
+    measured_camera_samples = generator.png_measured_camera_samples()
+    extrapolated_camera_samples = generator.png_extrapolated_camera_samples()
     if None not in (measured_camera_samples, extrapolated_camera_samples):
         components += [
             H3("Measured Camera Samples", style={"textAlign": "center"}),
@@ -1386,39 +1359,19 @@ def compute_idt_prosumer_camera(
             ),
         ]
 
-    _IDT_GENERATOR.information = {
-        "Application": f"{APP_NAME_LONG} - {__version__}",
-        "Url": href,
-        "Date": datetime.datetime.now(datetime.timezone.utc).strftime(
-            "%b %d, %Y %H:%M:%S"
-        ),
-        "RGBDisplayColourspace": RGB_display_colourspace,
-        "IlluminantName": illuminant_name,
-        "IlluminantData": parsed_illuminant_data,
-        "ChromaticAdaptationTransform": chromatic_adaptation_transform,
-        "OptimisationSpace": optimisation_space,
-        "IlluminantInterpolator": illuminant_interpolator,
-        "DecodingMethod": decoding_method,
-        "EVRange": EV_range,
-        "GreyCardReflectance": grey_card_reflectance,
-        "LUTSize": LUT_size,
-        "LUTSmoothing": LUT_smoothing,
-        "DeltaE": delta_E_idt,
-    }
-
     return (
         "",
         components,
         {"display": "block"},
-        aces_transform_id,
-        aces_user_name,
-        camera_make,
-        camera_model,
-        iso,
-        temperature,
-        additional_camera_settings,
-        lighting_setup_description,
-        debayering_platform,
-        debayering_settings,
-        encoding_colourspace,
+        project_settings.aces_transform_id,
+        project_settings.aces_user_name,
+        project_settings.camera_make,
+        project_settings.camera_model,
+        project_settings.iso,
+        project_settings.temperature,
+        project_settings.additional_camera_settings,
+        project_settings.lighting_setup_description,
+        project_settings.debayering_platform,
+        project_settings.debayering_settings,
+        project_settings.encoding_colourspace,
     )

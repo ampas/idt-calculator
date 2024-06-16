@@ -2,7 +2,7 @@
 IDT Constants
 =============
 
-Define the constants for the project.
+Define the constants for the package.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import colour
 import numpy as np
 from colour.hints import Tuple
 
-from aces.idt.core.structures import IDTMetaData
+from aces.idt.core.structures import Metadata
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -37,7 +37,7 @@ __all__ = [
 
 
 class DirectoryStructure:
-    """Constants for the directory names which make up the data structure."""
+    """Constants for the directory names which compose the data structure."""
 
     DATA: ClassVar[str] = "data"
     COLOUR_CHECKER: ClassVar[str] = "colour_checker"
@@ -114,7 +114,7 @@ class CAT:
             Available chromatic adaptation transforms.
         """
 
-        return tuple(sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS))
+        return *sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS), "None"
 
 
 class OptimizationSpace:
@@ -153,7 +153,7 @@ class DecodingMethods:
 class ProjectSettingsMetadataConstants:
     """Constants for the project settings."""
 
-    SCHEMA_VERSION = IDTMetaData(
+    SCHEMA_VERSION = Metadata(
         default_value="0.1.0",
         description="The project settings schema version",
         display_name="Schema Version",
@@ -161,7 +161,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    CAMERA_MAKE = IDTMetaData(
+    CAMERA_MAKE = Metadata(
         default_value="",
         description="The make of the camera used to capture the images",
         display_name="Camera Make",
@@ -169,7 +169,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    CAMERA_MODEL = IDTMetaData(
+    CAMERA_MODEL = Metadata(
         default_value="",
         description="The model of the camera used to capture the images",
         display_name="Camera Model",
@@ -177,7 +177,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    RGB_DISPLAY_COLOURSPACE = IDTMetaData(
+    RGB_DISPLAY_COLOURSPACE = Metadata(
         default_value=RGBDisplayColourspace.DEFAULT,
         description="The RGB display colourspace",
         display_name="RGB Display Colourspace",
@@ -186,7 +186,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    CAT = IDTMetaData(
+    CAT = Metadata(
         default_value=CAT.DEFAULT,
         description="The CAT",
         display_name="CAT",
@@ -195,7 +195,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    OPTIMISATION_SPACE = IDTMetaData(
+    OPTIMISATION_SPACE = Metadata(
         default_value=OptimizationSpace.DEFAULT,
         description="The optimisation space",
         display_name="Optimisation Space",
@@ -204,7 +204,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    ILLUMINANT_INTERPOLATOR = IDTMetaData(
+    ILLUMINANT_INTERPOLATOR = Metadata(
         default_value=Interpolators.DEFAULT,
         description="The illuminant interpolator",
         display_name="Illuminant Interpolator",
@@ -213,7 +213,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    DECODING_METHOD = IDTMetaData(
+    DECODING_METHOD = Metadata(
         default_value=DecodingMethods.DEFAULT,
         description="The decoding method",
         display_name="Decoding Method",
@@ -222,7 +222,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    EV_RANGE = IDTMetaData(
+    EV_RANGE = Metadata(
         default_value=[-1.0, 0.0, 1.0],
         description="The EV range",
         display_name="EV Range",
@@ -230,7 +230,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    GREY_CARD_REFERENCE = IDTMetaData(
+    GREY_CARD_REFERENCE = Metadata(
         default_value=[0.18, 0.18, 0.18],
         description="The grey card reference",
         display_name="Grey Card Reference",
@@ -238,7 +238,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    LUT_SIZE = IDTMetaData(
+    LUT_SIZE = Metadata(
         default_value=LUTSize.DEFAULT,
         description="The LUT size",
         display_name="LUT Size",
@@ -247,7 +247,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    LUT_SMOOTHING = IDTMetaData(
+    LUT_SMOOTHING = Metadata(
         default_value=16,
         description="The LUT smoothing",
         display_name="LUT Smoothing",
@@ -255,7 +255,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    ACES_TRANSFORM_ID = IDTMetaData(
+    ACES_TRANSFORM_ID = Metadata(
         default_value="",
         description="The ACES transform ID",
         display_name="ACES Transform ID",
@@ -263,7 +263,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    ACES_USER_NAME = IDTMetaData(
+    ACES_USER_NAME = Metadata(
         default_value="",
         description="The ACES username",
         display_name="ACES Username",
@@ -271,7 +271,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    ISO = IDTMetaData(
+    ISO = Metadata(
         default_value=800,
         description="The ISO",
         display_name="ISO",
@@ -279,7 +279,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    TEMPERATURE = IDTMetaData(
+    TEMPERATURE = Metadata(
         default_value=6000,
         description="The temperature",
         display_name="Temperature",
@@ -287,7 +287,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    ADDITIONAL_CAMERA_SETTINGS = IDTMetaData(
+    ADDITIONAL_CAMERA_SETTINGS = Metadata(
         default_value="",
         description="The additional camera settings",
         display_name="Additional Camera Settings",
@@ -295,7 +295,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    LIGHTING_SETUP_DESCRIPTION = IDTMetaData(
+    LIGHTING_SETUP_DESCRIPTION = Metadata(
         default_value="",
         description="The lighting setup description",
         display_name="Lighting Setup Description",
@@ -303,7 +303,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    DEBAYERING_PLATFORM = IDTMetaData(
+    DEBAYERING_PLATFORM = Metadata(
         default_value="",
         description="The debayering platform",
         display_name="Debayering Platform",
@@ -311,7 +311,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    DEBAYERING_SETTINGS = IDTMetaData(
+    DEBAYERING_SETTINGS = Metadata(
         default_value="",
         description="The debayering settings",
         display_name="Debayering Settings",
@@ -319,7 +319,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    ENCODING_COLOUR_SPACE = IDTMetaData(
+    ENCODING_COLOUR_SPACE = Metadata(
         default_value="",
         description="The encoding colour space",
         display_name="Encoding Colour Space",
@@ -327,7 +327,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    DATA = IDTMetaData(
+    DATA = Metadata(
         default_value={
             DirectoryStructure.COLOUR_CHECKER: {},
             DirectoryStructure.GREY_CARD: {},
@@ -339,7 +339,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    WORKING_DIR = IDTMetaData(
+    WORKING_DIR = Metadata(
         default_value="",
         description="The file path to the working directory",
         display_name="Working Directory",
@@ -347,7 +347,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    CLEAN_UP = IDTMetaData(
+    CLEAN_UP = Metadata(
         default_value=False,
         description="Do we want to cleanup the directory after we finish",
         display_name="Cleanup",
@@ -355,7 +355,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    REFERENCE_COLOUR_CHECKER = IDTMetaData(
+    REFERENCE_COLOUR_CHECKER = Metadata(
         default_value="ISO 17321-1",
         description="The reference colour checker we want to use",
         ui_type=UITypes.OPTIONS_FIELD,
@@ -363,15 +363,15 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.ADVANCED,
     )
 
-    ILLUMINANT = IDTMetaData(
+    ILLUMINANT = Metadata(
         default_value="D60",
         description="The illuminant we want to use for the reference colour checker",
         ui_type=UITypes.OPTIONS_FIELD,
-        options=sorted(colour.SDS_ILLUMINANTS),
+        options=["Custom", "Daylight", "Blackbody", *sorted(colour.SDS_ILLUMINANTS)],
         ui_category=UICategories.ADVANCED,
     )
 
-    FILE_TYPE = IDTMetaData(
+    FILE_TYPE = Metadata(
         default_value="",
         description="The file type of the recorded footage is detected from "
         "the archive",
@@ -380,7 +380,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
-    EV_WEIGHTS = IDTMetaData(
+    EV_WEIGHTS = Metadata(
         default_value=np.array([]),
         description="Normalised weights used to sum the exposure values. If not given,"
         "the median of the exposure values is used.",
@@ -389,7 +389,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    OPTIMIZATION_KWARGS = IDTMetaData(
+    OPTIMIZATION_KWARGS = Metadata(
         default_value={},
         description="Parameters for the optimization function scipy.optimize.minimize",
         display_name="Optimization Kwargs",
@@ -397,7 +397,7 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
-    ALL: ClassVar[tuple[IDTMetaData, ...]] = (
+    ALL: ClassVar[tuple[Metadata, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
         CAMERA_MODEL,

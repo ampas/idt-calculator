@@ -2,7 +2,7 @@
 Common IDT Utilities
 ====================
 
-Define common IDT utilities objects.
+Define the common *IDT* utilities objects.
 """
 
 from __future__ import annotations
@@ -651,13 +651,15 @@ def hash_file(path: str) -> str:
 
 def extract_archive(archive: str, directory: None | str = None) -> str:
     """
-    Extract the archive to the given directory or a temporary directory.
+    Extract the archive to the given directory or a temporary directory if
+    not given.
 
     Parameters
     ----------
-    archive : str
+    archive
         Archive to extract.
-    directory : str, optional known directory
+    directory
+        Directory to extract the archive to.
 
     Returns
     -------
@@ -677,6 +679,7 @@ def extract_archive(archive: str, directory: None | str = None) -> str:
     )
 
     shutil.unpack_archive(archive, directory)
+
     return directory
 
 

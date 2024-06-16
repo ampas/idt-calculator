@@ -1,6 +1,8 @@
 """
-Module holds a common base generator class for which all other IDT generators inherit
-from
+IDT Base Generator
+==================
+
+Define the *IDT* base generator class.
 """
 
 import base64
@@ -19,7 +21,8 @@ import colour
 import cv2
 import jsonpickle
 import numpy as np
-from colour import LUT1D, read_image
+from colour import LUT1D, LUT3x1D, read_image
+from colour.hints import NDArrayFloat
 from colour.utilities import Structure, as_float_array, zeros
 from colour_checker_detection.detection import (
     as_int32_array,
@@ -29,6 +32,7 @@ from colour_checker_detection.detection import (
 )
 from matplotlib import pyplot as plt
 
+from aces.idt import IDTProjectSettings
 from aces.idt.core import (
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
@@ -54,8 +58,46 @@ LOGGER = logging.getLogger(__name__)
 
 class IDTBaseGenerator(ABC):
     """
-    A Class which holds the core logic for any generator, and should be inherited from
+    Define the base class that any *IDT* generator must be inherit from.
+
+    Parameters
+    ----------
+    project_settings : IDTProjectSettings, optional
+        *IDT* generator settings.
+
+    Attributes
+    ----------
+    -   :attr:`~aces.idt.IDTBaseGenerator.project_settings`
+    -   :attr:`~aces.idt.IDTBaseGenerator.image_colour_checker_segmentation`
+    -   :attr:`~aces.idt.IDTBaseGenerator.baseline_exposure`
+    -   :attr:`~aces.idt.IDTBaseGenerator.image_grey_card_sampling`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_camera`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_reference`
+    -   :attr:`~aces.idt.IDTBaseGenerator.LUT_unfiltered`
+    -   :attr:`~aces.idt.IDTBaseGenerator.LUT_filtered`
+    -   :attr:`~aces.idt.IDTBaseGenerator.LUT_decoding`
+    -   :attr:`~aces.idt.IDTBaseGenerator.M`
+    -   :attr:`~aces.idt.IDTBaseGenerator.RGB_w`
+    -   :attr:`~aces.idt.IDTBaseGenerator.k`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_analysis`
+
+    Methods
+    -------
+    -   :meth:`~aces.idt.IDTBaseGenerator.sample`
+    -   :meth:`~aces.idt.IDTBaseGenerator.sort`
+    -   :meth:`~aces.idt.IDTBaseGenerator.generate_LUT`
+    -   :meth:`~aces.idt.IDTBaseGenerator.filter_LUT`
+    -   :meth:`~aces.idt.IDTBaseGenerator.decode`
+    -   :meth:`~aces.idt.IDTBaseGenerator.optimise`
+    -   :meth:`~aces.idt.IDTBaseGenerator.zip`
+    -   :meth:`~aces.idt.IDTBaseGenerator.to_clf`
+    -   :meth:`~aces.idt.IDTBaseGenerator.png_colour_checker_segmentation`
+    -   :meth:`~aces.idt.IDTBaseGenerator.png_grey_card_sampling`
+    -   :meth:`~aces.idt.IDTBaseGenerator.png_extrapolated_camera_samples`
     """
+
+    GENERATOR_NAME = "IDTBaseGenerator"
+    """*IDT* generator name."""
 
     def __init__(self, project_settings):
         self._project_settings = project_settings
@@ -77,18 +119,20 @@ class IDTBaseGenerator(ABC):
         self._image_colour_checker_segmentation = None
 
     @property
-    def project_settings(self):
-        """Returns the project settings passed into the generator from the application
+    def project_settings(self) -> IDTProjectSettings:
+        """
+        Getter property for the project settings used by the generator.
 
         Returns
         -------
-        IDTProjectSettings
-            The ProjectSettings passed into the generator
+        :class:`IDTProjectSettings`
+            Project settings used by the generator.
         """
+
         return self._project_settings
 
     @property
-    def image_colour_checker_segmentation(self):
+    def image_colour_checker_segmentation(self) -> NDArrayFloat | None:
         """
         Getter property for the image of the colour checker with segmentation
         contours.
@@ -102,7 +146,7 @@ class IDTBaseGenerator(ABC):
         return self._image_colour_checker_segmentation
 
     @property
-    def baseline_exposure(self):
+    def baseline_exposure(self) -> float:
         """
         Getter property for the baseline exposure.
 
@@ -115,7 +159,7 @@ class IDTBaseGenerator(ABC):
         return self._baseline_exposure
 
     @property
-    def image_grey_card_sampling(self):
+    def image_grey_card_sampling(self) -> NDArrayFloat | None:
         """
         Getter property for the image the grey card with sampling contours.
         contours.
@@ -129,7 +173,7 @@ class IDTBaseGenerator(ABC):
         return self._image_grey_card_sampling
 
     @property
-    def samples_camera(self):
+    def samples_camera(self) -> NDArrayFloat | None:
         """
         Getter property for the samples of the camera produced by the sorting
         process.
@@ -143,7 +187,7 @@ class IDTBaseGenerator(ABC):
         return self._samples_camera
 
     @property
-    def samples_reference(self):
+    def samples_reference(self) -> NDArrayFloat | None:
         """
         Getter property for the reference samples produced by the sorting
         process.
@@ -157,7 +201,7 @@ class IDTBaseGenerator(ABC):
         return self._samples_reference
 
     @property
-    def LUT_unfiltered(self):
+    def LUT_unfiltered(self) -> LUT3x1D | None:
         """
         Getter property for the unfiltered *LUT*.
 
@@ -170,7 +214,7 @@ class IDTBaseGenerator(ABC):
         return self._LUT_unfiltered
 
     @property
-    def LUT_filtered(self):
+    def LUT_filtered(self) -> LUT3x1D | None:
         """
         Getter property for the filtered *LUT*.
 
@@ -183,7 +227,7 @@ class IDTBaseGenerator(ABC):
         return self._LUT_filtered
 
     @property
-    def LUT_decoding(self):
+    def LUT_decoding(self) -> LUT1D | LUT3x1D | None:
         """
         Getter property for the (final) decoding *LUT*.
 
@@ -196,9 +240,9 @@ class IDTBaseGenerator(ABC):
         return self._LUT_decoding
 
     @property
-    def M(self):
+    def M(self) -> NDArrayFloat | None:
         """
-        Getter property for the *IDT* matrix :math:`M`,
+        Getter property for the *IDT* matrix :math:`M`.
 
         Returns
         -------
@@ -209,7 +253,7 @@ class IDTBaseGenerator(ABC):
         return self._M
 
     @property
-    def RGB_w(self):
+    def RGB_w(self) -> NDArrayFloat | None:
         """
         Getter property for the white balance multipliers :math:`RGB_w`.
 
@@ -222,7 +266,7 @@ class IDTBaseGenerator(ABC):
         return self._RGB_w
 
     @property
-    def k(self):
+    def k(self) -> NDArrayFloat | None:
         """
         Getter property for the exposure factor :math:`k` that results in a
         nominally "18% gray" object in the scene producing ACES values
@@ -237,7 +281,7 @@ class IDTBaseGenerator(ABC):
         return self._k
 
     @property
-    def samples_analysis(self):
+    def samples_analysis(self) -> NDArrayFloat | None:
         """
         Getter property for the samples produced by the colour checker sampling
         process.
@@ -250,7 +294,7 @@ class IDTBaseGenerator(ABC):
 
         return self._samples_analysis
 
-    def sample(self):
+    def sample(self) -> None:
         """
         Sample the images from the *IDT* specification.
         """
@@ -504,18 +548,13 @@ class IDTBaseGenerator(ABC):
         if self.project_settings.cleanup:
             shutil.rmtree(self.project_settings.working_directory)
 
-    def sort(self):
+    def sort(self) -> None:
         """
         Sort the samples produced by the image sampling process.
 
         The *ACES* reference samples are sorted and indexed as a function of the
         camera samples ordering. This ensures that the camera samples are
         monotonically increasing.
-
-        Parameters
-        ----------
-        reference_colour_checker : NDArray
-            Reference *ACES* *RGB* values for the *ColorChecker Classic*.
         """
 
         LOGGER.info("Sorting camera and reference samples...")
@@ -538,34 +577,34 @@ class IDTBaseGenerator(ABC):
         self._samples_reference = self._samples_reference[indices]
 
     @abstractmethod
-    def generate_LUT(self):
-        """Implement the generation of the list and must populate the unfiltered lut"""
+    def generate_LUT(self) -> None:
+        """Generate the unfiltered *LUT*."""
 
     @abstractmethod
-    def filter_LUT(self):
-        """Implement the filtering of the lut and must populate the filtered lut"""
+    def filter_LUT(self) -> None:
+        """Filter/smooth the unfiltered *LUT* to produce the decoding *LUT*."""
 
     @abstractmethod
-    def decode(self):
-        """Implement the decoding of the lut"""
+    def decode(self) -> None:
+        """Decode the samples with the decoding *LUT*."""
 
     @abstractmethod
-    def optimise(self):
+    def optimise(self) -> None:
         """Implement any optimisation of the lut that is required"""
 
     def zip(
-        self, output_directory, information=None, archive_serialised_generator=False
-    ):
+        self,
+        output_directory: Path | str,
+        archive_serialised_generator: bool = False,
+    ) -> str:
         """
         Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
         process.
 
         Parameters
         ----------
-        output_directory : str
+        output_directory
             Output directory for the *zip* file.
-        information : dict
-            Information pertaining to the *IDT* and the computation parameters.
         archive_serialised_generator : bool
             Whether to serialise and archive the *IDT* generator.
 
@@ -574,26 +613,27 @@ class IDTBaseGenerator(ABC):
         :class:`str`
             *Zip* file path.
         """
+
         # TODO There is a whole bunch of computation which happens within the ui to
         #  calculate things like the delta_e. All of that logic should be moved to the
         #  application or generator so we do not need to go out to the UI, to do
         #  calculations which then come back into application / generator in order
         #  for us to write it out
-        information = information or {}
+
+        output_directory = Path(output_directory)
 
         LOGGER.info(
             'Zipping the "CLF" resulting from the "IDT" generation '
-            'process in "%s" output directory using given information: "%s".',
+            'process in "%s" output directory.',
             output_directory,
-            information,
         )
-        if not os.path.exists(output_directory):
-            os.makedirs(output_directory)
+
+        output_directory.mkdir(parents=True, exist_ok=True)
 
         camera_make = self.project_settings.camera_make
         camera_model = self.project_settings.camera_model
 
-        clf_path = self.to_clf(output_directory, information)
+        clf_path = self.to_clf(output_directory)
 
         json_path = f"{output_directory}/{camera_make}.{camera_model}.json"
         with open(json_path, "w") as json_file:
@@ -601,6 +641,8 @@ class IDTBaseGenerator(ABC):
 
         zip_file = Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
         current_working_directory = os.getcwd()
+
+        output_directory = str(output_directory)
         try:
             os.chdir(output_directory)
             with ZipFile(zip_file, "w") as zip_archive:
@@ -612,7 +654,7 @@ class IDTBaseGenerator(ABC):
 
         return zip_file
 
-    def to_clf(self, output_directory, information):
+    def to_clf(self, output_directory: Path | str) -> str:
         """
         Convert the *IDT* generation process data to *Common LUT Format* (CLF).
 
@@ -620,8 +662,6 @@ class IDTBaseGenerator(ABC):
         ----------
         output_directory : str
             Output directory for the zip file.
-        information : dict
-            Information pertaining to the *IDT* and the computation parameters.
 
         Returns
         -------
@@ -631,9 +671,8 @@ class IDTBaseGenerator(ABC):
 
         LOGGER.info(
             'Converting "IDT" generation process data to "CLF" in "%s"'
-            'output directory using given information: "%s".',
+            "output directory.",
             output_directory,
-            information,
         )
 
         project_settings = self.project_settings
@@ -662,7 +701,7 @@ class IDTBaseGenerator(ABC):
         et_output_descriptor.text = "ACES2065-1"
 
         et_info = Et.SubElement(root, "Info")
-        et_metadata = Et.SubElement(et_info, "Archive")
+        et_metadata = Et.SubElement(et_info, "AcademyIDTCalculator")
         for key, prop in project_settings.properties:
             value = prop.getter(project_settings)
             if key == "schema_version":
@@ -671,10 +710,6 @@ class IDTBaseGenerator(ABC):
             sub_element = Et.SubElement(
                 et_metadata, key.replace("_", " ").title().replace(" ", "")
             )
-            sub_element.text = str(value)
-        et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
-        for key, value in information.items():
-            sub_element = Et.SubElement(et_academy_idt_calculator, key)
             sub_element.text = str(value)
 
         et_lut = Et.SubElement(
@@ -705,7 +740,7 @@ class IDTBaseGenerator(ABC):
 
         return clf_path
 
-    def png_colour_checker_segmentation(self):
+    def png_colour_checker_segmentation(self) -> str | None:
         """
         Return the colour checker segmentation image as *PNG* data.
 
@@ -730,7 +765,7 @@ class IDTBaseGenerator(ABC):
 
         return data_png
 
-    def png_grey_card_sampling(self):
+    def png_grey_card_sampling(self) -> str | None:
         """
         Return the grey card image sampling as *PNG* data.
 
@@ -754,7 +789,7 @@ class IDTBaseGenerator(ABC):
 
         return data_png
 
-    def png_extrapolated_camera_samples(self):
+    def png_extrapolated_camera_samples(self) -> str | None:
         """
         Return the extrapolated camera samples as *PNG* data.
 
