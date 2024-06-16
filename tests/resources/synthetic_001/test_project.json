@@ -1,0 +1,76 @@
+{
+  "header": {
+    "schema_version": "0.1.0",
+    "aces_transform_id": "",
+    "aces_user_name": "",
+    "camera_make": "",
+    "camera_model": "",
+    "iso": 800,
+    "temperature": 6000,
+    "additional_camera_settings": "",
+    "lighting_setup_description": "",
+    "debayering_platform": "",
+    "debayering_settings": "",
+    "encoding_colourspace": "",
+    "rgb_display_colourspace": "sRGB",
+    "cat": "CAT02",
+    "optimisation_space": "Oklab",
+    "illuminant_interpolator": "Linear",
+    "decoding_method": "Median",
+    "ev_range": [-1.0, 0.0, 1.0],
+    "grey_card_reference": [0.18, 0.18, 0.18],
+    "lut_size": 1024,
+    "lut_smoothing": 16,
+    "working_directory": "",
+    "cleanup": false,
+    "reference_colour_checker": "ISO 17321-1",
+    "illuminant": "D60",
+    "file_type": "",
+    "ev_weights": [],
+    "optimization_kwargs": {}
+  },
+  "data": {
+    "colour_checker": {
+      "-3": [
+        "data/colour_checker/-3/colour_checker_0001.tif",
+        "data/colour_checker/-3/colour_checker_0002.tif",
+        "data/colour_checker/-3/colour_checker_0003.tif"
+      ],
+      "-2": [
+        "data/colour_checker/-2/colour_checker_0001.tif",
+        "data/colour_checker/-2/colour_checker_0002.tif",
+        "data/colour_checker/-2/colour_checker_0003.tif"
+      ],
+      "-1": [
+        "data/colour_checker/-1/colour_checker_0001.tif",
+        "data/colour_checker/-1/colour_checker_0002.tif",
+        "data/colour_checker/-1/colour_checker_0003.tif"
+      ],
+      "0": [
+        "data/colour_checker/0/colour_checker_0001.tif",
+        "data/colour_checker/0/colour_checker_0002.tif",
+        "data/colour_checker/0/colour_checker_0003.tif"
+      ],
+      "+1": [
+        "data/colour_checker/1/colour_checker_0001.tif",
+        "data/colour_checker/1/colour_checker_0002.tif",
+        "data/colour_checker/1/colour_checker_0003.tif"
+      ],
+      "+2": [
+        "data/colour_checker/2/colour_checker_0001.tif",
+        "data/colour_checker/2/colour_checker_0002.tif",
+        "data/colour_checker/2/colour_checker_0003.tif"
+      ],
+      "+3": [
+        "data/colour_checker/3/colour_checker_0001.tif",
+        "data/colour_checker/3/colour_checker_0002.tif",
+        "data/colour_checker/3/colour_checker_0003.tif"
+      ]
+    },
+    "grey_card": [
+      "data/grey_card/grey_card_0001.tif",
+      "data/grey_card/grey_card_0002.tif",
+      "data/grey_card/grey_card_0003.tif"
+    ]
+  }
+}

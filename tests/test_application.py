@@ -1,47 +1,104 @@
-# !/usr/bin/env python
-"""
-Define the unit tests for the :mod:`aces.idt.prosumer_camera` module.
-"""
+"""Module to hold unit tests for the IDTApplication
 
-import unittest
-from pathlib import Path
+"""
+import json
+import os
 
 import numpy as np
 from colour.constants import TOLERANCE_ABSOLUTE_TESTS
 
-from aces.idt import IDTGeneratorProsumerCamera
-
-__author__ = "Colour Developers"
-__copyright__ = "Copyright 2018 Colour Developers"
-__license__ = "BSD-3-Clause - https://opensource.org/licenses/BSD-3-Clause"
-__maintainer__ = "Colour Developers"
-__email__ = "colour-developers@colour-science.org"
-__status__ = "Production"
-
-__all__ = [
-    "RESOURCES_DIRECTORY",
-    "TestIDTGeneratorProsumerCamera",
-]
-
-RESOURCES_DIRECTORY = Path(__file__).parent / "resources"
+from aces.idt.application import IDTGeneratorApplication
+from aces.idt.core.constants import DirectoryStructure
+from aces.idt.framework.project_settings import IDTProjectSettings
+from tests.test_utils import TestIDTBase
 
 
-class TestIDTGeneratorProsumerCamera(unittest.TestCase):
-    """
-    Define :class:`aces.idt.prosumer_camera.IDTGeneratorProsumerCamera`
-    class unit tests methods.
-    """
+class TestIDTApplication(TestIDTBase):
+    """Class holding unit tests for the IDTApplication"""
 
-    def test_from_archive(self):
+    def setUp(self):
+        """
+        Set up a new project settings object.
+        """
+        self.project_settings = IDTProjectSettings()
+
+    def test_string_overrides(self):
+        """Test the __str__ methods we override"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+        actual = str(idt_application.generator)
+        actual2 = str(idt_application.project_settings)
+
+        self.assertNotEqual(actual, "")
+        self.assertNotEqual(actual2, "")
+
+    def test_prosumer_generator_sample(self):
+        """Test the prosumer generator"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        working_directory = idt_application.extract(archive)
+        idt_application.project_settings.working_directory = working_directory
+
+        generator = idt_application.generator
+        generator.sample()
+        expected_file = os.path.join(
+            self.get_test_resources_folder(), "samples_analysis.json"
+        )
+        with open(expected_file) as file:
+            expected = json.load(file)
+
+        colour_checkers_result = generator.samples_analysis.get(
+            DirectoryStructure.COLOUR_CHECKER
+        )
+        expected_colour_checkers = expected.get(DirectoryStructure.COLOUR_CHECKER)
+        for key in colour_checkers_result:
+            a = colour_checkers_result[key]
+            e = expected_colour_checkers[str(key)]
+            self.assertEqual(a, e)
+
+        grey_result = generator.samples_analysis.get(DirectoryStructure.GREY_CARD)
+        grey_expected = expected.get(DirectoryStructure.GREY_CARD)
+        self.assertEqual(grey_result, grey_expected)
+
+    def test_prosumer_generator_sort(self):
+        """Test the prosumer generator sort"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        working_dir = idt_application.extract(archive)
+        idt_application.project_settings.working_directory = working_dir
+
+        generator = idt_application.generator
+        generator.sample()
+        generator.sort()
+
+        camera_expected_file = os.path.join(
+            self.get_test_resources_folder(), "samples_camera.json"
+        )
+        reference_expected_file = os.path.join(
+            self.get_test_resources_folder(), "samples_reference.json"
+        )
+        with open(camera_expected_file) as file:
+            expected_camera = json.load(file)
+
+        with open(reference_expected_file) as file:
+            expected_reference = json.load(file)
+
+        self.assertEqual(generator.samples_camera.tolist(), expected_camera)
+        self.assertEqual(generator.samples_reference.tolist(), expected_reference)
+
+    def test_prosumer_generator_from_archive(self):
         """
         Define :func:`aces.idt.prosumer_camera.IDTGeneratorProsumerCamera.\
-test_from_archive` definition unit tests methods.
+        test_from_archive` definition unit tests methods.
         """
 
-        idt_generator_1 = IDTGeneratorProsumerCamera.from_archive(
-            RESOURCES_DIRECTORY / "synthetic_001.zip", cleanup=True
-        )
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
 
+        idt_generator_1 = idt_application.process(archive)
         np.testing.assert_allclose(
             idt_generator_1.LUT_decoding.table,
             np.array(
@@ -1097,9 +1154,10 @@ test_from_archive` definition unit tests methods.
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-        idt_generator_2 = IDTGeneratorProsumerCamera.from_archive(
-            RESOURCES_DIRECTORY / "synthetic_002.zip", cleanup=True
-        )
+        idt_application2 = IDTGeneratorApplication()
+        idt_application2.generator = "IDTGeneratorProsumerCamera"
+        archive2 = os.path.join(self.get_test_resources_folder(), "synthetic_002.zip")
+        idt_generator_2 = idt_application2.process(archive2)
 
         np.testing.assert_allclose(
             idt_generator_1.M,
@@ -1119,9 +1177,11 @@ test_from_archive` definition unit tests methods.
             atol=0.25,
         )
 
-        idt_generator_3 = IDTGeneratorProsumerCamera.from_archive(
-            RESOURCES_DIRECTORY / "synthetic_003.zip", cleanup=True
-        )
+        idt_application3 = IDTGeneratorApplication()
+        idt_application3.generator = "IDTGeneratorProsumerCamera"
+
+        archive3 = os.path.join(self.get_test_resources_folder(), "synthetic_003.zip")
+        idt_generator_3 = idt_application3.process(archive3)
 
         np.testing.assert_allclose(
             idt_generator_3.M,
@@ -1147,6 +1207,22 @@ test_from_archive` definition unit tests methods.
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
+    def test_prosumer_generator_from_archive_no_json(self):
+        """Test the prosumer generator from archive without a json file"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
 
-if __name__ == "__main__":
-    unittest.main()
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
+        idt_application.process(archive)
+
+    def test_prosumer_generator_from_archive_zip(self):
+        """Test the prosumer generator from archive with a json file"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorProsumerCamera"
+
+        archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
+        idt_application.process(archive)
+        zip_file = idt_application.zip(
+            self.get_test_output_folder(), archive_serialised_generator=False
+        )
+        self.assertEqual(os.path.exists(zip_file), True)

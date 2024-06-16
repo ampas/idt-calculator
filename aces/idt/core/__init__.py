@@ -1,25 +1,10 @@
-from .core import (
-    CAT,
+from .common import (
     OPTIMISATION_FACTORIES,
     RGB_COLORCHECKER_CLASSIC_ACES,
     SAMPLES_COUNT_DEFAULT,
     SD_ILLUMINANT_ACES,
     SDS_COLORCHECKER_CLASSIC,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    DecodingMethods,
-    DirectoryStructure,
-    Interpolators,
-    LUTSize,
-    Metadata,
-    MetadataProperty,
-    MixinSerializableProperties,
-    OptimizationSpace,
-    PathEncoder,
-    ProjectSettingsMetadataConstants,
-    RGBDisplayColourspace,
-    SerializableConstants,
-    UICategories,
-    UITypes,
     clf_processing_elements,
     error_delta_E,
     extract_archive,
@@ -30,7 +15,6 @@ from .core import (
     hash_file,
     list_sub_directories,
     mask_outliers,
-    metadata_property,
     optimisation_factory_IPT,
     optimisation_factory_Oklab,
     png_compare_colour_checkers,
@@ -38,33 +22,34 @@ from .core import (
     sort_exposure_keys,
     working_directory,
 )
-from .framework import IDTProjectSettings
-from .generators import GENERATORS, IDTBaseGenerator, IDTGeneratorProsumerCamera
-
-from .application import IDTGeneratorApplication  # isort: skip
+from .constants import (
+    CAT,
+    DecodingMethods,
+    DirectoryStructure,
+    Interpolators,
+    LUTSize,
+    OptimizationSpace,
+    ProjectSettingsMetadataConstants,
+    RGBDisplayColourspace,
+    UICategories,
+    UITypes,
+)
+from .structures import (
+    Metadata,
+    MetadataProperty,
+    MixinSerializableProperties,
+    PathEncoder,
+    SerializableConstants,
+    metadata_property,
+)
 
 __all__ = [
-    "CAT",
     "OPTIMISATION_FACTORIES",
     "RGB_COLORCHECKER_CLASSIC_ACES",
     "SAMPLES_COUNT_DEFAULT",
     "SD_ILLUMINANT_ACES",
     "SDS_COLORCHECKER_CLASSIC",
     "SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC",
-    "DecodingMethods",
-    "DirectoryStructure",
-    "Interpolators",
-    "LUTSize",
-    "Metadata",
-    "MetadataProperty",
-    "MixinSerializableProperties",
-    "OptimizationSpace",
-    "PathEncoder",
-    "ProjectSettingsMetadataConstants",
-    "RGBDisplayColourspace",
-    "SerializableConstants",
-    "UICategories",
-    "UITypes",
     "clf_processing_elements",
     "error_delta_E",
     "extract_archive",
@@ -75,7 +60,6 @@ __all__ = [
     "hash_file",
     "list_sub_directories",
     "mask_outliers",
-    "metadata_property",
     "optimisation_factory_IPT",
     "optimisation_factory_Oklab",
     "png_compare_colour_checkers",
@@ -84,10 +68,24 @@ __all__ = [
     "working_directory",
 ]
 
-__all__ += ["IDTProjectSettings"]
 __all__ += [
-    "GENERATORS",
-    "IDTBaseGenerator",
-    "IDTGeneratorProsumerCamera",
+    "CAT",
+    "DirectoryStructure",
+    "DecodingMethods",
+    "Interpolators",
+    "LUTSize",
+    "OptimizationSpace",
+    "ProjectSettingsMetadataConstants",
+    "RGBDisplayColourspace",
+    "UICategories",
+    "UITypes",
 ]
-__all__ += ["IDTGeneratorApplication"]
+
+__all__ += [
+    "Metadata",
+    "MetadataProperty",
+    "MixinSerializableProperties",
+    "PathEncoder",
+    "SerializableConstants",
+    "metadata_property",
+]

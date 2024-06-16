@@ -6,3 +6,4 @@
 .idea
 __pycache__
 poetry.lock
+/tests/output/**
