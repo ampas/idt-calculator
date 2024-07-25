@@ -420,6 +420,7 @@ def clf_processing_elements(
     multipliers: ArrayLike,
     k_factor: float,
     use_range: bool = True,
+    include_white_balance_in_clf: bool = False,
 ) -> Et.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
@@ -437,6 +438,8 @@ def clf_processing_elements(
     use_range
         Whether to use the range node to clamp the graph before the exposure
         factor :math:`k`.
+    include_white_balance_in_clf
+        Whether to include the white balance multipliers in the *CLF*.
 
     Returns
     -------
@@ -449,11 +452,12 @@ def clf_processing_elements(
 
         return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
 
-    et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = Et.SubElement(et_RGB_w, "Description")
-    et_description.text = "White balance multipliers *b*."
-    et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.diag(multipliers))}"
+    if include_white_balance_in_clf:
+        et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = Et.SubElement(et_RGB_w, "Description")
+        et_description.text = "White balance multipliers *b*."
+        et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+        et_array.text = f"\n{format_array(np.diag(multipliers))}"
 
     if use_range:
         et_range = Et.SubElement(
