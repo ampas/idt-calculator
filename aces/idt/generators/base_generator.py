@@ -712,21 +712,32 @@ class IDTBaseGenerator(ABC):
             )
             sub_element.text = str(value)
 
-        et_lut = Et.SubElement(
-            root,
-            "LUT1D",
-            inBitDepth="32f",
-            outBitDepth="32f",
-            interpolation="linear",
-        )
         LUT_decoding = self._LUT_decoding
-        channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-        et_description = Et.SubElement(et_lut, "Description")
-        et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-        et_array = Et.SubElement(et_lut, "Array", dim=f"{LUT_decoding.size} {channels}")
-        et_array.text = f"\n{format_array(LUT_decoding.table)}"
+        if LUT_decoding:
+            et_lut = Et.SubElement(
+                root,
+                "LUT1D",
+                inBitDepth="32f",
+                outBitDepth="32f",
+                interpolation="linear",
+            )
 
-        root = clf_processing_elements(root, self._M, self._RGB_w, self._k, False)
+            channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
+            et_description = Et.SubElement(et_lut, "Description")
+            et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
+            et_array = Et.SubElement(
+                et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
+            )
+            et_array.text = f"\n{format_array(LUT_decoding.table)}"
+
+        root = clf_processing_elements(
+            root,
+            self._M,
+            self._RGB_w,
+            self._k,
+            False,
+            self.project_settings.include_white_balance_in_clf,
+        )
 
         clf_path = (
             f"{output_directory}/"
