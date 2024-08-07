@@ -448,16 +448,24 @@ def clf_processing_elements(
     """
 
     def format_array(a: NDArrayFloat) -> str:
-        """Format given array :math:`a`."""
+        """Format given array :math:`a` into 3 lines of 3 numbers."""
+        # Reshape the array into a 3x3 matrix
+        reshaped_array = a.reshape(3, 3)
 
-        return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
+        # Convert each row to a string and join them with newlines
+        formatted_lines = [" ".join(map(str, row)) for row in reshaped_array]
+
+        # Join all the lines with newline characters
+        formatted_string = "\n\t\t".join(formatted_lines)
+
+        return formatted_string
 
     if include_white_balance_in_clf:
         et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
         et_description = Et.SubElement(et_RGB_w, "Description")
         et_description.text = "White balance multipliers *b*."
         et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-        et_array.text = f"\n{format_array(np.diag(multipliers))}"
+        et_array.text = f"\n\t\t{format_array(np.diag(multipliers))}"
 
     if use_range:
         et_range = Et.SubElement(
@@ -478,13 +486,13 @@ def clf_processing_elements(
         "the scene producing ACES values [0.18, 0.18, 0.18]."
     )
     et_array = Et.SubElement(et_k, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(np.ravel(np.diag([k_factor] * 3)))}"
+    et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
 
     et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
     et_description = Et.SubElement(et_M, "Description")
     et_description.text = "*Input Device Transform* (IDT) matrix *B*."
     et_array = Et.SubElement(et_M, "Array", dim="3 3")
-    et_array.text = f"\n{format_array(matrix)}"
+    et_array.text = f"\n\t\t{format_array(matrix)}"
 
     return root
 

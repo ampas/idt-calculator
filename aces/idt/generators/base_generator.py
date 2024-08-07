@@ -692,7 +692,7 @@ class IDTBaseGenerator(ABC):
         def format_array(a):
             """Format given array :math:`a`."""
 
-            return re.sub(r"\[|\]|,", "", "\n".join(map(str, a.tolist())))
+            return re.sub(r"\[|\]|,", "", "\n\t\t".join(map(str, a.tolist())))
 
         et_input_descriptor = Et.SubElement(root, "InputDescriptor")
         et_input_descriptor.text = f"{camera_make} {camera_model}"
@@ -728,7 +728,7 @@ class IDTBaseGenerator(ABC):
             et_array = Et.SubElement(
                 et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
             )
-            et_array.text = f"\n{format_array(LUT_decoding.table)}"
+            et_array.text = f"\n\t\t{format_array(LUT_decoding.table)}"
 
         root = clf_processing_elements(
             root,
