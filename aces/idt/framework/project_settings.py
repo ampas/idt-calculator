@@ -170,6 +170,10 @@ class IDTProjectSettings(MixinSerializableProperties):
             "include_white_balance_in_clf",
             IDTProjectSettings.include_white_balance_in_clf.metadata.default_value,
         )
+        self._flatten_clf = kwargs.get(
+            "flatten_clf",
+            IDTProjectSettings.flatten_clf.metadata.default_value,
+        )
 
     @metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
     def schema_version(self) -> str:
@@ -559,6 +563,19 @@ class IDTProjectSettings(MixinSerializableProperties):
             Whether to include the white balance in the *CLF*.
         """
         return self._include_white_balance_in_clf
+
+    @metadata_property(metadata=MetadataConstants.FLATTEN_CLF)
+    def flatten_clf(self) -> str:
+        """
+        Getter property for the flatten_clf.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether to flatten the clf output into a 1D LUT and a single 3x3 Matrix
+        """
+
+        return self._flatten_clf
 
     def get_reference_colour_checker_samples(self) -> NDArrayFloat:
         """

@@ -405,6 +405,14 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
+    FLATTEN_CLF = Metadata(
+        default_value=False,
+        description="Whether to flatten the CLF to a 1D Lut and a single 3x3 Matrix ",
+        display_name="Flatten CLF",
+        ui_type=UITypes.BOOLEAN_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
     ALL: ClassVar[tuple[Metadata, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -436,4 +444,5 @@ class ProjectSettingsMetadataConstants:
         EV_WEIGHTS,
         OPTIMIZATION_KWARGS,
         INCLUDE_WHITE_BALANCE_IN_CLF,
+        FLATTEN_CLF,
     )
