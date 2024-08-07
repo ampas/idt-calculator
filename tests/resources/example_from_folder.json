@@ -14,6 +14,7 @@
     "debayering_platform": "",
     "debayering_settings": "",
     "encoding_colourspace": "",
+    "encoding_transfer_function": "",
     "rgb_display_colourspace": "sRGB",
     "cat": "CAT02",
     "optimisation_space": "Oklab",

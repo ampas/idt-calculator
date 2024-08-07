@@ -98,6 +98,10 @@ class IDTProjectSettings(MixinSerializableProperties):
             "encoding_colourspace",
             IDTProjectSettings.encoding_colourspace.metadata.default_value,
         )
+        self._encoding_transfer_function = kwargs.get(
+            "encoding_transfer_function",
+            IDTProjectSettings.encoding_transfer_function.metadata.default_value,
+        )
         self._rgb_display_colourspace = kwargs.get(
             "rgb_display_colourspace",
             IDTProjectSettings.rgb_display_colourspace.metadata.default_value,
@@ -330,6 +334,19 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         return self._encoding_colourspace
+
+    @metadata_property(metadata=MetadataConstants.ENCODING_TRANSFER_FUNCTION)
+    def encoding_transfer_function(self) -> str:
+        """
+        Getter property for the encoding transfer function.
+
+        Returns
+        -------
+        :class:`str`
+            Encoding transfer function.
+        """
+
+        return self._encoding_transfer_function
 
     @metadata_property(metadata=MetadataConstants.RGB_DISPLAY_COLOURSPACE)
     def rgb_display_colourspace(self) -> str:
