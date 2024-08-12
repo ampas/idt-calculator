@@ -688,7 +688,7 @@ class IDTProjectSettings(MixinSerializableProperties):
                     root
                 )  # Assuming folder names are the exposure values
                 if os.path.basename(file).startswith("."):
-                    pass
+                    continue
 
                 if exposure_value not in data[DirectoryStructure.COLOUR_CHECKER]:
                     data[DirectoryStructure.COLOUR_CHECKER][exposure_value] = []

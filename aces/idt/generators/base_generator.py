@@ -38,6 +38,8 @@ from aces.idt.core import (
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
     DirectoryStructure,
     clf_processing_elements,
+    find_close_indices,
+    get_clipping_threshold,
     mask_outliers,
     working_directory,
 )
@@ -52,6 +54,7 @@ __status__ = "Production"
 __all__ = [
     "IDTBaseGenerator",
 ]
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -561,6 +564,7 @@ class IDTBaseGenerator(ABC):
         ref_col_checker = self.project_settings.get_reference_colour_checker_samples()
         samples_camera = []
         samples_reference = []
+
         for EV, images in self._samples_analysis[
             DirectoryStructure.COLOUR_CHECKER
         ].items():
@@ -575,6 +579,30 @@ class IDTBaseGenerator(ABC):
 
         self._samples_camera = self._samples_camera[indices]
         self._samples_reference = self._samples_reference[indices]
+
+        # Now we have sorted the samples lets remove any clipped samples
+        self.remove_clipping()
+
+    def remove_clipping(self):
+        """
+        Remove any clipping from the samples and references, if we detect any clipping
+        at the floor or the ceiling of the samples we remove them from both the samples
+        and the references.
+
+        This is done by taking 2 code values at 10-bit as a threshold, and checking if
+        any of the r, g, b values between samples are less than the threshold.
+
+        If they are we remove these indices from both the samples and the references.
+
+        """
+        clipped_indices = find_close_indices(
+            self._samples_camera, threshold=get_clipping_threshold()
+        )
+
+        self._samples_camera = np.delete(self._samples_camera, clipped_indices, axis=0)
+        self._samples_reference = np.delete(
+            self._samples_reference, clipped_indices, axis=0
+        )
 
     @abstractmethod
     def generate_LUT(self) -> None:

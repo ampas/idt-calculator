@@ -86,6 +86,8 @@ __all__ = [
     "extract_archive",
     "sort_exposure_keys",
     "format_exposure_key",
+    "find_close_indices",
+    "ExposureClippingFilter",
 ]
 
 LOGGER = logging.getLogger(__name__)
@@ -756,3 +758,153 @@ def format_exposure_key(key: str) -> str:
         return f"+{key_float:g}"
     else:
         return f"{key_float:g}"
+
+
+def get_clipping_threshold() -> float:
+    """Get the threshold for determining if RGB values are clipped. The threshold is
+        2 code values in a 10 bit system
+
+    Returns
+    -------
+    float
+        The threshold for determining if RGB values are clipped
+
+    """
+    bit_depth = 10
+    code_value_threshold = 2
+    max_code_value = 2**bit_depth - 1
+    threshold = float(code_value_threshold) / max_code_value
+    return threshold
+
+
+def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
+    """
+    Find the indices of rows that have any values with differences below the threshold.
+
+    Parameters
+    ----------
+    data : np.array
+        A numpy array of shape (n, 3, 3) where each row contains RGB values.
+    threshold : float, optional
+        The tolerance threshold for determining if the RGB values between consecutive
+        rows are similar. Default is 0.005.
+
+    Returns
+    -------
+    List[int]
+        A list of indices where the rows have RGB differences below the threshold.
+    """
+    top_indices = []
+    bottom_indices = []
+    n_rows = data.shape[0]
+
+    # Search from the top
+    for i in range(n_rows - 1):
+        if np.any(np.abs(data[i] - data[i + 1]) < threshold):
+            top_indices.append(i)
+        else:
+            break
+
+    # Search from the bottom
+    for i in range(n_rows - 1, 0, -1):
+        if np.any(np.abs(data[i] - data[i - 1]) < threshold):
+            bottom_indices.append(i)
+        else:
+            break
+
+    # Combine and return the indices
+    return sorted(np.array(top_indices + bottom_indices))
+
+
+class ExposureClippingFilter:
+    """
+    The ExposureClippingFilter class is used to filter out exposure values that have
+    clipped RGB values. The class compares the RGB values of each image sample in
+    consecutive exposures. If any of the RGB values are less than the threshold, the
+    exposure is considered clipped and should be removed.
+    """
+
+    def __init__(self, data_dict: dict, threshold: float):
+        """
+        Initialize the ExposureClippingFilter with a data dictionary and a threshold
+        value.
+
+        Parameters
+        ----------
+        data_dict : dict
+            Dictionary with exposure values as keys and numpy arrays of image samples
+            as values.
+        threshold : float
+            The threshold for the comparison.
+        """
+        self.data_dict = data_dict
+        self.threshold = threshold
+
+    def compare_image_samples(self, samples1: np.ndarray, samples2: np.ndarray) -> bool:
+        """
+        Compare the r, g, and b values of each corresponding image sample in two arrays.
+        If any of the r, g, b values for any of the images are less than the threshold,
+        return True. Otherwise, return False.
+
+        Parameters
+        ----------
+        samples1 : np.ndarray
+            First set of image samples with shape (n, 3).
+        samples2 : np.ndarray
+            Second set of image samples with shape (n, 3).
+
+        Returns
+        -------
+        bool
+            True if any r, g, b values are less than the threshold, False otherwise.
+        """
+        if not isinstance(samples1, np.ndarray):
+            samples1 = np.array(samples1)
+
+        if not isinstance(samples2, np.ndarray):
+            samples2 = np.array(samples2)
+
+        difference = np.abs(samples1 - samples2)
+        return np.any(difference < self.threshold)
+
+    def filter_samples(self) -> list:
+        """
+        March through exposure values from lowest to highest and from highest to lowest,
+        comparing the samples. If any of the comparisons fail, stores the exposure
+        value. Stops when an exposure passes the test, and returns all failed exposure
+        values.
+
+        Returns
+        -------
+        list
+            A list of exposure values that failed the threshold test and should be
+            removed
+        """
+        exposure_values = sorted(self.data_dict.keys())
+        failed_exposures = []
+
+        # March from the bottom (smallest exposure to largest)
+        for i in range(len(exposure_values) - 1):
+            current_exposure = exposure_values[i]
+            next_exposure = exposure_values[i + 1]
+
+            if self.compare_image_samples(
+                self.data_dict[current_exposure], self.data_dict[next_exposure]
+            ):
+                failed_exposures.append(current_exposure)
+            else:
+                break
+
+        # March from the top (largest exposure to smallest)
+        for i in range(len(exposure_values) - 1, 0, -1):
+            current_exposure = exposure_values[i]
+            previous_exposure = exposure_values[i - 1]
+
+            if self.compare_image_samples(
+                self.data_dict[current_exposure], self.data_dict[previous_exposure]
+            ):
+                failed_exposures.append(current_exposure)
+            else:
+                break
+
+        return sorted(set(failed_exposures))
