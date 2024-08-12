@@ -5,11 +5,14 @@ from .common import (
     SD_ILLUMINANT_ACES,
     SDS_COLORCHECKER_CLASSIC,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
+    ExposureClippingFilter,
     clf_processing_elements,
     error_delta_E,
     extract_archive,
+    find_close_indices,
     format_exposure_key,
     generate_reference_colour_checker,
+    get_clipping_threshold,
     get_sds_colour_checker,
     get_sds_illuminant,
     hash_file,
@@ -66,6 +69,9 @@ __all__ = [
     "slugify",
     "sort_exposure_keys",
     "working_directory",
+    "find_close_indices",
+    "get_clipping_threshold",
+    "ExposureClippingFilter",
 ]
 
 __all__ += [
