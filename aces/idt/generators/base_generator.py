@@ -603,6 +603,11 @@ class IDTBaseGenerator(ABC):
 
         If they are we remove these indices from both the samples and the references.
 
+        Returns
+        -------
+        :class:`np.ndarray`
+            Indices of the clipped samples.
+
         """
         clipped_indices = find_close_indices(
             self._samples_camera, threshold=get_clipping_threshold()
@@ -612,6 +617,7 @@ class IDTBaseGenerator(ABC):
         self._samples_reference = np.delete(
             self._samples_reference, clipped_indices, axis=0
         )
+        return clipped_indices
 
     @abstractmethod
     def generate_LUT(self) -> None:
