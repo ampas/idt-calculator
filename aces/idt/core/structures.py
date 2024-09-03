@@ -82,6 +82,7 @@ class Metadata:
     default_value: Any = field(default=None)
     description: str = field(default="")
     display_name: str = field(default="")
+    name: str = field(default="")
     serialize_group: str = field(default=SerializableConstants.HEADER)
     ui_category: str = field(default="")
     ui_type: str = field(default="")
