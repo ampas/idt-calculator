@@ -289,7 +289,7 @@ class IDTGeneratorApplication:
 
         return directory
 
-    def process(self, archive: str | None) -> IDTBaseGenerator:
+    def process_archive(self, archive: str | None) -> IDTBaseGenerator:
         """
         Compute the *IDT* either using given archive *zip* file path or the
         current *IDT* project settings if not given.
@@ -326,13 +326,24 @@ class IDTGeneratorApplication:
                 float(exposure)
             ] = images
 
+        return self.process()
+
+    def process(self) -> IDTBaseGenerator:
+        """Run the *IDT* generator application process maintaining the execution steps
+
+        Returns
+        -------
+        :class:`IDTBaseGenerator`
+            Instantiated *IDT* generator. after the process has been run
+
+        """
         self.generator.sample()
         self.generator.sort()
+        self.generator.remove_clipping()
         self.generator.generate_LUT()
         self.generator.filter_LUT()
         self.generator.decode()
         self.generator.optimise()
-
         return self.generator
 
     def zip(

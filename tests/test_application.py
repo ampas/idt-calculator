@@ -98,7 +98,7 @@ class TestIDTApplication(TestIDTBase):
         idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
 
-        idt_generator_1 = idt_application.process(archive)
+        idt_generator_1 = idt_application.process_archive(archive)
         np.testing.assert_allclose(
             idt_generator_1.LUT_decoding.table,
             np.array(
@@ -1157,7 +1157,7 @@ class TestIDTApplication(TestIDTBase):
         idt_application2 = IDTGeneratorApplication()
         idt_application2.generator = "IDTGeneratorProsumerCamera"
         archive2 = os.path.join(self.get_test_resources_folder(), "synthetic_002.zip")
-        idt_generator_2 = idt_application2.process(archive2)
+        idt_generator_2 = idt_application2.process_archive(archive2)
 
         np.testing.assert_allclose(
             idt_generator_1.M,
@@ -1181,7 +1181,7 @@ class TestIDTApplication(TestIDTBase):
         idt_application3.generator = "IDTGeneratorProsumerCamera"
 
         archive3 = os.path.join(self.get_test_resources_folder(), "synthetic_003.zip")
-        idt_generator_3 = idt_application3.process(archive3)
+        idt_generator_3 = idt_application3.process_archive(archive3)
 
         np.testing.assert_allclose(
             idt_generator_3.M,
@@ -1213,7 +1213,7 @@ class TestIDTApplication(TestIDTBase):
         idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
-        idt_application.process(archive)
+        idt_application.process_archive(archive)
 
     def test_prosumer_generator_from_archive_zip(self):
         """Test the prosumer generator from archive with a json file"""
@@ -1221,7 +1221,7 @@ class TestIDTApplication(TestIDTBase):
         idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
-        idt_application.process(archive)
+        idt_application.process_archive(archive)
         zip_file = idt_application.zip(
             self.get_test_output_folder(), archive_serialised_generator=False
         )
@@ -1233,7 +1233,19 @@ class TestIDTApplication(TestIDTBase):
         idt_application.generator = "IDTGeneratorPreLinearizedCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "FULL_STOPS_EXR.zip")
-        idt_application.process(archive)
+        idt_application.process_archive(archive)
+        zip_file = idt_application.zip(
+            self.get_test_output_folder(), archive_serialised_generator=False
+        )
+        self.assertEqual(os.path.exists(zip_file), True)
+
+    def test_tonemapped_idt_generator_from_archive_zip(self):
+        """Test the prosumer generator from archive with a json file"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorToneMappedCamera"
+
+        archive = os.path.join(self.get_test_resources_folder(), "PTZ_160.zip")
+        idt_application.process_archive(archive)
         zip_file = idt_application.zip(
             self.get_test_output_folder(), archive_serialised_generator=False
         )
