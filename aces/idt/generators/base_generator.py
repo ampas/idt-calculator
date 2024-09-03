@@ -739,6 +739,9 @@ class IDTBaseGenerator(ABC):
 
         et_info = Et.SubElement(root, "Info")
         et_metadata = Et.SubElement(et_info, "AcademyIDTCalculator")
+
+        et_generator_name = Et.SubElement(et_metadata, "GeneratorName")
+        et_generator_name.text = self.GENERATOR_NAME
         for key, prop in project_settings.properties:
             value = prop.getter(project_settings)
             if key == "schema_version":
