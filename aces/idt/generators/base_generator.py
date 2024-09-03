@@ -551,13 +551,24 @@ class IDTBaseGenerator(ABC):
         if self.project_settings.cleanup:
             shutil.rmtree(self.project_settings.working_directory)
 
-    def sort(self) -> None:
+    def sort(self, start_index: int = -6) -> np.ndarray:
         """
         Sort the samples produced by the image sampling process.
 
         The *ACES* reference samples are sorted and indexed as a function of the
         camera samples ordering. This ensures that the camera samples are
         monotonically increasing.
+
+        Parameters
+        ----------
+        start_index : int, optional
+            The index to start sorting from, default is -6 so we only use the last
+                6 samples from the macbeth chart
+
+        Returns
+        -------
+        :class:`np.ndarray`
+            Indices of the sorted samples which can be used for additional sorting
         """
 
         LOGGER.info("Sorting camera and reference samples...")
@@ -568,8 +579,8 @@ class IDTBaseGenerator(ABC):
         for EV, images in self._samples_analysis[
             DirectoryStructure.COLOUR_CHECKER
         ].items():
-            samples_reference.append(ref_col_checker[-6:, ...] * pow(2, EV))
-            samples_EV = as_float_array(images["samples_median"])[-6:, ...]
+            samples_reference.append(ref_col_checker[start_index:, ...] * pow(2, EV))
+            samples_EV = as_float_array(images["samples_median"])[start_index:, ...]
             samples_camera.append(samples_EV)
 
         self._samples_camera = np.vstack(samples_camera)
@@ -579,9 +590,7 @@ class IDTBaseGenerator(ABC):
 
         self._samples_camera = self._samples_camera[indices]
         self._samples_reference = self._samples_reference[indices]
-
-        # Now we have sorted the samples lets remove any clipped samples
-        self.remove_clipping()
+        return indices
 
     def remove_clipping(self):
         """
