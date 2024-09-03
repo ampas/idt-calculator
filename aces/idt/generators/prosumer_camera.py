@@ -440,6 +440,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         clipped_exposures = exposure_filter.filter_samples()
         EV_range = [value for value in EV_range if value not in clipped_exposures]
+        if not EV_range:
+            raise ValueError("All exposures in EV range are clipping")
 
         samples_normalised = as_float_array(
             [
