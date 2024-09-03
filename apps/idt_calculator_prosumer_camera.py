@@ -1261,7 +1261,11 @@ def compute_idt_prosumer_camera(
     generator = _IDT_GENERATOR_APPLICATION.generator
     project_settings = _IDT_GENERATOR_APPLICATION.project_settings
 
+    # TODO should really use the application.process to run this, that way we dont
+    # TODO have to duplicate the execution logic everywhere however technically
+    # TODO nothing wrong with this just means more maintenance
     generator.sort()
+    generator.remove_clipping()
     generator.generate_LUT()
     generator.filter_LUT()
     generator.decode()

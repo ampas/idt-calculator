@@ -328,6 +328,7 @@ class IDTGeneratorApplication:
 
         self.generator.sample()
         self.generator.sort()
+        self.generator.remove_clipping()
         self.generator.generate_LUT()
         self.generator.filter_LUT()
         self.generator.decode()
