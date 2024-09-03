@@ -32,7 +32,7 @@ from colour_checker_detection.detection import (
 )
 from matplotlib import pyplot as plt
 
-from aces.idt import IDTProjectSettings
+from aces.idt import IDTProjectSettings, ProjectSettingsMetadataConstants
 from aces.idt.core import (
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
@@ -742,9 +742,14 @@ class IDTBaseGenerator(ABC):
 
         et_generator_name = Et.SubElement(et_metadata, "GeneratorName")
         et_generator_name.text = self.GENERATOR_NAME
+
+        exclusions = [
+            ProjectSettingsMetadataConstants.SCHEMA_VERSION.name,
+            ProjectSettingsMetadataConstants.DATA.name,
+        ]
         for key, prop in project_settings.properties:
             value = prop.getter(project_settings)
-            if key == "schema_version":
+            if key in exclusions:
                 continue
 
             sub_element = Et.SubElement(
