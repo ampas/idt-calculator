@@ -64,8 +64,10 @@ from dash_bootstrap_components import (
 from dash_uploader import Upload, callback, configure_upload
 
 from aces.idt import (
+    GENERATORS,
     DirectoryStructure,
     IDTGeneratorApplication,
+    IDTGeneratorProsumerCamera,
     IDTProjectSettings,
     error_delta_E,
     generate_reference_colour_checker,
@@ -169,6 +171,9 @@ _OPTIONS_DECODING_METHOD = [
     for key in IDTProjectSettings.decoding_method.metadata.options
 ]
 
+# Create options for the Select component
+GENERATOR_OPTIONS = [{"label": name, "value": name} for name in list(GENERATORS.keys())]
+
 
 def _uid(id_):
     """
@@ -250,6 +255,22 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
             CardHeader("Options"),
             CardBody(
                 [
+                    InputGroup(
+                        [
+                            InputGroupText("Select Generator"),
+                            Select(
+                                id=_uid("generator-select"),
+                                options=GENERATOR_OPTIONS,
+                                value=IDTGeneratorProsumerCamera.GENERATOR_NAME,
+                            ),
+                        ],
+                        className="mb-1",
+                    ),
+                    Tooltip(
+                        "Select the IDT generator to use.",
+                        delay=DELAY_TOOLTIP_DEFAULT,
+                        target=_uid("generator-select"),
+                    ),
                     Button(
                         "Toggle Advanced Options",
                         id=_uid("toggle-advanced-options-button"),
@@ -1037,6 +1058,7 @@ def download_idt_zip(
         Input(_uid("compute-idt-button"), "n_clicks"),
     ],
     [
+        State(_uid("generator-select"), "value"),
         State(_uid("acestransformid-field"), "value"),
         State(_uid("acesusername-field"), "value"),
         State(_uid("camera-make-field"), "value"),
@@ -1065,6 +1087,7 @@ def download_idt_zip(
 )
 def compute_idt_prosumer_camera(
     n_clicks,  # noqa: ARG001
+    generator_name,
     aces_transform_id,
     aces_user_name,
     camera_make,
@@ -1097,6 +1120,8 @@ def compute_idt_prosumer_camera(
     n_clicks : int
         Integer that represents that number of times the button has been
         clicked.
+    generator_name : str
+        The name of the generator to use.
     aces_transform_id : str
         *ACEStransformID* of the IDT, e.g.
         *urn:ampas:aces:transformId:v1.5:IDT.ARRI.ARRI-LogC4.a1.v1*.
@@ -1235,7 +1260,7 @@ def compute_idt_prosumer_camera(
         encoding_transfer_function=encoding_transfer_function,
     )
     _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
-        "IDTGeneratorProsumerCamera", project_settings
+        generator_name, project_settings
     )
 
     if _HASH_IDT_ARCHIVE is None:
