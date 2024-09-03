@@ -364,6 +364,13 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                     RGB_COLOURSPACE_ACES2065_1.whitepoint,
                 )
 
+            # TODO This is the right way to compute the K, but its also being
+            # TODO computed again later in the optimize using the 21st patch
+            # TODO and is then stored in the clf
+            # TODO this second scaling makes sense as not to cause the matrix to
+            # TODO sum > 1, but the second k scaling
+            # TODO should not be written into the clf, as the first one is baked
+            # TODO into the 1D lut
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
@@ -474,6 +481,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             XYZ_to_optimization_colour_model,
             finaliser_function,
         ) = optimisation_factory()
+
         optimisation_settings = {
             "method": "BFGS",
             "jac": "2-point",
