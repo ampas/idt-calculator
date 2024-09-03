@@ -9,9 +9,7 @@ import logging
 
 import matplotlib as mpl
 from colour import LUT3x1D
-from colour.utilities import as_float_array
 
-from aces.idt import DirectoryStructure
 from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
 # TODO are the mpl.use things needed in every file?
@@ -57,76 +55,37 @@ class IDTGeneratorPreLinearizedCamera(IDTGeneratorProsumerCamera):
         super().__init__(project_settings)
 
     def generate_LUT(self) -> LUT3x1D:
-        """
-        Generate an unfiltered linearisation *LUT* for the camera samples.
+        """Do not generate a LUT; The pre linearized camera generator does not
+        generate a LUT, it assumes pre linearized exr files are provided so we only
+        want a linear gain to be applied during the decode phase
 
-        The *LUT* generation process is worth describing, the camera samples are
-        unlikely to cover the [0, 1] domain and thus need to be extrapolated.
-
-        Two extrapolated datasets are generated:
-
-            -   Linearly extrapolated for the left edge missing data whose
-                clipping likelihood is low and thus can be extrapolated safely.
-            -   Constant extrapolated for the right edge missing data whose
-                clipping likelihood is high and thus cannot be extrapolated
-                safely
-
-        Because the camera encoded data response is logarithmic, the slope of
-        the center portion of the data is computed and fitted. The fitted line
-        is used to extrapolate the right edge missing data. It is blended
-        through a smoothstep with the constant extrapolated samples. The blend
-        is fully achieved at the right edge of the camera samples.
+        We provide an identity LUT to ensure the function fulfills its requirements
+        without affecting any calculations
 
         Returns
         -------
         :class:`LUT3x1D`
             Unfiltered linearisation *LUT* for the camera samples.
         """
-        # size = self.project_settings.lut_size
-        # LOGGER.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
-        # self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
-        # return self._LUT_unfiltered
-        return None
+        size = self.project_settings.lut_size
+        LOGGER.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
+        self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
+        return self._LUT_unfiltered
 
     def filter_LUT(self) -> LUT3x1D:
-        """
-        Filter/smooth the linearisation *LUT* for the camera samples.
+        """Do not filter a LUT; The pre linearized camera generator does not
+        generate a LUT, it assumes pre linearized exr files are provided so we only
+        want a linear gain to be applied during the decode phase
 
-        The *LUT* filtering is performed with a gaussian convolution, the sigma
-        value represents the window size. To prevent that the edges of the
-        *LUT* are affected by the convolution, the *LUT* is extended, i.e.
-        extrapolated at a safe two sigmas in both directions. The left edge is
-        linearly extrapolated while the right edge is logarithmically
-        extrapolated.
+        As the unfiltered LUT is an identity LUT we can simply copy it
 
         Returns
         -------
         :class:`LUT3x1D`
             Filtered linearisation *LUT* for the camera samples.
         """
-        # LOGGER.info('No Filtering Simply Copying "LUT3x1D"')
-        #
-        # self._LUT_filtered = self._LUT_unfiltered.copy()
-        # self._LUT_filtered.name = "LUT - Filtered"
-        # return self._LUT_filtered
-        return None
+        LOGGER.info('No Filtering Simply Copying "LUT3x1D"')
 
-    def decode(self) -> None:
-        """
-        Decode the camera samples.
-
-        The camera samples are decoded using the camera's *IDT* and the
-        *IDT* generator settings.
-
-        Returns
-        -------
-        None
-        """
-        LOGGER.info("Decoding camera samples...")
-        self._samples_decoded = {}
-        for EV in sorted(self._samples_analysis[DirectoryStructure.COLOUR_CHECKER]):
-            self._samples_decoded[EV] = as_float_array(
-                self._samples_analysis[DirectoryStructure.COLOUR_CHECKER][EV][
-                    "samples_median"
-                ]
-            )
+        self._LUT_filtered = self._LUT_unfiltered.copy()
+        self._LUT_filtered.name = "LUT - Filtered"
+        return self._LUT_filtered
