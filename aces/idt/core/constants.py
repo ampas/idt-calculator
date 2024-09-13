@@ -397,6 +397,14 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.HIDDEN,
     )
 
+    INCLUDE_WHITE_BALANCE_IN_CLF = Metadata(
+        default_value=False,
+        description="Whether to include the White Balance Matrix in the CLF",
+        display_name="Include White Balance in CLF",
+        ui_type=UITypes.BOOLEAN_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
     ALL: ClassVar[tuple[Metadata, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -427,4 +435,5 @@ class ProjectSettingsMetadataConstants:
         FILE_TYPE,
         EV_WEIGHTS,
         OPTIMIZATION_KWARGS,
+        INCLUDE_WHITE_BALANCE_IN_CLF,
     )
