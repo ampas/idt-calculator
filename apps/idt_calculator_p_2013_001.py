@@ -57,7 +57,12 @@ from dash_bootstrap_components import (
     Tooltip,
 )
 
-from aces.idt import error_delta_E, png_compare_colour_checkers, slugify
+from aces.idt import (
+    OPTIMISATION_FACTORIES,
+    error_delta_E,
+    png_compare_colour_checkers,
+    slugify,
+)
 from app import APP, SERVER_URL, __version__
 from apps.common import (
     COLOUR_ENVIRONMENT,
@@ -66,7 +71,6 @@ from apps.common import (
     DELAY_TOOLTIP_DEFAULT,
     INTERPOLATORS,
     MSDS_CAMERA_SENSITIVITIES,
-    OPTIMISATION_FACTORIES,
     OPTIONS_CAMERA_SENSITIVITIES,
     OPTIONS_CAT,
     OPTIONS_DISPLAY_COLOURSPACES,
@@ -109,7 +113,7 @@ __all__ = [
     "compute_idt_p2013_001",
 ]
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - P-2013-001"
 """
@@ -905,6 +909,8 @@ def compute_idt_p2013_001(
         clicked.
     camera_model : str
         Name of the camera.
+    sensitivities_name : str
+        Name of the camera sensitivities.
     sensitivities_data : list
         List of wavelength dicts of camera sensitivities data.
     illuminant_name : str

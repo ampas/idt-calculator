@@ -15,10 +15,6 @@ from colour import (
     PchipInterpolator,
     SpragueInterpolator,
 )
-from colour.characterisation import (
-    optimisation_factory_Jzazbz,
-    optimisation_factory_rawtoaces_v1,
-)
 from dash_bootstrap_components import (
     Card,
     CardBody,
@@ -31,11 +27,7 @@ from dash_bootstrap_components import (
     Tooltip,
 )
 
-from aces.idt import (
-    clf_processing_elements,
-    optimisation_factory_IPT,
-    optimisation_factory_Oklab,
-)
+from aces.idt import IDTProjectSettings, clf_processing_elements
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
 __copyright__ = "Copyright 2020 Academy of Motion Picture Arts and Sciences"
@@ -58,7 +50,6 @@ __all__ = [
     "OPTIONS_INTERPOLATION",
     "INTERPOLATORS",
     "OPTIONS_OPTIMISATION_SPACES",
-    "OPTIMISATION_FACTORIES",
     "OPTIONS_DISPLAY_COLOURSPACES",
     "DELAY_TOOLTIP_DEFAULT",
     "TEMPLATE_DEFAULT_OUTPUT",
@@ -249,18 +240,17 @@ MSDS_CAMERA_SENSITIVITIES : dict
 """
 
 OPTIONS_CAMERA_SENSITIVITIES = [
-    {"label": key, "value": key} for key in sorted(MSDS_CAMERA_SENSITIVITIES)
+    {"label": key, "value": key}
+    for key in ["Custom", *sorted(MSDS_CAMERA_SENSITIVITIES)]
 ]
 """
 Camera sensitivities options for a :class:`Dropdown` class instance.
 
 OPTIONS_CAMERA_SENSITIVITIES : list
 """
-OPTIONS_CAMERA_SENSITIVITIES.insert(0, {"label": "Custom", "value": "Custom"})
 
 OPTIONS_CAT = [
-    {"label": key, "value": key}
-    for key in sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS.keys())
+    {"label": key, "value": key} for key in IDTProjectSettings.cat.metadata.options
 ]
 """
 *Chromatic adaptation transform* options for a :class:`Dropdown` class
@@ -268,23 +258,20 @@ instance.
 
 OPTIONS_CAT : list
 """
-OPTIONS_CAT.append({"label": "None", "value": None})
 
 OPTIONS_ILLUMINANT = [
-    {"label": key, "value": key} for key in sorted(colour.SDS_ILLUMINANTS.keys())
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.illuminant.metadata.options
 ]
 """
 Illuminant options for a :class:`Dropdown`class instance.
 
 ILLUMINANTS_OPTIONS : list
 """
-OPTIONS_ILLUMINANT.insert(0, {"label": "Custom", "value": "Custom"})
-OPTIONS_ILLUMINANT.insert(1, {"label": "Blackbody", "value": "Blackbody"})
-OPTIONS_ILLUMINANT.insert(1, {"label": "Daylight", "value": "Daylight"})
 
 OPTIONS_INTERPOLATION = [
     {"label": key, "value": key}
-    for key in ["Cubic Spline", "Linear", "PCHIP", "Sprague (1880)"]
+    for key in IDTProjectSettings.illuminant_interpolator.metadata.options
 ]
 
 INTERPOLATORS = {
@@ -299,34 +286,24 @@ Spectral distribution interpolators.
 INTERPOLATORS : dict
 """
 
-OPTIMISATION_FACTORIES = {
-    "Oklab": optimisation_factory_Oklab,
-    "JzAzBz": optimisation_factory_Jzazbz,
-    "IPT": optimisation_factory_IPT,
-    "CIE Lab": optimisation_factory_rawtoaces_v1,
-}
-"""
-Optimisation factories.
-
-OPTIMISATION_FACTORIES : dict
-"""
-
-OPTIONS_DISPLAY_COLOURSPACES = [
-    {"label": key, "value": key} for key in ["sRGB", "Display P3"]
-]
-"""
-Display colourspaces.
-
-OPTIONS_DISPLAY_COLOURSPACES : list
-"""
-
 OPTIONS_OPTIMISATION_SPACES = [
-    {"label": key, "value": key} for key in OPTIMISATION_FACTORIES
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.optimisation_space.metadata.options
 ]
 """
 Optimisation colourspaces.
 
 OPTIONS_OPTIMISATION_SPACES : list
+"""
+
+OPTIONS_DISPLAY_COLOURSPACES = [
+    {"label": key, "value": key}
+    for key in IDTProjectSettings.rgb_display_colourspace.metadata.options
+]
+"""
+Display colourspaces.
+
+OPTIONS_DISPLAY_COLOURSPACES : list
 """
 
 DELAY_TOOLTIP_DEFAULT = {"show": 500, "hide": 125}
