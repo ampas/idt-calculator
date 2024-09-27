@@ -12,6 +12,7 @@
     "debayering_platform": "",
     "debayering_settings": "",
     "encoding_colourspace": "",
+    "encoding_transfer_function": "",
     "rgb_display_colourspace": "sRGB",
     "cat": "CAT02",
     "optimisation_space": "Oklab",
@@ -22,12 +23,14 @@
     "lut_size": 1024,
     "lut_smoothing": 16,
     "working_directory": "",
-    "cleanup": false,
+    "cleanup": true,
     "reference_colour_checker": "ISO 17321-1",
     "illuminant": "D60",
     "file_type": "",
     "ev_weights": [],
-    "optimization_kwargs": {}
+    "optimization_kwargs": {},
+    "include_white_balance_in_clf": false,
+    "flatten_clf": false
   },
   "data": {
     "colour_checker": {
