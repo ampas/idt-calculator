@@ -127,7 +127,8 @@ def metadata_card_default(_uid, *args):
                             Field(
                                 id=_uid("acestransformid-field"),
                                 type="text",
-                                placeholder="...",
+                                readonly=True,
+                                placeholder="Auto-generated",
                                 debounce=True,
                             ),
                         ],

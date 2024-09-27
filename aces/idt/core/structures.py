@@ -123,7 +123,9 @@ class MetadataProperty:
             raise AttributeError("No setter defined for this property")
 
 
-def metadata_property(metadata: Metadata | None = None) -> Any:
+def metadata_property(
+    metadata: Metadata | None = None, validation: Callable | None = None
+) -> Any:
     """
     Decorate a class attribute to create a property using given :class`Metadata`
     class instance, supporting both getter and setter functionality.
@@ -131,6 +133,8 @@ def metadata_property(metadata: Metadata | None = None) -> Any:
 
     def wrapper(getter):
         def setter(instance, value):
+            if validation and value and not validation(value):
+                raise ValueError(f"Value {value} is not valid for this property")
             setattr(instance, f"_{getter.__name__}", value)
 
         return MetadataProperty(getter, setter, metadata)

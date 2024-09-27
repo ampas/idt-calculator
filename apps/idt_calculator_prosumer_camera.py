@@ -56,6 +56,10 @@ from dash_bootstrap_components import Input as Field
 from dash_bootstrap_components import (
     InputGroup,
     InputGroupText,
+    Modal,
+    ModalBody,
+    ModalFooter,
+    ModalHeader,
     Row,
     Select,
     Spinner,
@@ -74,6 +78,7 @@ from aces.idt import (
     hash_file,
     png_compare_colour_checkers,
 )
+from aces.idt.core.trasform_id import generate_idt_urn, is_valid_idt_urn
 from app import APP, SERVER_URL, __version__
 from apps.common import (
     COLOUR_ENVIRONMENT,
@@ -650,6 +655,16 @@ _LAYOUT_COLUMN_IDT_COMPUTATION_CHILDREN = [
             Div(id=_uid("output-data-div")),
         ),
     ),
+    # Add the modal for displaying error messages
+    Modal(
+        [
+            ModalHeader("Error"),
+            ModalBody(id=_uid("modal-body")),
+            ModalFooter(Button("Close", id=_uid("close-modal"), className="ml-auto")),
+        ],
+        id=_uid("error-modal"),
+        is_open=False,  # The modal is initially closed
+    ),
 ]
 
 _LAYOUT_COLUMN_FOOTER_CHILDREN = [
@@ -781,6 +796,46 @@ def set_uploaded_idt_archive_location(filename):
     _HASH_IDT_ARCHIVE = None
 
     return {"display": "block"}
+
+
+@APP.callback(
+    [Output(_uid("acestransformid-field"), "value", allow_duplicate=True)],
+    [
+        Input(_uid("acesusername-field"), "value"),
+        Input(_uid("encoding-colourspace-field"), "value"),
+        Input(_uid("encoding-transfer-function-field"), "value"),
+    ],
+    prevent_initial_call=True,
+)
+def update_aces_transform_id(
+    aces_user_name, encoding_colourspace, encoding_transfer_function
+):
+    """
+    Generate a new ACES transformID based on changes in
+    ACES userName, encoding-colourspace, and encoding-transfer-function.
+
+    Parameters
+    ----------
+    aces_user_name : str
+        ACES username.
+    encoding_colourspace : str
+        Encoding colour space.
+    encoding_transfer_function : str
+        Encoding transfer function.
+
+    Returns
+    -------
+    str
+        The generated ACEStransformID.
+    """
+    return [
+        generate_idt_urn(
+            aces_user_name or "",
+            encoding_colourspace or "",
+            encoding_transfer_function or "",
+            1,
+        )
+    ]
 
 
 @APP.callback(
@@ -1037,6 +1092,17 @@ def download_idt_zip(
 
 
 @APP.callback(
+    Output(_uid("error-modal"), "is_open"),
+    [Input(_uid("close-modal"), "n_clicks")],
+    [State(_uid("error-modal"), "is_open")],
+)
+def toggle_modal(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+
+@APP.callback(
     [
         Output(_uid("loading-div"), "children"),
         Output(_uid("output-data-div"), "children"),
@@ -1053,6 +1119,8 @@ def download_idt_zip(
         Output(_uid("debayering-settings-field"), "value"),
         Output(_uid("encoding-colourspace-field"), "value"),
         Output(_uid("encoding-transfer-function-field"), "value"),
+        Output(_uid("modal-body"), "children"),
+        Output(_uid("error-modal"), "is_open", allow_duplicate=True),
     ],
     [
         Input(_uid("compute-idt-button"), "n_clicks"),
@@ -1204,7 +1272,7 @@ def compute_idt_prosumer_camera(
     )
 
     aces_transform_id = str(aces_transform_id)
-    aces_user_name = str(aces_user_name)
+    aces_user_name = str(aces_user_name or "")
     camera_make = str(camera_make)
     camera_model = str(camera_model)
     iso = float(iso)
@@ -1213,8 +1281,31 @@ def compute_idt_prosumer_camera(
     lighting_setup_description = str(lighting_setup_description)
     debayering_platform = str(debayering_platform)
     debayering_settings = str(debayering_settings)
-    encoding_colourspace = str(encoding_colourspace)
-    encoding_transfer_function = str(encoding_transfer_function)
+    encoding_colourspace = str(encoding_colourspace or "")
+    encoding_transfer_function = str(encoding_transfer_function or "")
+
+    # Validation: Check if the ACES transform ID is valid
+    if not is_valid_idt_urn(aces_transform_id):
+        error_message = "Invalid ACES Transform ID!"
+        return (
+            "",  # loading-div children
+            [],  # output-data-div children
+            {"display": "none"},  # download-idt-column style
+            aces_transform_id,  # acestransformid-field value
+            aces_user_name,  # acesusername-field value
+            camera_make,  # camera-make-field value
+            camera_model,  # camera-model-field value
+            iso,  # iso-field value
+            temperature,  # temperature-field value
+            additional_camera_settings,  # additional-camera-settings-field value
+            lighting_setup_description,  # lighting-setup-description-field value
+            debayering_platform,  # debayering-platform-field value
+            debayering_settings,  # debayering-settings-field value
+            encoding_colourspace,  # encoding-colourspace-field value
+            encoding_transfer_function,  # encoding-transfer-function-field value
+            error_message,  # Modal body content (error message)
+            True,  # Show the modal
+        )
 
     parsed_illuminant_data = {}
     for data in illuminant_data:
@@ -1415,20 +1506,23 @@ def compute_idt_prosumer_camera(
             ),
         ]
 
+    # Set success components
     return (
-        "",
-        components,
-        {"display": "block"},
-        project_settings.aces_transform_id,
-        project_settings.aces_user_name,
-        project_settings.camera_make,
-        project_settings.camera_model,
-        project_settings.iso,
-        project_settings.temperature,
-        project_settings.additional_camera_settings,
-        project_settings.lighting_setup_description,
-        project_settings.debayering_platform,
-        project_settings.debayering_settings,
-        project_settings.encoding_colourspace,
-        project_settings.encoding_transfer_function,
+        "",  # loading-div children
+        components,  # output-data-div children
+        {"display": "block"},  # download-idt-column style
+        aces_transform_id,  # acestransformid-field value
+        aces_user_name,  # acesusername-field value
+        camera_make,  # camera-make-field value
+        camera_model,  # camera-model-field value
+        iso,  # iso-field value
+        temperature,  # temperature-field value
+        additional_camera_settings,  # additional-camera-settings-field value
+        lighting_setup_description,  # lighting-setup-description-field value
+        debayering_platform,  # debayering-platform-field value
+        debayering_settings,  # debayering-settings-field value
+        encoding_colourspace,  # encoding-colourspace-field value
+        encoding_transfer_function,  # encoding-transfer-function-field value
+        "",  # Clear modal body content (no error)
+        False,  # Hide the modal
     )

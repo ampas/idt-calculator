@@ -35,6 +35,8 @@ __all__ = [
     "IDTProjectSettings",
 ]
 
+from aces.idt.core.trasform_id import is_valid_idt_urn
+
 
 class IDTProjectSettings(MixinSerializableProperties):
     """
@@ -193,7 +195,9 @@ class IDTProjectSettings(MixinSerializableProperties):
 
         return self._schema_version
 
-    @metadata_property(metadata=MetadataConstants.ACES_TRANSFORM_ID)
+    @metadata_property(
+        metadata=MetadataConstants.ACES_TRANSFORM_ID, validation=is_valid_idt_urn
+    )
     def aces_transform_id(self) -> str:
         """
         Getter property for the *ACEStransformID*.
@@ -203,7 +207,6 @@ class IDTProjectSettings(MixinSerializableProperties):
         :class:`str`
             *ACEStransformID*.
         """
-
         return self._aces_transform_id
 
     @metadata_property(metadata=MetadataConstants.ACES_USER_NAME)
