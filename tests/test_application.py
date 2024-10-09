@@ -1250,3 +1250,23 @@ class TestIDTApplication(TestIDTBase):
             self.get_test_output_folder(), archive_serialised_generator=False
         )
         self.assertEqual(os.path.exists(zip_file), True)
+
+    def test_idt_generator_colour_space(self):
+        """Test the known colour space generator"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorColourSpace"
+
+        new_project_settings = IDTProjectSettings()
+        new_project_settings.aces_user_name = "TestUser"
+        new_project_settings.encoding_colourspace = "RedWideGamutRGB"
+        new_project_settings.encoding_transfer_function = "Log3G10"
+        new_project_settings.include_white_balance_in_clf = True
+        new_project_settings.flatten_clf = False
+
+        idt_application.project_settings = new_project_settings
+        idt_application.process()
+
+        zip_file = idt_application.zip(
+            self.get_test_output_folder(), archive_serialised_generator=False
+        )
+        self.assertEqual(os.path.exists(zip_file), True)
