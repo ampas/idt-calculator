@@ -14,6 +14,7 @@ from colour.utilities import attest, optional
 
 import aces.idt.core.common
 from aces.idt.core.constants import DirectoryStructure
+from aces.idt.core.trasform_id import generate_idt_urn, is_valid_idt_urn
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
 from aces.idt.generators.base_generator import IDTBaseGenerator
@@ -337,6 +338,7 @@ class IDTGeneratorApplication:
             Instantiated *IDT* generator. after the process has been run
 
         """
+        self.validate_project_settings()
         self.generator.sample()
         self.generator.sort()
         self.generator.remove_clipping()
@@ -371,3 +373,24 @@ class IDTGeneratorApplication:
         return self.generator.zip(
             output_directory, archive_serialised_generator=archive_serialised_generator
         )
+
+    def validate_project_settings(self) -> None:
+        """Run validation checks on the project settings.
+
+        Raises
+        ------
+        ValueError
+            If any of the validations fail
+        """
+        # Check the aces_transform_id is a valid idt_urn
+        if not is_valid_idt_urn(self.project_settings.aces_transform_id):
+            # If the aces_transform_id is not valid, generate a new one
+            new_name = generate_idt_urn(
+                self.project_settings.aces_user_name,
+                self.project_settings.encoding_colourspace,
+                self.project_settings.encoding_transfer_function,
+                1,
+            )
+            # Update the project settings with the new name, if this is still invalid
+            # it will raise an error from the setter
+            self.project_settings.aces_transform_id = new_name
