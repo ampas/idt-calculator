@@ -559,8 +559,10 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                 alpha=0.25,
             )
             axes.plot(samples, np.log(self._LUT_filtered.table[..., i]), color=RGB)
-            axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
-            axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
+            if self._lut_blending_edge_left:
+                axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
+            if self._lut_blending_edge_right:
+                axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
             **{
                 "show": False,
