@@ -327,6 +327,14 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
+    ENCODING_TRANSFER_FUNCTION = Metadata(
+        default_value="",
+        description="The encoding transfer function",
+        display_name="Encoding Transfer Function",
+        ui_type=UITypes.STRING_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
     DATA = Metadata(
         default_value={
             DirectoryStructure.COLOUR_CHECKER: {},
@@ -435,6 +443,7 @@ class ProjectSettingsMetadataConstants:
         DEBAYERING_PLATFORM,
         DEBAYERING_SETTINGS,
         ENCODING_COLOUR_SPACE,
+        ENCODING_TRANSFER_FUNCTION,
         DATA,
         WORKING_DIR,
         CLEAN_UP,

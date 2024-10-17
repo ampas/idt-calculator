@@ -557,9 +557,26 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
             className="mb-1",
         ),
         Tooltip(
-            'Encoding colourspace, e.g. "ARRI LogC4"',
+            'Encoding colourspace, e.g. "ARRI WideGamut"',
             delay=DELAY_TOOLTIP_DEFAULT,
             target=_uid("encoding-colourspace-platform"),
+        ),
+        InputGroup(
+            [
+                InputGroupText("Encoding Transfer Function"),
+                Field(
+                    id=_uid("encoding-transfer-function-field"),
+                    type="text",
+                    placeholder="...",
+                    debounce=True,
+                ),
+            ],
+            className="mb-1",
+        ),
+        Tooltip(
+            'Encoding transfer function, e.g. "LogC4"',
+            delay=DELAY_TOOLTIP_DEFAULT,
+            target=_uid("encoding-transfer-function-platform"),
         ),
     ),
 ]
@@ -902,6 +919,7 @@ def toggle_options_illuminant(illuminant, is_open):  # noqa: ARG001
         State(_uid("debayering-platform-field"), "value"),
         State(_uid("debayering-settings-field"), "value"),
         State(_uid("encoding-colourspace-field"), "value"),
+        State(_uid("encoding-transfer-function-field"), "value"),
     ],
     prevent_initial_call=True,
 )
@@ -918,6 +936,7 @@ def download_idt_zip(
     debayering_platform,
     debayering_settings,
     encoding_colourspace,
+    encoding_transfer_function,
 ):
     """
     Download the *IDT* zip file.
@@ -981,6 +1000,9 @@ def download_idt_zip(
     _IDT_GENERATOR_APPLICATION.project_settings.encoding_colourspace = str(
         encoding_colourspace
     )
+    _IDT_GENERATOR_APPLICATION.project_settings.encoding_transfer_function = str(
+        encoding_transfer_function
+    )
 
     logging.info('Sending "IDT" archive...')
 
@@ -1009,6 +1031,7 @@ def download_idt_zip(
         Output(_uid("debayering-platform-field"), "value"),
         Output(_uid("debayering-settings-field"), "value"),
         Output(_uid("encoding-colourspace-field"), "value"),
+        Output(_uid("encoding-transfer-function-field"), "value"),
     ],
     [
         Input(_uid("compute-idt-button"), "n_clicks"),
@@ -1025,6 +1048,7 @@ def download_idt_zip(
         State(_uid("debayering-platform-field"), "value"),
         State(_uid("debayering-settings-field"), "value"),
         State(_uid("encoding-colourspace-field"), "value"),
+        State(_uid("encoding-transfer-function-field"), "value"),
         State(_uid("rgb-display-colourspace-select"), "value"),
         State(_uid("illuminant-select"), "value"),
         State(_uid("illuminant-datatable"), "data"),
@@ -1052,6 +1076,7 @@ def compute_idt_prosumer_camera(
     debayering_platform,
     debayering_settings,
     encoding_colourspace,
+    encoding_transfer_function,
     RGB_display_colourspace,
     illuminant_name,
     illuminant_data,
@@ -1164,6 +1189,7 @@ def compute_idt_prosumer_camera(
     debayering_platform = str(debayering_platform)
     debayering_settings = str(debayering_settings)
     encoding_colourspace = str(encoding_colourspace)
+    encoding_transfer_function = str(encoding_transfer_function)
 
     parsed_illuminant_data = {}
     for data in illuminant_data:
@@ -1206,6 +1232,7 @@ def compute_idt_prosumer_camera(
         debayering_platform=debayering_platform,
         debayering_settings=debayering_settings,
         encoding_colourspace=encoding_colourspace,
+        encoding_transfer_function=encoding_transfer_function,
     )
     _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
         "IDTGeneratorProsumerCamera", project_settings
@@ -1374,4 +1401,5 @@ def compute_idt_prosumer_camera(
         project_settings.debayering_platform,
         project_settings.debayering_settings,
         project_settings.encoding_colourspace,
+        project_settings.encoding_transfer_function,
     )
