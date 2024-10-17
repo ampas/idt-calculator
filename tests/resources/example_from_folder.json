@@ -5,6 +5,7 @@
     "aces_user_name": "",
     "camera_make": "",
     "camera_model": "",
+    "include_white_balance_in_clf": false,
     "iso": 800,
     "temperature": 6000,
     "additional_camera_settings": "",

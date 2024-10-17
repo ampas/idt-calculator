@@ -166,6 +166,10 @@ class IDTProjectSettings(MixinSerializableProperties):
             "optimization_kwargs",
             IDTProjectSettings.optimization_kwargs.metadata.default_value,
         )
+        self._include_white_balance_in_clf = kwargs.get(
+            "include_white_balance_in_clf",
+            IDTProjectSettings.include_white_balance_in_clf.metadata.default_value,
+        )
 
     @metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
     def schema_version(self) -> str:
@@ -543,6 +547,18 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         return self._optimization_kwargs
+
+    @metadata_property(metadata=MetadataConstants.INCLUDE_WHITE_BALANCE_IN_CLF)
+    def include_white_balance_in_clf(self) -> bool:
+        """
+        Getter property for whether to include the white balance in the *CLF*.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether to include the white balance in the *CLF*.
+        """
+        return self._include_white_balance_in_clf
 
     def get_reference_colour_checker_samples(self) -> NDArrayFloat:
         """

@@ -1226,3 +1226,15 @@ class TestIDTApplication(TestIDTBase):
             self.get_test_output_folder(), archive_serialised_generator=False
         )
         self.assertEqual(os.path.exists(zip_file), True)
+
+    def test_prelinearized_idt_generator_from_archive_zip(self):
+        """Test the prosumer generator from archive with a json file"""
+        idt_application = IDTGeneratorApplication()
+        idt_application.generator = "IDTGeneratorPreLinearizedCamera"
+
+        archive = os.path.join(self.get_test_resources_folder(), "FULL_STOPS_EXR.zip")
+        idt_application.process(archive)
+        zip_file = idt_application.zip(
+            self.get_test_output_folder(), archive_serialised_generator=False
+        )
+        self.assertEqual(os.path.exists(zip_file), True)
