@@ -421,6 +421,7 @@ def clf_processing_elements(
     k_factor: float,
     use_range: bool = True,
     include_white_balance_in_clf: bool = False,
+    flatten_clf: bool = True,
 ) -> Et.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
@@ -440,6 +441,8 @@ def clf_processing_elements(
         factor :math:`k`.
     include_white_balance_in_clf
         Whether to include the white balance multipliers in the *CLF*.
+    flatten_clf
+        Whether to flatten the *CLF*. into a single 1D Lut & 1 3x3 Matrix
 
     Returns
     -------
@@ -460,39 +463,56 @@ def clf_processing_elements(
 
         return formatted_string
 
-    if include_white_balance_in_clf:
-        et_RGB_w = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_RGB_w, "Description")
-        et_description.text = "White balance multipliers *b*."
-        et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
-        et_array.text = f"\n\t\t{format_array(np.diag(multipliers))}"
+    if not flatten_clf:
+        if include_white_balance_in_clf:
+            et_RGB_w = Et.SubElement(
+                root, "Matrix", inBitDepth="32f", outBitDepth="32f"
+            )
+            et_description = Et.SubElement(et_RGB_w, "Description")
+            et_description.text = "White balance multipliers *b*."
+            et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+            et_array.text = f"\n\t\t{format_array(np.diag(multipliers))}"
 
-    if use_range:
-        et_range = Et.SubElement(
-            root,
-            "Range",
-            inBitDepth="32f",
-            outBitDepth="32f",
+        # TODO is this even used any more? Default param is False, and the calling
+        # TODO function is hard coded to False
+        if use_range:
+            et_range = Et.SubElement(
+                root,
+                "Range",
+                inBitDepth="32f",
+                outBitDepth="32f",
+            )
+            et_max_in_value = Et.SubElement(et_range, "maxInValue")
+            et_max_in_value.text = "1"
+            et_max_out_value = Et.SubElement(et_range, "maxOutValue")
+            et_max_out_value.text = "1"
+
+        et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = Et.SubElement(et_k, "Description")
+        et_description.text = (
+            'Exposure factor *k* that results in a nominally "18% gray" object in '
+            "the scene producing ACES values [0.18, 0.18, 0.18]."
         )
-        et_max_in_value = Et.SubElement(et_range, "maxInValue")
-        et_max_in_value.text = "1"
-        et_max_out_value = Et.SubElement(et_range, "maxOutValue")
-        et_max_out_value.text = "1"
+        et_array = Et.SubElement(et_k, "Array", dim="3 3")
+        et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
 
-    et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = Et.SubElement(et_k, "Description")
-    et_description.text = (
-        'Exposure factor *k* that results in a nominally "18% gray" object in '
-        "the scene producing ACES values [0.18, 0.18, 0.18]."
-    )
-    et_array = Et.SubElement(et_k, "Array", dim="3 3")
-    et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
+        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = Et.SubElement(et_M, "Description")
+        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+        et_array = Et.SubElement(et_M, "Array", dim="3 3")
+        et_array.text = f"\n\t\t{format_array(matrix)}"
 
-    et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-    et_description = Et.SubElement(et_M, "Description")
-    et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-    et_array = Et.SubElement(et_M, "Array", dim="3 3")
-    et_array.text = f"\n\t\t{format_array(matrix)}"
+    else:
+        # If we are flattening the clf we output just a single matrix into the clf
+        output_matrix = np.diag([k_factor] * 3) @ matrix
+        if include_white_balance_in_clf:
+            output_matrix = np.diag(multipliers) @ np.diag([k_factor] * 3) @ matrix
+
+        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = Et.SubElement(et_M, "Description")
+        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+        et_array = Et.SubElement(et_M, "Array", dim="3 3")
+        et_array.text = f"\n\t\t{format_array(output_matrix)}"
 
     return root
 
