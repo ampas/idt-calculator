@@ -6,7 +6,7 @@ import os.path
 
 import numpy as np
 
-from aces.idt.core import common, find_close_indices, get_clipping_threshold
+from aces.idt.core import CLIPPING_THRESHOLD, common, find_close_indices
 from tests.test_utils import TestIDTBase
 
 
@@ -304,9 +304,8 @@ class TestExposureClippingFilter(TestIDTBase):
             for key, value in temp_dict.items():
                 colour_checker_scenario_6[float(key)] = np.array(value)
 
-        threshold = get_clipping_threshold()
         exposure_filter = common.ExposureClippingFilter(
-            colour_checker_scenario_6, threshold
+            colour_checker_scenario_6, CLIPPING_THRESHOLD
         )
         removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [-6.0, -5.0, -4.0, 4.0, 5.0, 6.0]

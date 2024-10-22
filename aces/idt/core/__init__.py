@@ -12,7 +12,6 @@ from .common import (
     find_close_indices,
     format_exposure_key,
     generate_reference_colour_checker,
-    get_clipping_threshold,
     get_sds_colour_checker,
     get_sds_illuminant,
     hash_file,
@@ -27,6 +26,7 @@ from .common import (
 )
 from .constants import (
     CAT,
+    CLIPPING_THRESHOLD,
     DecodingMethods,
     DirectoryStructure,
     Interpolators,
@@ -70,11 +70,11 @@ __all__ = [
     "sort_exposure_keys",
     "working_directory",
     "find_close_indices",
-    "get_clipping_threshold",
     "ExposureClippingFilter",
 ]
 
 __all__ += [
+    "CLIPPING_THRESHOLD",
     "CAT",
     "DirectoryStructure",
     "DecodingMethods",

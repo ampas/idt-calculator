@@ -34,6 +34,7 @@ from colour.utilities import (
 from scipy.optimize import minimize
 
 from aces.idt.core import DecodingMethods, DirectoryStructure, common
+from aces.idt.core.constants import CLIPPING_THRESHOLD
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
 # TODO are the mpl.use things needed in every file?
@@ -440,9 +441,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         # Even here on a single stop -1, 0 1, there could be clipping
         # If any of the EV exposures from the decoded samples are clipping, make sure
         # none of these are used in the EV_Range
-        threshold = common.get_clipping_threshold()
         exposure_filter = common.ExposureClippingFilter(
-            self._samples_decoded, threshold
+            self._samples_decoded, CLIPPING_THRESHOLD
         )
 
         clipped_exposures = exposure_filter.filter_samples()

@@ -765,23 +765,6 @@ def format_exposure_key(key: str) -> str:
         return f"{key_float:g}"
 
 
-def get_clipping_threshold() -> float:
-    """Get the threshold for determining if RGB values are clipped. The threshold is
-        2 code values in a 10 bit system
-
-    Returns
-    -------
-    float
-        The threshold for determining if RGB values are clipped
-
-    """
-    bit_depth = 10
-    code_value_threshold = 2
-    max_code_value = 2**bit_depth - 1
-    threshold = float(code_value_threshold) / max_code_value
-    return threshold
-
-
 def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
     """
     Find the indices of rows that have any values with differences below the threshold.

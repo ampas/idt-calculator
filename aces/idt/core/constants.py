@@ -23,6 +23,7 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
+    "CLIPPING_THRESHOLD",
     "DirectoryStructure",
     "UITypes",
     "UICategories",
@@ -34,6 +35,12 @@ __all__ = [
     "DecodingMethods",
     "ProjectSettingsMetadataConstants",
 ]
+
+CLIPPING_THRESHOLD: int = 2 / (2**10 - 1)
+"""
+The threshold for determining if RGB values are clipped. The threshold is
+2 code values in a 10 bit system
+"""
 
 
 class DirectoryStructure:
