@@ -236,10 +236,9 @@ class TestExposureClippingFilter(TestIDTBase):
         Scenario 1: None of the values are lower than the threshold - no
         EV values should be removed.
         """
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_1, self.tolerance
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = []
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
@@ -248,10 +247,9 @@ class TestExposureClippingFilter(TestIDTBase):
         Scenario 2: -2.0 and -1.0 have values which do have values lower than the
         threshold - EV value -2 should be removed.
         """
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_2, self.tolerance
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [-2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
@@ -260,10 +258,9 @@ class TestExposureClippingFilter(TestIDTBase):
         Scenario 3: 2.0 and 1.0 have values which do have values lower than the
             threshold - EV value 2.0 should be removed.
         """
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_3, self.tolerance
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
@@ -272,10 +269,9 @@ class TestExposureClippingFilter(TestIDTBase):
         Scenario 3: both the top and bottom values are clipped - EV
             values -2 and 2 should be removed.
         """
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_4, self.tolerance
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [-2.0, 2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
@@ -283,10 +279,9 @@ class TestExposureClippingFilter(TestIDTBase):
         """
         Scenario 5: testing more exposures
         """
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_5, self.tolerance
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [-3.0, -2.0, 2.0, 3.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
@@ -303,10 +298,8 @@ class TestExposureClippingFilter(TestIDTBase):
             colour_checker_scenario_6 = {}
             for key, value in temp_dict.items():
                 colour_checker_scenario_6[float(key)] = np.array(value)
-
-        exposure_filter = common.ExposureClippingFilter(
+        removed_evs = common.calculate_clipped_exposures(
             colour_checker_scenario_6, CLIPPING_THRESHOLD
         )
-        removed_evs = exposure_filter.filter_samples()
         expected_ev_keys = [-6.0, -5.0, -4.0, 4.0, 5.0, 6.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)

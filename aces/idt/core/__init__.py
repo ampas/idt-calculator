@@ -5,7 +5,7 @@ from .common import (
     SD_ILLUMINANT_ACES,
     SDS_COLORCHECKER_CLASSIC,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    ExposureClippingFilter,
+    calculate_clipped_exposures,
     clf_processing_elements,
     error_delta_E,
     extract_archive,
@@ -70,7 +70,7 @@ __all__ = [
     "sort_exposure_keys",
     "working_directory",
     "find_close_indices",
-    "ExposureClippingFilter",
+    "calculate_clipped_exposures",
 ]
 
 __all__ += [
