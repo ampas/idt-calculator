@@ -34,12 +34,12 @@ from matplotlib import pyplot as plt
 
 from aces.idt import IDTProjectSettings
 from aces.idt.core import (
+    CLIPPING_THRESHOLD,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
     DirectoryStructure,
     clf_processing_elements,
     find_close_indices,
-    get_clipping_threshold,
     mask_outliers,
     working_directory,
 )
@@ -596,7 +596,7 @@ class IDTBaseGenerator(ABC):
 
         """
         clipped_indices = find_close_indices(
-            self._samples_camera, threshold=get_clipping_threshold()
+            self._samples_camera, threshold=CLIPPING_THRESHOLD
         )
 
         self._samples_camera = np.delete(self._samples_camera, clipped_indices, axis=0)
