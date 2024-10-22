@@ -87,7 +87,7 @@ __all__ = [
     "sort_exposure_keys",
     "format_exposure_key",
     "find_close_indices",
-    "ExposureClippingFilter",
+    "calculate_clipped_exposures",
 ]
 
 LOGGER = logging.getLogger(__name__)
@@ -799,72 +799,57 @@ def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
     return sorted(np.array(top_indices + bottom_indices))
 
 
-class ExposureClippingFilter:
+def calculate_clipped_exposures(exposure_samples: dict, threshold: float) -> list:
     """
-    The ExposureClippingFilter class is used to filter out exposure values that have
-    clipped RGB values. The class compares the RGB values of each image sample in
-    consecutive exposures. If any of the RGB values are less than the threshold, the
-    exposure is considered clipped and should be removed.
+    March through exposure values from lowest to highest and from highest to lowest,
+    comparing the samples. If any of the comparisons fail, stores the exposure
+    value. Stops when an exposure passes the test, and returns all failed exposure
+    values.
+
+    Parameters
+    ----------
+    exposure_samples : dict
+        A dictionary of exposure values mapped to numpy arrays of RGB samples
+
+    threshold : float
+        The threshold for determining if two samples are similar enough to determine if
+        they are clipped
+
+    Returns
+    -------
+    list
+        A list of exposure values that failed the threshold test and should be
+        removed or ignored
     """
+    exposure_values = sorted(exposure_samples.keys())
+    failed_exposures = []
 
-    def __init__(self, data_dict: dict, threshold: float):
-        """
-        Initialize the ExposureClippingFilter with a data dictionary and a threshold
-        value.
+    # March from the bottom (smallest exposure to largest)
+    for i in range(len(exposure_values) - 1):
+        current_exposure = exposure_values[i]
+        next_exposure = exposure_values[i + 1]
 
-        Parameters
-        ----------
-        data_dict : dict
-            Dictionary with exposure values as keys and numpy arrays of image samples
-            as values.
-        threshold : float
-            The threshold for the comparison.
-        """
-        self.data_dict = data_dict
-        self.threshold = threshold
+        if np.any(
+            np.abs(exposure_samples[current_exposure] - exposure_samples[next_exposure])
+            < threshold
+        ):
+            failed_exposures.append(current_exposure)
+        else:
+            break
 
-    def filter_samples(self) -> list:
-        """
-        March through exposure values from lowest to highest and from highest to lowest,
-        comparing the samples. If any of the comparisons fail, stores the exposure
-        value. Stops when an exposure passes the test, and returns all failed exposure
-        values.
+    # March from the top (largest exposure to smallest)
+    for i in range(len(exposure_values) - 1, 0, -1):
+        current_exposure = exposure_values[i]
+        previous_exposure = exposure_values[i - 1]
 
-        Returns
-        -------
-        list
-            A list of exposure values that failed the threshold test and should be
-            removed
-        """
-        exposure_values = sorted(self.data_dict.keys())
-        failed_exposures = []
+        if np.any(
+            np.abs(
+                exposure_samples[current_exposure] - exposure_samples[previous_exposure]
+            )
+            < threshold
+        ):
+            failed_exposures.append(current_exposure)
+        else:
+            break
 
-        # March from the bottom (smallest exposure to largest)
-        for i in range(len(exposure_values) - 1):
-            current_exposure = exposure_values[i]
-            next_exposure = exposure_values[i + 1]
-
-            if np.any(
-                np.abs(self.data_dict[current_exposure] - self.data_dict[next_exposure])
-                < self.threshold
-            ):
-                failed_exposures.append(current_exposure)
-            else:
-                break
-
-        # March from the top (largest exposure to smallest)
-        for i in range(len(exposure_values) - 1, 0, -1):
-            current_exposure = exposure_values[i]
-            previous_exposure = exposure_values[i - 1]
-
-            if np.any(
-                np.abs(
-                    self.data_dict[current_exposure] - self.data_dict[previous_exposure]
-                )
-                < self.threshold
-            ):
-                failed_exposures.append(current_exposure)
-            else:
-                break
-
-        return sorted(set(failed_exposures))
+    return sorted(set(failed_exposures))

@@ -434,11 +434,9 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         # Even here on a single stop -1, 0 1, there could be clipping
         # If any of the EV exposures from the decoded samples are clipping, make sure
         # none of these are used in the EV_Range
-        exposure_filter = common.ExposureClippingFilter(
+        clipped_exposures = common.calculate_clipped_exposures(
             self._samples_decoded, CLIPPING_THRESHOLD
         )
-
-        clipped_exposures = exposure_filter.filter_samples()
         EV_range = [value for value in EV_range if value not in clipped_exposures]
 
         samples_normalised = as_float_array(
