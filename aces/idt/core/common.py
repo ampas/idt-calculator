@@ -828,33 +828,6 @@ class ExposureClippingFilter:
         self.data_dict = data_dict
         self.threshold = threshold
 
-    def compare_image_samples(self, samples1: np.ndarray, samples2: np.ndarray) -> bool:
-        """
-        Compare the r, g, and b values of each corresponding image sample in two arrays.
-        If any of the r, g, b values for any of the images are less than the threshold,
-        return True. Otherwise, return False.
-
-        Parameters
-        ----------
-        samples1 : np.ndarray
-            First set of image samples with shape (n, 3).
-        samples2 : np.ndarray
-            Second set of image samples with shape (n, 3).
-
-        Returns
-        -------
-        bool
-            True if any r, g, b values are less than the threshold, False otherwise.
-        """
-        if not isinstance(samples1, np.ndarray):
-            samples1 = np.array(samples1)
-
-        if not isinstance(samples2, np.ndarray):
-            samples2 = np.array(samples2)
-
-        difference = np.abs(samples1 - samples2)
-        return np.any(difference < self.threshold)
-
     def filter_samples(self) -> list:
         """
         March through exposure values from lowest to highest and from highest to lowest,
@@ -876,8 +849,9 @@ class ExposureClippingFilter:
             current_exposure = exposure_values[i]
             next_exposure = exposure_values[i + 1]
 
-            if self.compare_image_samples(
-                self.data_dict[current_exposure], self.data_dict[next_exposure]
+            if np.any(
+                np.abs(self.data_dict[current_exposure] - self.data_dict[next_exposure])
+                < self.threshold
             ):
                 failed_exposures.append(current_exposure)
             else:
@@ -888,8 +862,11 @@ class ExposureClippingFilter:
             current_exposure = exposure_values[i]
             previous_exposure = exposure_values[i - 1]
 
-            if self.compare_image_samples(
-                self.data_dict[current_exposure], self.data_dict[previous_exposure]
+            if np.any(
+                np.abs(
+                    self.data_dict[current_exposure] - self.data_dict[previous_exposure]
+                )
+                < self.threshold
             ):
                 failed_exposures.append(current_exposure)
             else:
