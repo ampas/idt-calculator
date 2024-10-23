@@ -88,6 +88,7 @@ __all__ = [
     "sort_exposure_keys",
     "format_exposure_key",
     "find_close_indices",
+    "calculate_clipped_exposures",
     "create_samples_macbeth_image",
     "interpolate_nan_values",
 ]
