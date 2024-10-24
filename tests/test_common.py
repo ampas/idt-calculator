@@ -1,8 +1,12 @@
 """
 Unit tests for the common module
 """
+import json
+import os.path
 
-from aces.idt.core import common
+import numpy as np
+
+from aces.idt.core import CLIPPING_THRESHOLD, common, find_close_indices
 from tests.test_utils import TestIDTBase
 
 
@@ -40,3 +44,262 @@ class Test_IDTCommon(TestIDTBase):
 
         result = common.generate_reference_colour_checker()
         self.assertEqual(expected, result.tolist())
+
+
+class TestExposureClippingMask(TestIDTBase):
+    """
+    Test suite for exposure clipping mask functionality.
+    """
+
+    def setUp(self):
+        """
+        Set up the test case with common configurations.
+        """
+        self.tolerance = 0.005
+        self.maxDiff = None
+
+    def test_scenario_1(self):
+        """
+        Test case where none of the values are lower than the threshold.
+
+        The test verifies that no values are masked.
+        """
+        colour_checker_scenario_1 = np.array(
+            [
+                [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]],
+                [[0.15, 0.25, 0.35], [0.45, 0.55, 0.65], [0.75, 0.85, 0.95]],
+                [[0.2, 0.3, 0.4], [0.5, 0.6, 0.7], [0.8, 0.9, 1.0]],
+                [[0.25, 0.35, 0.45], [0.55, 0.65, 0.75], [0.85, 0.95, 1.05]],
+                [[0.3, 0.4, 0.5], [0.6, 0.7, 0.8], [0.9, 1.0, 1.1]],
+            ]
+        )
+        clipped_indicies = find_close_indices(
+            colour_checker_scenario_1, threshold=self.tolerance
+        )
+        expected_data = []
+
+        self.assertEqual(clipped_indicies, expected_data)
+
+    def test_scenario_2(self):
+        """
+        Test case where the first two values are clipped.
+
+        The test verifies that the first row is masked.
+        """
+        colour_checker_scenario_2 = np.array(
+            [
+                [0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1],
+                [0.5, 0.5, 0.5],
+                [0.6, 0.6, 0.6],
+                [0.7, 0.7, 0.7],
+            ]
+        )
+        clipped_indicies = find_close_indices(
+            colour_checker_scenario_2, threshold=self.tolerance
+        )
+        expected_data = [0]
+        self.assertEqual(clipped_indicies, expected_data)
+
+    def test_scenario_3(self):
+        """
+        Test case where the last two values are clipped.
+
+        The test verifies that the last row is masked.
+        """
+        colour_checker_scenario_3 = np.array(
+            [
+                [0.1, 0.2, 0.3],
+                [0.15, 0.25, 0.35],
+                [0.2, 0.3, 0.4],
+                [0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1],
+            ]
+        )
+        clipped_indicies = find_close_indices(
+            colour_checker_scenario_3, threshold=self.tolerance
+        )
+        expected_data = [4]
+        self.assertEqual(clipped_indicies, expected_data)
+
+    def test_scenario_4(self):
+        """
+        Test case where both the top and bottom values are clipped.
+
+        The test verifies that the first and last rows are masked.
+        """
+        colour_checker_scenario_4 = np.array(
+            [
+                [0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1],
+                [0.2, 0.3, 0.4],
+                [1.0, 1.0, 1.0],
+                [1.0, 1.0, 1.0],
+            ]
+        )
+        clipped_indicies = find_close_indices(
+            colour_checker_scenario_4, threshold=self.tolerance
+        )
+        expected_data = [0, 4]
+        self.assertEqual(clipped_indicies, expected_data)
+
+    def test_scenario_5(self):
+        """
+        Test case where both the top and bottom values are clipped with multiple
+        instances.
+
+        The test verifies that the first two and last rows are masked.
+        """
+        colour_checker_scenario_5 = np.array(
+            [
+                [0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1],
+                [0.1, 0.1, 0.1],
+                [0.15, 0.15, 0.15],
+                [0.2, 0.3, 0.4],
+                [0.9, 0.9, 0.9],
+                [1.0, 1.0, 1.0],
+                [1.0, 1.0, 1.0],
+            ]
+        )
+        clipped_indicies = find_close_indices(
+            colour_checker_scenario_5, threshold=self.tolerance
+        )
+        expected_data = [0, 1, 7]
+        self.assertEqual(clipped_indicies, expected_data)
+
+
+# Mock data for scenario 1: None of the values are lower than the threshold
+colour_checker_scenario_1 = {
+    -2.0: np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]),
+    -1.0: np.array([[0.15, 0.25, 0.35], [0.45, 0.55, 0.65], [0.75, 0.85, 0.95]]),
+    0.0: np.array([[0.2, 0.3, 0.4], [0.5, 0.6, 0.7], [0.8, 0.9, 1.0]]),
+    1.0: np.array([[0.25, 0.35, 0.45], [0.55, 0.65, 0.75], [0.85, 0.95, 1.05]]),
+    2.0: np.array([[0.3, 0.4, 0.5], [0.6, 0.7, 0.8], [0.9, 1.0, 1.1]]),
+}
+
+# Mock data for scenario 2: -2.0 and -1.0 have values which do have values lower
+# than the threshold
+colour_checker_scenario_2 = {
+    -2.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    -1.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    0.0: np.array([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]]),
+    1.0: np.array([[0.6, 0.6, 0.6], [0.6, 0.6, 0.6], [0.6, 0.6, 0.6]]),
+    2.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+}
+
+# Mock data for scenario 3: 2.0 and 1.0 have values which do have values lower
+# than the threshold
+colour_checker_scenario_3 = {
+    -2.0: np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]),
+    -1.0: np.array([[0.15, 0.25, 0.35], [0.45, 0.55, 0.65], [0.75, 0.85, 0.95]]),
+    0.0: np.array([[0.2, 0.3, 0.4], [0.5, 0.6, 0.7], [0.8, 0.9, 1.0]]),
+    1.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    2.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+}
+
+# Mock data for scenario 4: 2.0 and 1.0 have values which do have values lower
+# than the threshold
+colour_checker_scenario_4 = {
+    -2.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    -1.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    0.0: np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]]),
+    1.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+    2.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+}
+
+# Mock data for scenario 5: -3 and -2 should go, as should 3.0, 2.0
+colour_checker_scenario_5 = {
+    -3.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    -2.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    -1.0: np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]]),
+    0.0: np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 2.0]]),
+    1.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+    2.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+    3.0: np.array([[0.7, 0.7, 0.7], [0.7, 0.7, 0.7], [0.7, 0.7, 0.7]]),
+}
+
+
+class TestExposureClippingFilter(TestIDTBase):
+    """
+    Test suite for the exposure clipping filter.
+    """
+
+    def setUp(self):
+        """
+        Set up the test so we have a common tolerance.
+        """
+        self.tolerance = 0.0499
+
+    def test_scenario_1(self):
+        """
+        Scenario 1: None of the values are lower than the threshold - no
+        EV values should be removed.
+        """
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_1, self.tolerance
+        )
+        expected_ev_keys = []
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
+
+    def test_scenario_2(self):
+        """
+        Scenario 2: -2.0 and -1.0 have values which do have values lower than the
+        threshold - EV value -2 should be removed.
+        """
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_2, self.tolerance
+        )
+        expected_ev_keys = [-2.0]
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
+
+    def test_scenario_3(self):
+        """
+        Scenario 3: 2.0 and 1.0 have values which do have values lower than the
+            threshold - EV value 2.0 should be removed.
+        """
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_3, self.tolerance
+        )
+        expected_ev_keys = [2.0]
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
+
+    def test_scenario_4(self):
+        """
+        Scenario 3: both the top and bottom values are clipped - EV
+            values -2 and 2 should be removed.
+        """
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_4, self.tolerance
+        )
+        expected_ev_keys = [-2.0, 2.0]
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
+
+    def test_scenario_5(self):
+        """
+        Scenario 5: testing more exposures
+        """
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_5, self.tolerance
+        )
+        expected_ev_keys = [-3.0, -2.0, 2.0, 3.0]
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
+
+    def test_scenario_6(self):
+        """
+        Scenario 5: testing more exposures
+        """
+        file_path = os.path.join(
+            self.get_test_resources_folder(), "samples_decoded_clipped.json"
+        )
+
+        with open(file_path) as file:
+            temp_dict = json.load(file)
+            colour_checker_scenario_6 = {}
+            for key, value in temp_dict.items():
+                colour_checker_scenario_6[float(key)] = np.array(value)
+        removed_evs = common.calculate_clipped_exposures(
+            colour_checker_scenario_6, CLIPPING_THRESHOLD
+        )
+        expected_ev_keys = [-6.0, -5.0, -4.0, 4.0, 5.0, 6.0]
+        self.assertEqual(sorted(removed_evs), expected_ev_keys)
