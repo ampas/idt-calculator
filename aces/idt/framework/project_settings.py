@@ -35,6 +35,8 @@ __all__ = [
     "IDTProjectSettings",
 ]
 
+from aces.idt.core.trasform_id import is_valid_idt_urn
+
 
 class IDTProjectSettings(MixinSerializableProperties):
     """
@@ -55,127 +57,128 @@ class IDTProjectSettings(MixinSerializableProperties):
         self._schema_version = IDTProjectSettings.schema_version.metadata.default_value
 
         self._aces_transform_id = kwargs.get(
-            "aces_transform_id",
+            IDTProjectSettings.aces_transform_id.metadata.name,
             IDTProjectSettings.aces_transform_id.metadata.default_value,
         )
         self._aces_user_name = kwargs.get(
-            "aces_user_name",
+            IDTProjectSettings.aces_user_name.metadata.name,
             IDTProjectSettings.aces_user_name.metadata.default_value,
         )
         self._camera_make = kwargs.get(
-            "camera_make",
+            IDTProjectSettings.camera_make.metadata.name,
             IDTProjectSettings.camera_make.metadata.default_value,
         )
         self._camera_model = kwargs.get(
-            "camera_model",
+            IDTProjectSettings.camera_model.metadata.name,
             IDTProjectSettings.camera_model.metadata.default_value,
         )
         self._iso = kwargs.get(
-            "iso",
+            IDTProjectSettings.iso.metadata.name,
             IDTProjectSettings.iso.metadata.default_value,
         )
         self._temperature = kwargs.get(
-            "temperature",
+            IDTProjectSettings.temperature.metadata.name,
             IDTProjectSettings.temperature.metadata.default_value,
         )
         self._additional_camera_settings = kwargs.get(
-            "additional_camera_settings",
+            IDTProjectSettings.additional_camera_settings.metadata.name,
             IDTProjectSettings.additional_camera_settings.metadata.default_value,
         )
         self._lighting_setup_description = kwargs.get(
-            "lighting_setup_description",
+            IDTProjectSettings.lighting_setup_description.metadata.name,
             IDTProjectSettings.lighting_setup_description.metadata.default_value,
         )
         self._debayering_platform = kwargs.get(
-            "debayering_platform",
+            IDTProjectSettings.debayering_platform.metadata.name,
             IDTProjectSettings.debayering_platform.metadata.default_value,
         )
         self._debayering_settings = kwargs.get(
-            "debayering_settings",
+            IDTProjectSettings.debayering_settings.metadata.name,
             IDTProjectSettings.debayering_settings.metadata.default_value,
         )
         self._encoding_colourspace = kwargs.get(
-            "encoding_colourspace",
+            IDTProjectSettings.encoding_colourspace.metadata.name,
             IDTProjectSettings.encoding_colourspace.metadata.default_value,
         )
         self._encoding_transfer_function = kwargs.get(
-            "encoding_transfer_function",
+            IDTProjectSettings.encoding_transfer_function.metadata.name,
             IDTProjectSettings.encoding_transfer_function.metadata.default_value,
         )
         self._rgb_display_colourspace = kwargs.get(
-            "rgb_display_colourspace",
+            IDTProjectSettings.rgb_display_colourspace.metadata.name,
             IDTProjectSettings.rgb_display_colourspace.metadata.default_value,
         )
         self._cat = kwargs.get(
-            "cat",
+            IDTProjectSettings.cat.metadata.name,
             IDTProjectSettings.cat.metadata.default_value,
         )
         self._optimisation_space = kwargs.get(
-            "optimisation_space",
+            IDTProjectSettings.optimisation_space.metadata.name,
             IDTProjectSettings.optimisation_space.metadata.default_value,
         )
         self._illuminant_interpolator = kwargs.get(
-            "illuminant_interpolator",
+            IDTProjectSettings.illuminant_interpolator.metadata.name,
             IDTProjectSettings.illuminant_interpolator.metadata.default_value,
         )
         self._decoding_method = kwargs.get(
-            "decoding_method",
+            IDTProjectSettings.decoding_method.metadata.name,
             IDTProjectSettings.decoding_method.metadata.default_value,
         )
         self._ev_range = kwargs.get(
-            "ev_range",
+            IDTProjectSettings.ev_range.metadata.name,
             IDTProjectSettings.ev_range.metadata.default_value,
         )
         self._grey_card_reference = kwargs.get(
-            "grey_card_reference",
+            IDTProjectSettings.grey_card_reference.metadata.name,
             IDTProjectSettings.grey_card_reference.metadata.default_value,
         )
         self._lut_size = kwargs.get(
-            "lut_size",
+            IDTProjectSettings.lut_size.metadata.name,
             IDTProjectSettings.lut_size.metadata.default_value,
         )
         self._lut_smoothing = kwargs.get(
-            "lut_smoothing",
+            IDTProjectSettings.lut_smoothing.metadata.name,
             IDTProjectSettings.lut_smoothing.metadata.default_value,
         )
 
         self._data = IDTProjectSettings.data.metadata.default_value
 
         self._working_directory = kwargs.get(
-            "working_directory",
+            IDTProjectSettings.working_directory.metadata.name,
             IDTProjectSettings.working_directory.metadata.default_value,
         )
         self._cleanup = kwargs.get(
-            "cleanup",
+            IDTProjectSettings.cleanup.metadata.name,
             IDTProjectSettings.cleanup.metadata.default_value,
         )
 
         self._reference_colour_checker = kwargs.get(
-            "reference_colour_checker",
+            IDTProjectSettings.reference_colour_checker.metadata.name,
             IDTProjectSettings.reference_colour_checker.metadata.default_value,
         )
         self._illuminant = kwargs.get(
-            "illuminant",
+            IDTProjectSettings.illuminant.metadata.name,
             IDTProjectSettings.illuminant.metadata.default_value,
         )
+
         self._file_type = kwargs.get(
-            "file_type",
+            IDTProjectSettings.file_type.metadata.name,
             IDTProjectSettings.file_type.metadata.default_value,
         )
         self._ev_weights = kwargs.get(
-            "ev_weights",
+            IDTProjectSettings.ev_weights.metadata.name,
             IDTProjectSettings.ev_weights.metadata.default_value,
         )
         self._optimization_kwargs = kwargs.get(
-            "optimization_kwargs",
+            IDTProjectSettings.optimization_kwargs.metadata.name,
             IDTProjectSettings.optimization_kwargs.metadata.default_value,
         )
         self._include_white_balance_in_clf = kwargs.get(
-            "include_white_balance_in_clf",
+            IDTProjectSettings.include_white_balance_in_clf.metadata.name,
             IDTProjectSettings.include_white_balance_in_clf.metadata.default_value,
         )
         self._flatten_clf = kwargs.get(
-            "flatten_clf",
+            IDTProjectSettings.flatten_clf.metadata.name,
             IDTProjectSettings.flatten_clf.metadata.default_value,
         )
 
@@ -192,7 +195,9 @@ class IDTProjectSettings(MixinSerializableProperties):
 
         return self._schema_version
 
-    @metadata_property(metadata=MetadataConstants.ACES_TRANSFORM_ID)
+    @metadata_property(
+        metadata=MetadataConstants.ACES_TRANSFORM_ID, validation=is_valid_idt_urn
+    )
     def aces_transform_id(self) -> str:
         """
         Getter property for the *ACEStransformID*.
@@ -202,7 +207,6 @@ class IDTProjectSettings(MixinSerializableProperties):
         :class:`str`
             *ACEStransformID*.
         """
-
         return self._aces_transform_id
 
     @metadata_property(metadata=MetadataConstants.ACES_USER_NAME)

@@ -365,6 +365,13 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                     RGB_COLOURSPACE_ACES2065_1.whitepoint,
                 )
 
+            # TODO This is the right way to compute the K, but its also being
+            # TODO computed again later in the optimize using the 21st patch
+            # TODO and is then stored in the clf
+            # TODO this second scaling makes sense as not to cause the matrix to
+            # TODO sum > 1, but the second k scaling
+            # TODO should not be written into the clf, as the first one is baked
+            # TODO into the 1D lut
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
@@ -438,6 +445,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             self._samples_decoded, CLIPPING_THRESHOLD
         )
         EV_range = [value for value in EV_range if value not in clipped_exposures]
+        if not EV_range:
+            raise ValueError("All exposures in EV range are clipping")
 
         samples_normalised = as_float_array(
             [
@@ -470,6 +479,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             XYZ_to_optimization_colour_model,
             finaliser_function,
         ) = optimisation_factory()
+
         optimisation_settings = {
             "method": "BFGS",
             "jac": "2-point",
@@ -547,8 +557,10 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                 alpha=0.25,
             )
             axes.plot(samples, np.log(self._LUT_filtered.table[..., i]), color=RGB)
-            axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
-            axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
+            if self._lut_blending_edge_left:
+                axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
+            if self._lut_blending_edge_right:
+                axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
             **{
                 "show": False,

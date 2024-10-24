@@ -66,3 +66,8 @@ class TestIDTProjectSettings(TestIDTBase):
         self.maxDiff = None
 
         self.assertEqual(actual, expected)
+
+    def test_property_vs_metadata_name(self):
+        """Test that the property name matches the metadata name"""
+        for name, prop in self.project_settings.properties:
+            self.assertEqual(name, prop.metadata.name)

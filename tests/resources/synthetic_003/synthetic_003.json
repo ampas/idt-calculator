@@ -1,7 +1,7 @@
 {
   "header": {
     "schema_version": "0.1.0",
-    "aces_transform_id": "synthetic-colour-science-camera",
+    "aces_transform_id": "URN:CSC.Synthetic.ColourScience_003_307202.a2.v1",
     "aces_user_name": "Synthetic colour-science Camera",
     "camera_make": "Synthetic",
     "camera_model": "colour-science",
@@ -20,7 +20,7 @@
     "ev_range": [-1.0, 0.0, 1.0],
     "grey_card_reference": [0.18, 0.18, 0.18],
     "lut_size": 1024,
-    "lut_smoothing": 32
+    "lut_smoothing": 16
   },
   "data": {
     "colour_checker": {

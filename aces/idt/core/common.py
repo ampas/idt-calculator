@@ -25,6 +25,7 @@ import colour_checker_detection
 import cv2
 import matplotlib as mpl
 import numpy as np
+import pandas as pd
 import scipy.stats
 import xxhash
 from colour import (
@@ -88,6 +89,8 @@ __all__ = [
     "format_exposure_key",
     "find_close_indices",
     "calculate_clipped_exposures",
+    "create_samples_macbeth_image",
+    "interpolate_nan_values",
 ]
 
 LOGGER = logging.getLogger(__name__)
@@ -852,4 +855,116 @@ def calculate_clipped_exposures(exposure_samples: dict, threshold: float) -> lis
         else:
             break
 
-    return sorted(set(failed_exposures))
+    # TODO we should update the algo above so that we march from the bottom to 0.0
+    # TODO and from the top down to 0.0, vs just doing all of them as we want
+    #  0.0 to always remain. This hack can go
+    result = sorted(set(failed_exposures))
+    if 0.0 in result:
+        result.remove(0.0)
+
+    return result
+
+
+def create_samples_macbeth_image(
+    colours: np.array,
+    reduction_percent: int = 30,
+    colours_per_row: int = 6,
+    target_width: int = 1920,
+    target_height: int = 1080,
+) -> np.array:
+    """
+    Create a numpy image from a list of colours and creates a macbeth chart "like" image
+    with the colours provided.
+
+    A boarder is left around the edge of the image to allow for the reduction in size,
+    and set to be the same colour as the -3 index of the colours array. aka the grey of
+    the macbeth chart.
+
+    The image is not a macbeth chart, as the colours are as read from the camera samples
+    vs those of an actual macbeth chart.
+
+    Parameters
+    ----------
+    colours: np.array
+        An array of colours in [R, G, B] format
+
+    reduction_percent: int
+        The percentage to reduce the target width and height by to leave a boarder
+        around the edge
+
+    colours_per_row: int
+        The number of colours to put in each row
+
+    target_width: int
+        The target width of the image
+
+    target_height: int
+        The target height of the image
+
+    Returns
+    -------
+    np.array
+        The image as a numpy array
+
+    """
+    num_rows = (
+        len(colours) + colours_per_row - 1
+    ) // colours_per_row  # Calculate the number of rows needed
+
+    # Calculate the new dimensions with reduction percentage
+    reduced_width = int(target_width * (1 - reduction_percent / 100))
+    reduced_height = int(target_height * (1 - reduction_percent / 100))
+
+    strip_width = int(reduced_width / colours_per_row)
+    strip_height = int(reduced_height / num_rows)
+
+    # Calculate the starting point to center the strips in the original target
+    # dimensions
+    start_x = (target_width - reduced_width) // 2
+    start_y = (target_height - reduced_height) // 2
+
+    # Create an empty image with the background color from the -3 index of the colour
+    # array
+    background_color = colours[-3]  # Assuming colours[-3] is in [R, G, B] format
+    image = np.full(
+        (target_height, target_width, 3), background_color, dtype=np.float32
+    )
+
+    # Fill the image with the color strips
+    for i, color in enumerate(colours):
+        row = i // colours_per_row
+        col = i % colours_per_row
+        x = start_x + col * strip_width
+        y = start_y + row * strip_height
+        image[y : y + strip_height, x : x + strip_width] = color
+
+    return image
+
+
+def interpolate_nan_values(array: np.array) -> np.array:
+    """Interpolate the NaN values in a 2D array using linear interpolation.
+
+    Parameters
+    ----------
+    array: np.array
+        The 2D array to interpolate
+
+    Returns
+    -------
+    np.array
+        The array with the NaN values interpolated
+    """
+
+    # Convert the 2D array to a DataFrame for easy interpolation
+    df = pd.DataFrame(array)
+
+    # Interpolate the entire DataFrame
+    # Forward fill and backward fill remaining NaNs (at the edges)
+    interpolated_df = df.fillna(method="ffill").fillna(method="bfill")
+
+    interpolated_df = interpolated_df.interpolate(method="linear", axis=0)
+
+    # Replace only the NaN values in the original array with interpolated values
+    final_array = np.where(np.isnan(array), interpolated_df.to_numpy(), array)
+
+    return final_array
