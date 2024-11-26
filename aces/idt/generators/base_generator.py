@@ -639,6 +639,7 @@ class IDTBaseGenerator(ABC):
         self,
         output_directory: Path | str,
         archive_serialised_generator: bool = False,
+        cleanup: bool = True,
     ) -> str:
         """
         Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
@@ -650,6 +651,8 @@ class IDTBaseGenerator(ABC):
             Output directory for the *zip* file.
         archive_serialised_generator : bool
             Whether to serialise and archive the *IDT* generator.
+        cleanup
+            Whether to remove the clf and json file after the zip is completed
 
         Returns
         -------
@@ -673,16 +676,15 @@ class IDTBaseGenerator(ABC):
 
         output_directory.mkdir(parents=True, exist_ok=True)
 
-        camera_make = self.project_settings.camera_make
-        camera_model = self.project_settings.camera_model
-
+        aces_transform_id = self.project_settings.aces_transform_id
+        aces_transform_id_clean = aces_transform_id.replace(":", "_")
         clf_path = self.to_clf(output_directory)
 
-        json_path = f"{output_directory}/{camera_make}.{camera_model}.json"
+        json_path = f"{output_directory}/IDT_{aces_transform_id_clean}.json"
         with open(json_path, "w") as json_file:
             json_file.write(jsonpickle.encode(self, indent=2))
 
-        zip_file = Path(output_directory) / f"IDT_{camera_make}_{camera_model}.zip"
+        zip_file = Path(output_directory) / f"IDT_{aces_transform_id_clean}.zip"
         current_working_directory = os.getcwd()
 
         output_directory = str(output_directory)
@@ -694,6 +696,10 @@ class IDTBaseGenerator(ABC):
                     zip_archive.write(json_path.replace(output_directory, "")[1:])
         finally:
             os.chdir(current_working_directory)
+
+        if cleanup:
+            os.remove(clf_path)
+            os.remove(json_path)
 
         return zip_file
 
