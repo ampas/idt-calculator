@@ -148,25 +148,33 @@ class IDTGeneratorApplication:
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
-                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
-                    EV
-                ] = list((colour_checker_directory / exposure_directory).glob("*.*"))
+                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][EV] = [
+                    file
+                    for file in (colour_checker_directory / exposure_directory).glob(
+                        "*.*"
+                    )
+                    if not file.name.startswith(".")
+                ]
 
         flatfield_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.FLATFIELD
         )
         if flatfield_directory.exists():
-            self.project_settings.data[DirectoryStructure.FLATFIELD] = list(
-                flatfield_directory.glob("*.*")
-            )
+            self.project_settings.data[DirectoryStructure.FLATFIELD] = [
+                file
+                for file in flatfield_directory.glob("*.*")
+                if not file.name.startswith(".")
+            ]
 
         grey_card_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.GREY_CARD
         )
         if grey_card_directory.exists():
-            self.project_settings.data[DirectoryStructure.GREY_CARD] = list(
-                flatfield_directory.glob("*.*")
-            )
+            self.project_settings.data[DirectoryStructure.GREY_CARD] = [
+                file
+                for file in grey_card_directory.glob("*.*")
+                if not file.name.startswith(".")
+            ]
 
     def _verify_archive(self, root_directory: Path | str) -> None:
         """
