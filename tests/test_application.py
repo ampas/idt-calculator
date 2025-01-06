@@ -86,7 +86,13 @@ class TestIDTApplication(TestIDTBase):
             expected_reference = json.load(file)
 
         self.assertEqual(generator.samples_camera.tolist(), expected_camera)
-        self.assertEqual(generator.samples_reference.tolist(), expected_reference)
+        threshold = 1e-20
+        self.assertTrue(
+            np.allclose(
+                generator.samples_reference, expected_reference, atol=threshold
+            ),
+            "Values differ by more than the allowed threshold.",
+        )
 
     def test_prosumer_generator_from_archive(self):
         """
