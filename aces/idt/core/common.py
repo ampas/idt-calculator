@@ -91,6 +91,7 @@ __all__ = [
     "calculate_clipped_exposures",
     "create_samples_macbeth_image",
     "interpolate_nan_values",
+    "calculate_camera_npm_and_primaries_wp",
 ]
 
 LOGGER = logging.getLogger(__name__)
