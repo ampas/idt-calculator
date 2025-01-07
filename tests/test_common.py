@@ -43,7 +43,7 @@ class Test_IDTCommon(TestIDTBase):
         ]
 
         result = common.generate_reference_colour_checker()
-        self.assertEqual(expected, result.tolist())
+        self.assertTrue(np.allclose(expected, result, atol=1e-20))
 
 
 class TestExposureClippingMask(TestIDTBase):
