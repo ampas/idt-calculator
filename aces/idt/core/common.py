@@ -968,3 +968,58 @@ def interpolate_nan_values(array: np.array) -> np.array:
     final_array = np.where(np.isnan(array), interpolated_df.to_numpy(), array)
 
     return final_array
+
+
+def calculate_camera_npm_and_primaries_wp(
+    input_matrix: np.array,
+    target_white_point: str = "D65",
+    cat: str = "Bradford",
+    observer: str = "CIE 1931 2 Degree Standard Observer",
+) -> Tuple[np.array, np.array, np.array]:
+    """
+    Calculate the camera's npm matrix (RGB to XYZ), it also returns the cameras
+    primaries, and whitepoint.
+
+    Parameters
+    ----------
+    input_matrix: np.array
+        The camera's calculated or known RGB to ACES2065-1 matrix
+
+    target_white_point: str
+        The target whitepoint to calculate the camera's npm matrix for
+    cat: str
+        The chromatic adaptation transform to use
+
+    observer: str
+        The observer to use for the chromatic adaptation
+
+    Returns
+    -------
+    Tuple[np.array, np.array, np.array]
+        The camera's npm matrix, the camera's primaries, and the camera's whitepoint
+
+    """
+
+    camera_rgb_to_xyz = RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ @ np.array(
+        input_matrix
+    )
+
+    # Get the xy chromaticity coordinates of the source and target whitepoints
+    source_whitepoint_xy = colour.CCS_ILLUMINANTS[observer]["D60"]
+    target_whitepoint_xy = colour.CCS_ILLUMINANTS[observer][target_white_point]
+
+    # Convert chromaticity coordinates to XYZ tristimulus values
+    source_whitepoint = colour.xy_to_XYZ(source_whitepoint_xy)
+    target_whitepoint = colour.xy_to_XYZ(target_whitepoint_xy)
+
+    # Compute the chromatic adaptation matrix using the given CAT
+    cat_matrix = colour.adaptation.matrix_chromatic_adaptation_VonKries(
+        source_whitepoint, target_whitepoint, transform=cat
+    )
+
+    # Apply the chromatic adaptation matrix to the camera's RGB to XYZ matrix
+    computed_camera_npm = cat_matrix @ camera_rgb_to_xyz
+
+    # Compute the camera's whitepoint and primaries
+    primaries, whitepoint = colour.primaries_whitepoint(computed_camera_npm)
+    return computed_camera_npm, primaries, whitepoint
