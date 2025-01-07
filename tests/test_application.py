@@ -1214,12 +1214,15 @@ class TestIDTApplication(TestIDTBase):
         )
 
     def test_prosumer_generator_from_archive_no_json(self):
-        """Test the prosumer generator from archive without a json file"""
+        """Test the prosumer generator from archive without a json file, should raise
+        an error due to being unable to calculate the IDT URN for the id
+        """
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
-        idt_application.process_archive(archive)
+        with self.assertRaises(ValueError):
+            idt_application.process_archive(archive)
 
     def test_prosumer_generator_from_archive_zip(self):
         """Test the prosumer generator from archive with a json file"""
