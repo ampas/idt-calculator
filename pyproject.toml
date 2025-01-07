@@ -40,6 +40,12 @@ classifiers = [
     "Topic :: Software Development"
 ]
 
+packages = [
+    { include = "aces" },
+    { include = "apps" },
+    { include = "*.py" }
+]
+
 [tool.poetry.dependencies]
 python = ">= 3.9, < 3.13"
 colour-datasets = ">= 0.2.5"
