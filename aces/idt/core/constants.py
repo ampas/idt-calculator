@@ -460,6 +460,15 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
+    INCLUDE_EXPOSURE_FACTOR_IN_CLF = Metadata(
+        name="include_exposure_factor_in_clf",
+        default_value=False,
+        description="Whether to include the exposure factor (K) in the CLF",
+        display_name="Include Exposure Factor in CLF",
+        ui_type=UITypes.BOOLEAN_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
     ALL: ClassVar[tuple[Metadata, ...]] = (
         SCHEMA_VERSION,
         CAMERA_MAKE,
@@ -493,4 +502,5 @@ class ProjectSettingsMetadataConstants:
         OPTIMIZATION_KWARGS,
         INCLUDE_WHITE_BALANCE_IN_CLF,
         FLATTEN_CLF,
+        INCLUDE_EXPOSURE_FACTOR_IN_CLF,
     )

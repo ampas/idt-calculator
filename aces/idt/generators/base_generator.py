@@ -837,6 +837,7 @@ class IDTBaseGenerator(ABC):
             False,
             self.project_settings.include_white_balance_in_clf,
             self.project_settings.flatten_clf,
+            self.project_settings.include_exposure_factor_in_clf,
         )
 
         clf_path = (
