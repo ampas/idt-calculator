@@ -104,14 +104,9 @@ class RGBDisplayColourspace:
     ALL: ClassVar[tuple[str, ...]] = (SRGB, DCI_P3)
 
 
-class CAT:
-    """Constants for the chromatic adaptation transforms."""
-
-    DEFAULT: ClassVar[str] = "CAT02"
-
-    @classmethod
+class CATMeta(type):
     @property
-    def ALL(cls) -> Tuple[str]:
+    def ALL(cls) -> Tuple[str, ...]:
         """
         Return all the available chromatic adaptation transforms.
 
@@ -120,8 +115,13 @@ class CAT:
         :class:`tuple`
             Available chromatic adaptation transforms.
         """
+        return (*sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS), "None")
 
-        return *sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS), "None"
+
+class CAT(metaclass=CATMeta):
+    """Constants for the chromatic adaptation transforms."""
+
+    DEFAULT: ClassVar[str] = "CAT02"
 
 
 class OptimizationSpace:
