@@ -1,6 +1,6 @@
 blinker==1.7.0 ; python_version >= "3.9" and python_version < "3.13"
 cachetools==5.3.3 ; python_version >= "3.9" and python_version < "3.13"
-certifi==2024.2.2 ; python_version >= "3.9" and python_version < "3.13"
+certifi==2024.7.4 ; python_version >= "3.9" and python_version < "3.13"
 charset-normalizer==3.3.2 ; python_version >= "3.9" and python_version < "3.13"
 click==8.1.7 ; python_version >= "3.9" and python_version < "3.13"
 colorama==0.4.6 ; python_version >= "3.9" and python_version < "3.13" and platform_system == "Windows"
