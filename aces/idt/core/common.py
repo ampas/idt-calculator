@@ -428,6 +428,7 @@ def clf_processing_elements(
     use_range: bool = True,
     include_white_balance_in_clf: bool = False,
     flatten_clf: bool = True,
+    include_exposure_factor_in_clf: bool = False,
 ) -> Et.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
@@ -449,6 +450,8 @@ def clf_processing_elements(
         Whether to include the white balance multipliers in the *CLF*.
     flatten_clf
         Whether to flatten the *CLF*. into a single 1D Lut & 1 3x3 Matrix
+    include_exposure_factor_in_clf
+        Whether to include the exposure factor :math:`k` in the *CLF*.
 
     Returns
     -------
@@ -493,14 +496,15 @@ def clf_processing_elements(
             et_max_out_value = Et.SubElement(et_range, "maxOutValue")
             et_max_out_value.text = "1"
 
-        et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_k, "Description")
-        et_description.text = (
-            'Exposure factor *k* that results in a nominally "18% gray" object in '
-            "the scene producing ACES values [0.18, 0.18, 0.18]."
-        )
-        et_array = Et.SubElement(et_k, "Array", dim="3 3")
-        et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
+        if include_exposure_factor_in_clf:
+            et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+            et_description = Et.SubElement(et_k, "Description")
+            et_description.text = (
+                'Exposure factor *k* that results in a nominally "18% gray" object in '
+                "the scene producing ACES values [0.18, 0.18, 0.18]."
+            )
+            et_array = Et.SubElement(et_k, "Array", dim="3 3")
+            et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
 
         et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
         et_description = Et.SubElement(et_M, "Description")
@@ -510,6 +514,11 @@ def clf_processing_elements(
 
     else:
         # If we are flattening the clf we output just a single matrix into the clf
+
+        # If we do not include the k factor, we set it to 1.0 so it becomes and identity
+        # matrix and has no affect
+        if not include_exposure_factor_in_clf:
+            k_factor = 1.0
         output_matrix = np.diag([k_factor] * 3) @ matrix
         if include_white_balance_in_clf:
             output_matrix = np.diag(multipliers) @ np.diag([k_factor] * 3) @ matrix

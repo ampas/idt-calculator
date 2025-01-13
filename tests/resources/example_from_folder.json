@@ -6,6 +6,7 @@
     "camera_make": "",
     "camera_model": "",
     "include_white_balance_in_clf": false,
+    "include_exposure_factor_in_clf": false,
     "flatten_clf": false,
     "iso": 800,
     "temperature": 6000,

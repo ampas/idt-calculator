@@ -181,6 +181,10 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.flatten_clf.metadata.name,
             IDTProjectSettings.flatten_clf.metadata.default_value,
         )
+        self._include_exposure_factor_in_clf = kwargs.get(
+            IDTProjectSettings.include_exposure_factor_in_clf.metadata.name,
+            IDTProjectSettings.include_exposure_factor_in_clf.metadata.default_value,
+        )
 
     @metadata_property(metadata=MetadataConstants.SCHEMA_VERSION)
     def schema_version(self) -> str:
@@ -597,6 +601,18 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         return self._flatten_clf
+
+    @metadata_property(metadata=MetadataConstants.INCLUDE_EXPOSURE_FACTOR_IN_CLF)
+    def include_exposure_factor_in_clf(self) -> bool:
+        """
+        Getter property for whether to include the exposure factor (K) in the *CLF*.
+
+        Returns
+        -------
+        :class:`bool`
+            Whether to include the exposure factor (K) in the *CLF*.
+        """
+        return self._include_exposure_factor_in_clf
 
     def get_reference_colour_checker_samples(self) -> NDArrayFloat:
         """
