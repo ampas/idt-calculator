@@ -14,6 +14,7 @@ from colour.utilities import attest, optional
 
 import aces.idt.core.common
 from aces.idt.core.constants import DirectoryStructure
+from aces.idt.core.trasform_id import generate_idt_urn, is_valid_idt_urn
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
 from aces.idt.generators.base_generator import IDTBaseGenerator
@@ -147,25 +148,33 @@ class IDTGeneratorApplication:
         for exposure_directory in colour_checker_directory.iterdir():
             if re.match(r"-?\d", exposure_directory.name):
                 EV = exposure_directory.name
-                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][
-                    EV
-                ] = list((colour_checker_directory / exposure_directory).glob("*.*"))
+                self.project_settings.data[DirectoryStructure.COLOUR_CHECKER][EV] = [
+                    file
+                    for file in (colour_checker_directory / exposure_directory).glob(
+                        "*.*"
+                    )
+                    if not file.name.startswith(".")
+                ]
 
         flatfield_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.FLATFIELD
         )
         if flatfield_directory.exists():
-            self.project_settings.data[DirectoryStructure.FLATFIELD] = list(
-                flatfield_directory.glob("*.*")
-            )
+            self.project_settings.data[DirectoryStructure.FLATFIELD] = [
+                file
+                for file in flatfield_directory.glob("*.*")
+                if not file.name.startswith(".")
+            ]
 
         grey_card_directory = (
             root_directory / DirectoryStructure.DATA / DirectoryStructure.GREY_CARD
         )
         if grey_card_directory.exists():
-            self.project_settings.data[DirectoryStructure.GREY_CARD] = list(
-                flatfield_directory.glob("*.*")
-            )
+            self.project_settings.data[DirectoryStructure.GREY_CARD] = [
+                file
+                for file in grey_card_directory.glob("*.*")
+                if not file.name.startswith(".")
+            ]
 
     def _verify_archive(self, root_directory: Path | str) -> None:
         """
@@ -289,7 +298,7 @@ class IDTGeneratorApplication:
 
         return directory
 
-    def process(self, archive: str | None) -> IDTBaseGenerator:
+    def process_archive(self, archive: str | None) -> IDTBaseGenerator:
         """
         Compute the *IDT* either using given archive *zip* file path or the
         current *IDT* project settings if not given.
@@ -326,13 +335,25 @@ class IDTGeneratorApplication:
                 float(exposure)
             ] = images
 
+        return self.process()
+
+    def process(self) -> IDTBaseGenerator:
+        """Run the *IDT* generator application process maintaining the execution steps
+
+        Returns
+        -------
+        :class:`IDTBaseGenerator`
+            Instantiated *IDT* generator. after the process has been run
+
+        """
+        self.validate_project_settings()
         self.generator.sample()
         self.generator.sort()
+        self.generator.remove_clipping()
         self.generator.generate_LUT()
         self.generator.filter_LUT()
         self.generator.decode()
         self.generator.optimise()
-
         return self.generator
 
     def zip(
@@ -360,3 +381,24 @@ class IDTGeneratorApplication:
         return self.generator.zip(
             output_directory, archive_serialised_generator=archive_serialised_generator
         )
+
+    def validate_project_settings(self) -> None:
+        """Run validation checks on the project settings.
+
+        Raises
+        ------
+        ValueError
+            If any of the validations fail
+        """
+        # Check the aces_transform_id is a valid idt_urn
+        if not is_valid_idt_urn(self.project_settings.aces_transform_id):
+            # If the aces_transform_id is not valid, generate a new one
+            new_name = generate_idt_urn(
+                self.project_settings.aces_user_name,
+                self.project_settings.encoding_colourspace,
+                self.project_settings.encoding_transfer_function,
+                1,
+            )
+            # Update the project settings with the new name, if this is still invalid
+            # it will raise an error from the setter
+            self.project_settings.aces_transform_id = new_name

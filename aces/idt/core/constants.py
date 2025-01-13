@@ -23,6 +23,7 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
+    "CLIPPING_THRESHOLD",
     "DirectoryStructure",
     "UITypes",
     "UICategories",
@@ -34,6 +35,12 @@ __all__ = [
     "DecodingMethods",
     "ProjectSettingsMetadataConstants",
 ]
+
+CLIPPING_THRESHOLD: int = 2 / (2**10 - 1)
+"""
+The threshold for determining if RGB values are clipped. The threshold is
+2 code values in a 10 bit system
+"""
 
 
 class DirectoryStructure:
@@ -154,6 +161,7 @@ class ProjectSettingsMetadataConstants:
     """Constants for the project settings."""
 
     SCHEMA_VERSION = Metadata(
+        name="schema_version",
         default_value="0.1.0",
         description="The project settings schema version",
         display_name="Schema Version",
@@ -162,6 +170,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     CAMERA_MAKE = Metadata(
+        name="camera_make",
         default_value="",
         description="The make of the camera used to capture the images",
         display_name="Camera Make",
@@ -170,6 +179,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     CAMERA_MODEL = Metadata(
+        name="camera_model",
         default_value="",
         description="The model of the camera used to capture the images",
         display_name="Camera Model",
@@ -178,6 +188,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     RGB_DISPLAY_COLOURSPACE = Metadata(
+        name="rgb_display_colourspace",
         default_value=RGBDisplayColourspace.DEFAULT,
         description="The RGB display colourspace",
         display_name="RGB Display Colourspace",
@@ -187,6 +198,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     CAT = Metadata(
+        name="cat",
         default_value=CAT.DEFAULT,
         description="The CAT",
         display_name="CAT",
@@ -196,6 +208,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     OPTIMISATION_SPACE = Metadata(
+        name="optimisation_space",
         default_value=OptimizationSpace.DEFAULT,
         description="The optimisation space",
         display_name="Optimisation Space",
@@ -205,6 +218,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ILLUMINANT_INTERPOLATOR = Metadata(
+        name="illuminant_interpolator",
         default_value=Interpolators.DEFAULT,
         description="The illuminant interpolator",
         display_name="Illuminant Interpolator",
@@ -214,6 +228,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     DECODING_METHOD = Metadata(
+        name="decoding_method",
         default_value=DecodingMethods.DEFAULT,
         description="The decoding method",
         display_name="Decoding Method",
@@ -223,6 +238,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     EV_RANGE = Metadata(
+        name="ev_range",
         default_value=[-1.0, 0.0, 1.0],
         description="The EV range",
         display_name="EV Range",
@@ -231,6 +247,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     GREY_CARD_REFERENCE = Metadata(
+        name="grey_card_reference",
         default_value=[0.18, 0.18, 0.18],
         description="The grey card reference",
         display_name="Grey Card Reference",
@@ -239,6 +256,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     LUT_SIZE = Metadata(
+        name="lut_size",
         default_value=LUTSize.DEFAULT,
         description="The LUT size",
         display_name="LUT Size",
@@ -248,6 +266,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     LUT_SMOOTHING = Metadata(
+        name="lut_smoothing",
         default_value=16,
         description="The LUT smoothing",
         display_name="LUT Smoothing",
@@ -256,6 +275,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ACES_TRANSFORM_ID = Metadata(
+        name="aces_transform_id",
         default_value="",
         description="The ACES transform ID",
         display_name="ACES Transform ID",
@@ -264,6 +284,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ACES_USER_NAME = Metadata(
+        name="aces_user_name",
         default_value="",
         description="The ACES username",
         display_name="ACES Username",
@@ -272,6 +293,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ISO = Metadata(
+        name="iso",
         default_value=800,
         description="The ISO",
         display_name="ISO",
@@ -280,6 +302,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     TEMPERATURE = Metadata(
+        name="temperature",
         default_value=6000,
         description="The temperature",
         display_name="Temperature",
@@ -288,6 +311,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ADDITIONAL_CAMERA_SETTINGS = Metadata(
+        name="additional_camera_settings",
         default_value="",
         description="The additional camera settings",
         display_name="Additional Camera Settings",
@@ -296,6 +320,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     LIGHTING_SETUP_DESCRIPTION = Metadata(
+        name="lighting_setup_description",
         default_value="",
         description="The lighting setup description",
         display_name="Lighting Setup Description",
@@ -304,6 +329,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     DEBAYERING_PLATFORM = Metadata(
+        name="debayering_platform",
         default_value="",
         description="The debayering platform",
         display_name="Debayering Platform",
@@ -312,6 +338,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     DEBAYERING_SETTINGS = Metadata(
+        name="debayering_settings",
         default_value="",
         description="The debayering settings",
         display_name="Debayering Settings",
@@ -320,14 +347,25 @@ class ProjectSettingsMetadataConstants:
     )
 
     ENCODING_COLOUR_SPACE = Metadata(
+        name="encoding_colourspace",
         default_value="",
-        description="The encoding colour space",
-        display_name="Encoding Colour Space",
+        description="The encoding colourspace",
+        display_name="Encoding Colourspace",
+        ui_type=UITypes.STRING_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
+    ENCODING_TRANSFER_FUNCTION = Metadata(
+        name="encoding_transfer_function",
+        default_value="",
+        description="The encoding transfer function",
+        display_name="Encoding Transfer Function",
         ui_type=UITypes.STRING_FIELD,
         ui_category=UICategories.STANDARD,
     )
 
     DATA = Metadata(
+        name="data",
         default_value={
             DirectoryStructure.COLOUR_CHECKER: {},
             DirectoryStructure.GREY_CARD: {},
@@ -340,6 +378,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     WORKING_DIR = Metadata(
+        name="working_directory",
         default_value="",
         description="The file path to the working directory",
         display_name="Working Directory",
@@ -348,14 +387,16 @@ class ProjectSettingsMetadataConstants:
     )
 
     CLEAN_UP = Metadata(
-        default_value=False,
-        description="Do we want to cleanup the directory after we finish",
+        name="cleanup",
+        default_value=True,
+        description="Do we want to cleanup the working directory after we finish?",
         display_name="Cleanup",
         ui_type=UITypes.BOOLEAN_FIELD,
         ui_category=UICategories.HIDDEN,
     )
 
     REFERENCE_COLOUR_CHECKER = Metadata(
+        name="reference_colour_checker",
         default_value="ISO 17321-1",
         description="The reference colour checker we want to use",
         ui_type=UITypes.OPTIONS_FIELD,
@@ -364,6 +405,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     ILLUMINANT = Metadata(
+        name="illuminant",
         default_value="D60",
         description="The illuminant we want to use for the reference colour checker",
         ui_type=UITypes.OPTIONS_FIELD,
@@ -372,6 +414,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     FILE_TYPE = Metadata(
+        name="file_type",
         default_value="",
         description="The file type of the recorded footage is detected from "
         "the archive",
@@ -381,6 +424,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     EV_WEIGHTS = Metadata(
+        name="ev_weights",
         default_value=np.array([]),
         description="Normalised weights used to sum the exposure values. If not given,"
         "the median of the exposure values is used.",
@@ -390,6 +434,7 @@ class ProjectSettingsMetadataConstants:
     )
 
     OPTIMIZATION_KWARGS = Metadata(
+        name="optimization_kwargs",
         default_value={},
         description="Parameters for the optimization function scipy.optimize.minimize",
         display_name="Optimization Kwargs",
@@ -398,9 +443,19 @@ class ProjectSettingsMetadataConstants:
     )
 
     INCLUDE_WHITE_BALANCE_IN_CLF = Metadata(
+        name="include_white_balance_in_clf",
         default_value=False,
         description="Whether to include the White Balance Matrix in the CLF",
         display_name="Include White Balance in CLF",
+        ui_type=UITypes.BOOLEAN_FIELD,
+        ui_category=UICategories.STANDARD,
+    )
+
+    FLATTEN_CLF = Metadata(
+        name="flatten_clf",
+        default_value=False,
+        description="Whether to flatten the CLF to a 1D Lut and a single 3x3 Matrix ",
+        display_name="Flatten CLF",
         ui_type=UITypes.BOOLEAN_FIELD,
         ui_category=UICategories.STANDARD,
     )
@@ -427,6 +482,7 @@ class ProjectSettingsMetadataConstants:
         DEBAYERING_PLATFORM,
         DEBAYERING_SETTINGS,
         ENCODING_COLOUR_SPACE,
+        ENCODING_TRANSFER_FUNCTION,
         DATA,
         WORKING_DIR,
         CLEAN_UP,
@@ -436,4 +492,5 @@ class ProjectSettingsMetadataConstants:
         EV_WEIGHTS,
         OPTIMIZATION_KWARGS,
         INCLUDE_WHITE_BALANCE_IN_CLF,
+        FLATTEN_CLF,
     )

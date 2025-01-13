@@ -33,7 +33,8 @@ from colour.utilities import (
 )
 from scipy.optimize import minimize
 
-from aces.idt.core import DecodingMethods, DirectoryStructure
+from aces.idt.core import DecodingMethods, DirectoryStructure, common
+from aces.idt.core.constants import CLIPPING_THRESHOLD
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
 # TODO are the mpl.use things needed in every file?
@@ -364,6 +365,13 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                     RGB_COLOURSPACE_ACES2065_1.whitepoint,
                 )
 
+            # TODO This is the right way to compute the K, but its also being
+            # TODO computed again later in the optimize using the 21st patch
+            # TODO and is then stored in the clf
+            # TODO this second scaling makes sense as not to cause the matrix to
+            # TODO sum > 1, but the second k scaling
+            # TODO should not be written into the clf, as the first one is baked
+            # TODO into the 1D lut
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
@@ -429,6 +437,17 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         LOGGER.info('"EV range": %s"', EV_range)
 
+        # We need to check for clipping here still within the selected EV_RANGE
+        # Even here on a single stop -1, 0 1, there could be clipping
+        # If any of the EV exposures from the decoded samples are clipping, make sure
+        # none of these are used in the EV_Range
+        clipped_exposures = common.calculate_clipped_exposures(
+            self._samples_decoded, CLIPPING_THRESHOLD
+        )
+        EV_range = [value for value in EV_range if value not in clipped_exposures]
+        if not EV_range:
+            raise ValueError("All exposures in EV range are clipping")
+
         samples_normalised = as_float_array(
             [
                 self._samples_decoded[EV] * (1 / pow(2, EV))
@@ -460,6 +479,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             XYZ_to_optimization_colour_model,
             finaliser_function,
         ) = optimisation_factory()
+
         optimisation_settings = {
             "method": "BFGS",
             "jac": "2-point",
@@ -537,8 +557,10 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                 alpha=0.25,
             )
             axes.plot(samples, np.log(self._LUT_filtered.table[..., i]), color=RGB)
-            axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
-            axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
+            if self._lut_blending_edge_left:
+                axes.axvline(self._lut_blending_edge_left, color="r", alpha=0.25)
+            if self._lut_blending_edge_right:
+                axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
             **{
                 "show": False,
