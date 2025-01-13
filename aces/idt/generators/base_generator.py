@@ -117,6 +117,9 @@ class IDTBaseGenerator(ABC):
         self._M = None
         self._RGB_w = None
         self._k = None
+        self._npm = None
+        self._primaries = None
+        self._whitepoint = None
 
         self._image_grey_card_sampling = None
         self._image_colour_checker_segmentation = None
@@ -282,6 +285,45 @@ class IDTBaseGenerator(ABC):
         """
 
         return self._k
+
+    @property
+    def npm(self) -> NDArrayFloat | None:
+        """
+        Getter property for the camera's RGB to XYZ matrix.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Camera's RGB to XYZ matrix.
+        """
+
+        return self._npm
+
+    @property
+    def primaries(self) -> NDArrayFloat | None:
+        """
+        Getter property for the camera's primaries.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Camera's primaries.
+        """
+
+        return self._primaries
+
+    @property
+    def whitepoint(self) -> NDArrayFloat | None:
+        """
+        Getter property for the camera's whitepoint.
+
+        Returns
+        -------
+        :class:`NDArray` or None
+            Camera's whitepoint.
+        """
+
+        return self._whitepoint
 
     @property
     def samples_analysis(self) -> NDArrayFloat | None:

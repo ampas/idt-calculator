@@ -45,6 +45,34 @@ class Test_IDTCommon(TestIDTBase):
         result = common.generate_reference_colour_checker()
         self.assertTrue(np.allclose(expected, result, atol=1e-20))
 
+    def test_calculate_camera_npm_and_primaries_wp(self):
+        """Test generating a camera npm from an RGB to AP0 matrix"""
+        input_matrix = [
+            [0.785043, 0.083844, 0.131118],
+            [0.023172, 1.087892, -0.111055],
+            [-0.073769, -0.314639, 1.388537],
+        ]
+
+        npm, primaries, wp = common.calculate_camera_npm_and_primaries_wp(input_matrix)
+
+        expected_npm = [
+            [0.7353579, 0.06867992, 0.14646275],
+            [0.28673187, 0.84296573, -0.1297009],
+            [-0.07965591, -0.34720223, 1.5155319],
+        ]
+
+        expected_primaries = [
+            [0.7802753326723714, 0.3042461485259778],
+            [0.1216772523298739, 1.4934459215643787],
+            [0.09558399073520502, -0.08464493023427101],
+        ]
+
+        expected_wp = [0.31274994, 0.32903601]
+
+        self.assertTrue(np.allclose(expected_npm, npm, atol=1e-6))
+        self.assertTrue(np.allclose(expected_primaries, primaries, atol=1e-6))
+        self.assertTrue(np.allclose(expected_wp, wp, atol=1e-6))
+
 
 class TestExposureClippingMask(TestIDTBase):
     """

@@ -496,6 +496,17 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         self._M = finaliser_function(self._M)
 
+        # Calculate and store the camera npm, the primaries and the whitepoint
+        (
+            self._npm,
+            self._primaries,
+            self._whitepoint,
+        ) = common.calculate_camera_npm_and_primaries_wp(
+            self._M,
+            target_white_point=self.project_settings.illuminant,
+            cat=self.project_settings.cat,
+        )
+
         return self._M, self._RGB_w, self._k
 
     def png_measured_camera_samples(self) -> str | None:
