@@ -5,19 +5,26 @@ IDT Generator Application
 Define the *IDT* generator application class.
 """
 
+from __future__ import annotations
+
 import logging
 import re
+import typing
 from pathlib import Path
 
-from colour.hints import List
+if typing.TYPE_CHECKING:
+    from colour.hints import List
+
 from colour.utilities import attest, optional
 
 import aces.idt.core.common
 from aces.idt.core.constants import DirectoryStructure
-from aces.idt.core.trasform_id import generate_idt_urn, is_valid_idt_urn
+from aces.idt.core.transform_id import generate_idt_urn, is_valid_csc_urn
 from aces.idt.framework.project_settings import IDTProjectSettings
 from aces.idt.generators import GENERATORS
-from aces.idt.generators.base_generator import IDTBaseGenerator
+
+if typing.TYPE_CHECKING:
+    from aces.idt.generators.base_generator import IDTBaseGenerator
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -84,14 +91,16 @@ class IDTGeneratorApplication:
         return self._generator
 
     @generator.setter
-    def generator(self, value: str):
+    def generator(self, value: str) -> None:
         """Setter for the **self.generator** property."""
 
         if value not in self.generator_names:
-            raise ValueError(
+            exception = (
                 f'"{value}" generator is invalid, must be one of '
                 f'"{self.generator_names}"!'
             )
+
+            raise ValueError(exception)
 
         self._generator = GENERATORS[value](self.project_settings)
 
@@ -113,7 +122,7 @@ class IDTGeneratorApplication:
         return self._project_settings
 
     @project_settings.setter
-    def project_settings(self, value: IDTProjectSettings):
+    def project_settings(self, value: IDTProjectSettings) -> None:
         """Setter for the **self.project_settings** property."""
 
         self._project_settings.update(value)
@@ -239,9 +248,9 @@ class IDTGeneratorApplication:
         """
 
         file_types = set()
-        for _, value in self.project_settings.data[
+        for value in self.project_settings.data[
             DirectoryStructure.COLOUR_CHECKER
-        ].items():
+        ].values():
             for item in value:
                 file_types.add(item.suffix)
 
@@ -249,9 +258,8 @@ class IDTGeneratorApplication:
             file_types.add(item.suffix)
 
         if len(file_types) > 1:
-            raise ValueError(
-                f'Multiple file types found in the project settings: "{file_types}"'
-            )
+            msg = f'Multiple file types found in the project settings: "{file_types}"'
+            raise ValueError(msg)
 
         self.project_settings.file_type = next(iter(file_types))
 
@@ -279,8 +287,9 @@ class IDTGeneratorApplication:
         json_files = list(root_directory.glob("*.json"))
 
         if len(json_files) > 1:
-            raise ValueError('Multiple "JSON" files found in the root directory!')
-        elif len(json_files) == 1:
+            msg = 'Multiple "JSON" files found in the root directory!'
+            raise ValueError(msg)
+        if len(json_files) == 1:
             json_file = next(iter(json_files))
             LOGGER.info('Found explicit "%s" "IDT" project settings file.', json_file)
             self.project_settings = IDTProjectSettings.from_file(json_file)
@@ -315,7 +324,9 @@ class IDTGeneratorApplication:
         """
 
         if self.generator is None:
-            raise ValueError('No "IDT" generator was selected!')
+            exception = 'No "IDT" generator was set!'
+
+            raise ValueError(exception)
 
         if archive is not None:
             self.project_settings.working_directory = self.extract(archive)
@@ -324,7 +335,7 @@ class IDTGeneratorApplication:
         for exposure in list(
             self.project_settings.data[DirectoryStructure.COLOUR_CHECKER].keys()
         ):
-            images = [  # noqa: C416
+            images = [
                 image
                 for image in self.project_settings.data[
                     DirectoryStructure.COLOUR_CHECKER
@@ -338,27 +349,29 @@ class IDTGeneratorApplication:
         return self.process()
 
     def process(self) -> IDTBaseGenerator:
-        """Run the *IDT* generator application process maintaining the execution steps
+        """
+        Run the *IDT* generator application process maintaining the execution steps.
 
         Returns
         -------
         :class:`IDTBaseGenerator`
             Instantiated *IDT* generator. after the process has been run
-
         """
+
         self.validate_project_settings()
         self.generator.sample()
         self.generator.sort()
-        self.generator.remove_clipping()
+        self.generator.remove_clipped_samples()
         self.generator.generate_LUT()
         self.generator.filter_LUT()
         self.generator.decode()
         self.generator.optimise()
+
         return self.generator
 
     def zip(
         self, output_directory: Path | str, archive_serialised_generator: bool = False
-    ) -> str:
+    ) -> Path:
         """
         Create a *zip* file with the output of the *IDT* application process.
 
@@ -371,12 +384,14 @@ class IDTGeneratorApplication:
 
         Returns
         -------
-        :class:`str`
+        :class:`pathlib.Path`
             *Zip* file path.
         """
 
         if not self.generator:
-            raise ValueError("No Idt Generator Set")
+            exception = 'No "IDT" generator was set!'
+
+            raise ValueError(exception)
 
         return self.generator.zip(
             output_directory, archive_serialised_generator=archive_serialised_generator
@@ -390,8 +405,9 @@ class IDTGeneratorApplication:
         ValueError
             If any of the validations fail
         """
+
         # Check the aces_transform_id is a valid idt_urn
-        if not is_valid_idt_urn(self.project_settings.aces_transform_id):
+        if not is_valid_csc_urn(self.project_settings.aces_transform_id):
             # If the aces_transform_id is not valid, generate a new one
             new_name = generate_idt_urn(
                 self.project_settings.aces_user_name,

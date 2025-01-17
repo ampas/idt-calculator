@@ -1,6 +1,9 @@
-"""Module for unit testing the project settings
-
 """
+Define the unit tests for the :class:`aces.idt.IDTProjectSettings`class.
+"""
+
+from __future__ import annotations
+
 import json
 import os
 
@@ -8,23 +11,40 @@ from aces.idt.core import constants
 from aces.idt.framework.project_settings import IDTProjectSettings
 from tests.test_utils import TestIDTBase
 
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "TestIDTProjectSettings",
+]
+
 
 class TestIDTProjectSettings(TestIDTBase):
-    """Class which holds the unit tests for the project settings"""
+    """
+    Define the unit tests for the :class:`aces.idt.IDTProjectSettings`
+    class.
+    """
 
-    def setUp(self):
-        """Set up a new project settings object"""
+    def setUp(self) -> None:
+        """Initialise the common tests attributes."""
+
         self.project_settings = IDTProjectSettings()
 
-    def test_properties(self):
-        """Tests the properties on the project settings"""
+    def test_properties(self) -> None:
+        """Test :class:`aces.idt.IDTProjectSettings` class properties."""
+
         class_props = list(self.project_settings.properties)
         self.assertEqual(
             len(class_props), len(constants.ProjectSettingsMetadataConstants.ALL)
         )
 
-    def test_to_file(self):
-        """Test serializing the project settings to file"""
+    def test_to_file(self) -> None:
+        """Test :class:`aces.idt.IDTProjectSettings.to_file` method."""
+
         actual_file = os.path.join(
             self.get_test_output_folder(), "project_settings.json"
         )
@@ -35,16 +55,18 @@ class TestIDTProjectSettings(TestIDTBase):
         self.project_settings.to_file(actual_file)
         self.assertEqual(os.path.exists(expected_file), True)
 
-    def test_from_file(self):
-        """Test loading the file from disk"""
+    def test_from_json(self) -> None:
+        """Test :class:`aces.idt.IDTProjectSettings.from_json` method."""
+
         self.project_settings.camera_make = "Cannon"
         json_string = self.project_settings.to_json()
         new_settings = IDTProjectSettings.from_json(json_string)
         json_string_loaded = new_settings.to_json()
         self.assertEqual(json_string, json_string_loaded)
 
-    def test_from_directory(self):
-        """Test creating new project from directory"""
+    def test_from_directory(self) -> None:
+        """Test :class:`aces.idt.IDTProjectSettings.from_directory` method."""
+
         expected_file = os.path.join(
             self.get_test_resources_folder(), "example_from_folder.json"
         )
@@ -67,7 +89,8 @@ class TestIDTProjectSettings(TestIDTBase):
 
         self.assertEqual(actual, expected)
 
-    def test_property_vs_metadata_name(self):
-        """Test that the property name matches the metadata name"""
+    def test_property_names_and_metadata_names_equality(self) -> None:
+        """Test that the property names are equal to the metadata names."""
+
         for name, prop in self.project_settings.properties:
             self.assertEqual(name, prop.metadata.name)

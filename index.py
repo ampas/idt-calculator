@@ -65,87 +65,88 @@ APP.layout = Container(
 
 
 @APP.callback(Output("toc", "children"), [Input("url", "pathname")])
-def load_app(app):
+def load_app(app: str) -> Container:
     """
     Load given app into the appropriate :class:`Div` class instance.
 
     Parameters
     ----------
-    app : str
+    app
         App path.
 
     Returns
     -------
-    Div
-        :class:`Div` class instance of the app layout.
+    :class:`Container`
+        :class:`Container` class instance of the app layout.
     """
 
     if app == app_1.APP_PATH:
         return app_1.LAYOUT
-    elif app == app_2.APP_PATH:
+
+    if app == app_2.APP_PATH:
         return app_2.LAYOUT
-    else:
-        return Container(
-            [
-                Main(
-                    [
-                        Row(
-                            [
-                                Col(
-                                    [
-                                        P(
-                                            [
-                                                "Various A.M.P.A.S. colour science ",
-                                                A(
-                                                    "Dash",
-                                                    href="https://dash.plot.ly/",
-                                                    target="_blank",
-                                                ),
-                                                " apps.",
-                                            ]
-                                        ),
-                                        P(
-                                            [
-                                                H3(
-                                                    [
-                                                        Link(
-                                                            app_1.APP_NAME_LONG,
-                                                            href=app_1.APP_PATH,
-                                                        ),
-                                                    ]
-                                                ),
-                                                Markdown(
-                                                    app_1.APP_DESCRIPTION.replace(
-                                                        "This app c", "C"
-                                                    )
-                                                ),
-                                            ]
-                                        ),
-                                        P(
-                                            [
-                                                H3(
-                                                    [
-                                                        Link(
-                                                            app_2.APP_NAME_LONG,
-                                                            href=app_2.APP_PATH,
-                                                        ),
-                                                    ]
-                                                ),
-                                                Markdown(
-                                                    app_2.APP_DESCRIPTION.replace(
-                                                        "This app c", "C"
-                                                    )
-                                                ),
-                                            ]
-                                        ),
-                                    ]
-                                )
-                            ]
-                        )
-                    ]
-                )
-            ]
-        )
+
+    return Container(
+        [
+            Main(
+                [
+                    Row(
+                        [
+                            Col(
+                                [
+                                    P(
+                                        [
+                                            "Various A.M.P.A.S. colour science ",
+                                            A(
+                                                "Dash",
+                                                href="https://dash.plot.ly/",
+                                                target="_blank",
+                                            ),
+                                            " apps.",
+                                        ]
+                                    ),
+                                    P(
+                                        [
+                                            H3(
+                                                [
+                                                    Link(
+                                                        app_1.APP_NAME_LONG,
+                                                        href=app_1.APP_PATH,
+                                                    ),
+                                                ]
+                                            ),
+                                            Markdown(
+                                                app_1.APP_DESCRIPTION.replace(
+                                                    "This app c", "C"
+                                                )
+                                            ),
+                                        ]
+                                    ),
+                                    P(
+                                        [
+                                            H3(
+                                                [
+                                                    Link(
+                                                        app_2.APP_NAME_LONG,
+                                                        href=app_2.APP_PATH,
+                                                    ),
+                                                ]
+                                            ),
+                                            Markdown(
+                                                app_2.APP_DESCRIPTION.replace(
+                                                    "This app c", "C"
+                                                )
+                                            ),
+                                        ]
+                                    ),
+                                ]
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
 
 
 if __name__ == "__main__":

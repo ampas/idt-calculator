@@ -30,7 +30,8 @@
     "ev_weights": [],
     "optimization_kwargs": {},
     "include_white_balance_in_clf": false,
-    "flatten_clf": false
+    "flatten_clf": false,
+    "include_exposure_factor_in_clf": false
   },
   "data": {
     "colour_checker": {

@@ -1,19 +1,21 @@
 """
-IDT Prosumer Camera Generator
-=============================
+IDT Generator for Pre-Linearized Camera
+=======================================
 
-Define the *IDT* generator class for a *Prosumer Camera*.
+Define the *IDT* generator class for a *Pre-Linearized Camera*.
 """
 
-import logging
+from __future__ import annotations
 
-import matplotlib as mpl
+import logging
+import typing
+
 from colour import LUT3x1D
 
-from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
 
-# TODO are the mpl.use things needed in every file?
-mpl.use("Agg")
+from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -31,27 +33,27 @@ LOGGER = logging.getLogger(__name__)
 
 class IDTGeneratorPreLinearizedCamera(IDTGeneratorProsumerCamera):
     """
-    Define an *IDT* generator for a *PreLinearized Camera*.
+    Define an *IDT* generator for a *Pre-Linearized Camera*.
 
     Parameters
     ----------
-    project_settings : IDTProjectSettings, optional
+    project_settings
         *IDT* generator settings.
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTBaseGenerator.GENERATOR_NAME`
+    -   :attr:`~aces.idt.IDTGeneratorPreLinearizedCamera.GENERATOR_NAME`
 
     Methods
     -------
-    -   :meth:`~aces.idt.IDTBaseGenerator.generate_LUT`
-    -   :meth:`~aces.idt.IDTBaseGenerator.filter_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorPreLinearizedCamera.generate_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorPreLinearizedCamera.filter_LUT`
     """
 
     GENERATOR_NAME = "IDTGeneratorPreLinearizedCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
 
     def generate_LUT(self) -> LUT3x1D:
