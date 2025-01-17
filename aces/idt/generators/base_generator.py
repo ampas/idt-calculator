@@ -5,13 +5,16 @@ IDT Base Generator
 Define the *IDT* base generator class.
 """
 
+from __future__ import annotations
+
 import base64
 import io
 import logging
 import os
 import re
 import shutil
-import xml.etree.ElementTree as Et
+import typing
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from pathlib import Path
@@ -22,7 +25,10 @@ import cv2
 import jsonpickle
 import numpy as np
 from colour import LUT1D, LUT3x1D, read_image
-from colour.hints import NDArrayFloat
+
+if typing.TYPE_CHECKING:
+    from colour.hints import ArrayLike, NDArray, NDArrayFloat, NDArrayInt
+
 from colour.utilities import Structure, as_float_array, zeros
 from colour_checker_detection.detection import (
     as_int32_array,
@@ -32,7 +38,11 @@ from colour_checker_detection.detection import (
 )
 from matplotlib import pyplot as plt
 
-from aces.idt import IDTProjectSettings, ProjectSettingsMetadataConstants
+from aces.idt import ProjectSettingsMetadataConstants
+
+if typing.TYPE_CHECKING:
+    from aces.idt import IDTProjectSettings
+
 from aces.idt.core import (
     CLIPPING_THRESHOLD,
     SAMPLES_COUNT_DEFAULT,
@@ -102,7 +112,7 @@ class IDTBaseGenerator(ABC):
     GENERATOR_NAME = "IDTBaseGenerator"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         self._project_settings = project_settings
         self._samples_analysis = None
 
@@ -350,7 +360,7 @@ class IDTBaseGenerator(ABC):
         working_width = settings.working_width
         working_height = settings.working_height
 
-        def _reformat_image(image):
+        def _reformat_image(image: ArrayLike) -> NDArrayInt | NDArrayFloat:
             """Reformat given image."""
 
             return reformat_image(
@@ -451,16 +461,16 @@ class IDTBaseGenerator(ABC):
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis[DirectoryStructure.FLATFIELD][
-                "samples_median"
-            ] = np.median(
-                as_float_array(
-                    self._samples_analysis[DirectoryStructure.FLATFIELD][
-                        "samples_sequence"
-                    ]
-                )[mask],
-                (0, 1),
-            ).tolist()
+            self._samples_analysis[DirectoryStructure.FLATFIELD]["samples_median"] = (
+                np.median(
+                    as_float_array(
+                        self._samples_analysis[DirectoryStructure.FLATFIELD][
+                            "samples_sequence"
+                        ]
+                    )[mask],
+                    (0, 1),
+                ).tolist()
+            )
 
         # Grey Card
         if self.project_settings.data.get(DirectoryStructure.GREY_CARD, []):
@@ -503,16 +513,16 @@ class IDTBaseGenerator(ABC):
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis[DirectoryStructure.GREY_CARD][
-                "samples_median"
-            ] = np.median(
-                as_float_array(
-                    self._samples_analysis[DirectoryStructure.GREY_CARD][
-                        "samples_sequence"
-                    ]
-                )[mask],
-                (0, 1),
-            ).tolist()
+            self._samples_analysis[DirectoryStructure.GREY_CARD]["samples_median"] = (
+                np.median(
+                    as_float_array(
+                        self._samples_analysis[DirectoryStructure.GREY_CARD][
+                            "samples_sequence"
+                        ]
+                    )[mask],
+                    (0, 1),
+                ).tolist()
+            )
 
             self._image_grey_card_sampling = np.copy(image)
             image_grey_card_contour = zeros(
@@ -632,9 +642,10 @@ class IDTBaseGenerator(ABC):
 
         self._samples_camera = self._samples_camera[indices]
         self._samples_reference = self._samples_reference[indices]
+
         return indices
 
-    def remove_clipping(self):
+    def remove_clipping(self) -> NDArrayInt:
         """
         Remove any clipping from the samples and references, if we detect any clipping
         at the floor or the ceiling of the samples we remove them from both the samples
@@ -649,8 +660,8 @@ class IDTBaseGenerator(ABC):
         -------
         :class:`np.ndarray`
             Indices of the clipped samples.
-
         """
+
         clipped_indices = find_close_indices(
             self._samples_camera, threshold=CLIPPING_THRESHOLD
         )
@@ -659,6 +670,7 @@ class IDTBaseGenerator(ABC):
         self._samples_reference = np.delete(
             self._samples_reference, clipped_indices, axis=0
         )
+
         return clipped_indices
 
     @abstractmethod
@@ -773,28 +785,28 @@ class IDTBaseGenerator(ABC):
         camera_make = project_settings.camera_make
         camera_model = project_settings.camera_model
 
-        root = Et.Element(
+        root = ET.Element(
             "ProcessList",
             compCLFversion="3",
             id=aces_transform_id,
             name=aces_user_name,
         )
 
-        def format_array(a):
+        def format_array(a: NDArray) -> str:
             """Format given array :math:`a`."""
 
             return re.sub(r"\[|\]|,", "", "\n\t\t".join(map(str, a.tolist())))
 
-        et_input_descriptor = Et.SubElement(root, "InputDescriptor")
+        et_input_descriptor = ET.SubElement(root, "InputDescriptor")
         et_input_descriptor.text = f"{camera_make} {camera_model}"
 
-        et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
+        et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
         et_output_descriptor.text = "ACES2065-1"
 
-        et_info = Et.SubElement(root, "Info")
-        et_metadata = Et.SubElement(et_info, "AcademyIDTCalculator")
+        et_info = ET.SubElement(root, "Info")
+        et_metadata = ET.SubElement(et_info, "AcademyIDTCalculator")
 
-        et_generator_name = Et.SubElement(et_metadata, "GeneratorName")
+        et_generator_name = ET.SubElement(et_metadata, "GeneratorName")
         et_generator_name.text = self.GENERATOR_NAME
 
         exclusions = [
@@ -806,14 +818,14 @@ class IDTBaseGenerator(ABC):
             if key in exclusions:
                 continue
 
-            sub_element = Et.SubElement(
+            sub_element = ET.SubElement(
                 et_metadata, key.replace("_", " ").title().replace(" ", "")
             )
             sub_element.text = str(value)
 
         LUT_decoding = self._LUT_decoding
         if LUT_decoding:
-            et_lut = Et.SubElement(
+            et_lut = ET.SubElement(
                 root,
                 "LUT1D",
                 inBitDepth="32f",
@@ -822,9 +834,9 @@ class IDTBaseGenerator(ABC):
             )
 
             channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-            et_description = Et.SubElement(et_lut, "Description")
+            et_description = ET.SubElement(et_lut, "Description")
             et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-            et_array = Et.SubElement(
+            et_array = ET.SubElement(
                 et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
             )
             et_array.text = f"\n\t\t{format_array(LUT_decoding.table)}"
@@ -844,11 +856,11 @@ class IDTBaseGenerator(ABC):
             f"{output_directory}/"
             f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
         )
-        Et.indent(root)
+        ET.indent(root)
 
         with open(clf_path, "w") as clf_file:
             clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-            clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
+            clf_file.write(ET.tostring(root, encoding="UTF-8").decode("utf8"))
 
         return clf_path
 
@@ -910,6 +922,5 @@ class IDTBaseGenerator(ABC):
         :class:`str` or None
             *PNG* data.
         """
-        raise NotImplementedError(
-            "png_extrapolated_camera_samples method not implemented"
-        )
+        msg = "png_extrapolated_camera_samples method not implemented"
+        raise NotImplementedError(msg)

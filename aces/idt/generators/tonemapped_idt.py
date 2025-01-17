@@ -5,17 +5,28 @@ IDT ToneMapped Camera Generator
 Define the *IDT* generator class for a *ToneMapped Camera*.
 """
 
+from __future__ import annotations
+
 import logging
+import typing
 
 import cv2
 import matplotlib as mpl
 import numpy as np
 from colour import LUT3x1D
-from colour.utilities import as_float_array
+
+if typing.TYPE_CHECKING:
+    from colour.hints import List, NDArrayFloat, NDArrayInt
+
+from colour.utilities import as_float_array, as_int_array
 from scipy.interpolate import CubicHermiteSpline
 
 from aces.idt import DirectoryStructure
-from aces.idt.core.common import create_samples_macbeth_image, interpolate_nan_values
+from aces.idt.core.common import create_colour_checker_image, interpolate_nan_values
+
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
+
 from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
 # TODO are the mpl.use things needed in every file?
@@ -60,16 +71,17 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
     GENERATOR_NAME = "IDTGeneratorToneMappedCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
         self._exposure_times = []
 
     @property
-    def exposure_times(self):
+    def exposure_times(self) -> List[float]:
         """Return the exposure times for the samples."""
+
         return self._exposure_times
 
-    def sort(self, start_index: int = 0) -> np.ndarray:
+    def sort(self, start_index: int = 0) -> NDArrayFloat:
         """
         Sort the samples produced by the image sampling process.
 
@@ -110,9 +122,10 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
         self._samples_camera = np.vstack(samples_camera)
         self._samples_reference = np.vstack(samples_reference)
         self._exposure_times = np.vstack(exposure_times)
+
         return np.array([])
 
-    def remove_clipping(self):
+    def remove_clipping(self) -> NDArrayInt:
         """We override the remove_clipping method as this is handled within
             the Debevec and hermite fitting later
 
@@ -123,7 +136,8 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
             want to remove any samples
 
         """
-        return []
+
+        return as_int_array([])
 
     def generate_LUT(self) -> LUT3x1D:
         """
@@ -155,7 +169,7 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
         keys = sorted(samples_per_exposure.keys())
         for exposure_time in keys:
             pixels = samples_per_exposure[exposure_time]
-            image = create_samples_macbeth_image(pixels)
+            image = create_colour_checker_image(pixels)
             kernel_size = (121, 121)
 
             # Apply Gaussian blur to the image

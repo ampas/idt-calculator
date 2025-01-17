@@ -31,6 +31,7 @@ __all__ = [
     "CONTAINER",
     "clean",
     "precommit",
+    "tests",
     "requirements",
     "docker_build",
     "docker_remove",
@@ -52,7 +53,7 @@ def clean(
     bytecode: Boolean = False,
     mypy: Boolean = True,
     pytest: Boolean = True,
-):
+) -> None:
     """
     Clean the project.
 
@@ -93,7 +94,7 @@ def clean(
 
 
 @task
-def precommit(ctx: Context):
+def precommit(ctx: Context) -> None:
     """
     Run the "pre-commit" hooks on the codebase.
 
@@ -108,13 +109,28 @@ def precommit(ctx: Context):
 
 
 @task
-def requirements(ctx):
+def tests(ctx: Context) -> None:
+    """
+    Run the unit tests with *Pytest*.
+
+    Parameters
+    ----------
+    ctx
+        Context.
+    """
+
+    message_box('Running "Pytest"...')
+    ctx.run("pytest --doctest-modules tests")
+
+
+@task
+def requirements(ctx: Context) -> None:
     """
     Export the *requirements.txt* file.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -126,14 +142,14 @@ def requirements(ctx):
     )
 
 
-@task(precommit, requirements)
-def docker_build(ctx: Context):
+@task(precommit, tests, requirements)
+def docker_build(ctx: Context) -> None:
     """
     Build the *docker* image.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -149,13 +165,13 @@ def docker_build(ctx: Context):
 
 
 @task
-def docker_remove(ctx: Context):
+def docker_remove(ctx: Context) -> None:
     """
     Stop and remove the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -169,13 +185,13 @@ def docker_remove(ctx: Context):
 
 
 @task(docker_remove, docker_build)
-def docker_run(ctx):
+def docker_run(ctx: Context) -> None:
     """
     Run the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -188,13 +204,13 @@ def docker_run(ctx):
 
 
 @task(clean, precommit, docker_run)
-def docker_push(ctx: Context):
+def docker_push(ctx: Context) -> None:
     """
     Push the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 

@@ -1,6 +1,7 @@
 """
 Unit tests for the common module
 """
+
 import json
 import os.path
 
@@ -13,7 +14,7 @@ from tests.test_utils import TestIDTBase
 class Test_IDTCommon(TestIDTBase):
     """Class which holds the unit tests for the common module"""
 
-    def test_generate_reference_colour_checker(self):
+    def test_generate_reference_colour_checker(self) -> None:
         """Test generating a reference colour checker"""
         expected = [
             [0.11876842177626151, 0.08709058563389999, 0.058951218439182544],
@@ -45,7 +46,7 @@ class Test_IDTCommon(TestIDTBase):
         result = common.generate_reference_colour_checker()
         self.assertTrue(np.allclose(expected, result, atol=1e-20))
 
-    def test_calculate_camera_npm_and_primaries_wp(self):
+    def test_calculate_camera_npm_and_primaries_wp(self) -> None:
         """Test generating a camera npm from an RGB to AP0 matrix"""
         input_matrix = [
             [0.785043, 0.083844, 0.131118],
@@ -79,14 +80,14 @@ class TestExposureClippingMask(TestIDTBase):
     Test suite for exposure clipping mask functionality.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Set up the test case with common configurations.
         """
         self.tolerance = 0.005
         self.maxDiff = None
 
-    def test_scenario_1(self):
+    def test_scenario_1(self) -> None:
         """
         Test case where none of the values are lower than the threshold.
 
@@ -101,14 +102,13 @@ class TestExposureClippingMask(TestIDTBase):
                 [[0.3, 0.4, 0.5], [0.6, 0.7, 0.8], [0.9, 1.0, 1.1]],
             ]
         )
-        clipped_indicies = find_close_indices(
+        clipped_indices = find_close_indices(
             colour_checker_scenario_1, threshold=self.tolerance
         )
         expected_data = []
+        np.testing.assert_array_equal(clipped_indices, expected_data)
 
-        self.assertEqual(clipped_indicies, expected_data)
-
-    def test_scenario_2(self):
+    def test_scenario_2(self) -> None:
         """
         Test case where the first two values are clipped.
 
@@ -129,7 +129,7 @@ class TestExposureClippingMask(TestIDTBase):
         expected_data = [0]
         self.assertEqual(clipped_indicies, expected_data)
 
-    def test_scenario_3(self):
+    def test_scenario_3(self) -> None:
         """
         Test case where the last two values are clipped.
 
@@ -150,7 +150,7 @@ class TestExposureClippingMask(TestIDTBase):
         expected_data = [4]
         self.assertEqual(clipped_indicies, expected_data)
 
-    def test_scenario_4(self):
+    def test_scenario_4(self) -> None:
         """
         Test case where both the top and bottom values are clipped.
 
@@ -165,13 +165,13 @@ class TestExposureClippingMask(TestIDTBase):
                 [1.0, 1.0, 1.0],
             ]
         )
-        clipped_indicies = find_close_indices(
+        clipped_indices = find_close_indices(
             colour_checker_scenario_4, threshold=self.tolerance
         )
         expected_data = [0, 4]
-        self.assertEqual(clipped_indicies, expected_data)
+        np.testing.assert_array_equal(clipped_indices, expected_data)
 
-    def test_scenario_5(self):
+    def test_scenario_5(self) -> None:
         """
         Test case where both the top and bottom values are clipped with multiple
         instances.
@@ -190,11 +190,11 @@ class TestExposureClippingMask(TestIDTBase):
                 [1.0, 1.0, 1.0],
             ]
         )
-        clipped_indicies = find_close_indices(
+        clipped_indices = find_close_indices(
             colour_checker_scenario_5, threshold=self.tolerance
         )
         expected_data = [0, 1, 7]
-        self.assertEqual(clipped_indicies, expected_data)
+        np.testing.assert_array_equal(clipped_indices, expected_data)
 
 
 # Mock data for scenario 1: None of the values are lower than the threshold
@@ -253,13 +253,13 @@ class TestExposureClippingFilter(TestIDTBase):
     Test suite for the exposure clipping filter.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Set up the test so we have a common tolerance.
         """
         self.tolerance = 0.0499
 
-    def test_scenario_1(self):
+    def test_scenario_1(self) -> None:
         """
         Scenario 1: None of the values are lower than the threshold - no
         EV values should be removed.
@@ -270,7 +270,7 @@ class TestExposureClippingFilter(TestIDTBase):
         expected_ev_keys = []
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
-    def test_scenario_2(self):
+    def test_scenario_2(self) -> None:
         """
         Scenario 2: -2.0 and -1.0 have values which do have values lower than the
         threshold - EV value -2 should be removed.
@@ -281,7 +281,7 @@ class TestExposureClippingFilter(TestIDTBase):
         expected_ev_keys = [-2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
-    def test_scenario_3(self):
+    def test_scenario_3(self) -> None:
         """
         Scenario 3: 2.0 and 1.0 have values which do have values lower than the
             threshold - EV value 2.0 should be removed.
@@ -292,7 +292,7 @@ class TestExposureClippingFilter(TestIDTBase):
         expected_ev_keys = [2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
-    def test_scenario_4(self):
+    def test_scenario_4(self) -> None:
         """
         Scenario 3: both the top and bottom values are clipped - EV
             values -2 and 2 should be removed.
@@ -303,7 +303,7 @@ class TestExposureClippingFilter(TestIDTBase):
         expected_ev_keys = [-2.0, 2.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
-    def test_scenario_5(self):
+    def test_scenario_5(self) -> None:
         """
         Scenario 5: testing more exposures
         """
@@ -313,7 +313,7 @@ class TestExposureClippingFilter(TestIDTBase):
         expected_ev_keys = [-3.0, -2.0, 2.0, 3.0]
         self.assertEqual(sorted(removed_evs), expected_ev_keys)
 
-    def test_scenario_6(self):
+    def test_scenario_6(self) -> None:
         """
         Scenario 5: testing more exposures
         """

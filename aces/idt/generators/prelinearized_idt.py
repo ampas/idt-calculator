@@ -5,10 +5,16 @@ IDT Prosumer Camera Generator
 Define the *IDT* generator class for a *Prosumer Camera*.
 """
 
+from __future__ import annotations
+
 import logging
+import typing
 
 import matplotlib as mpl
 from colour import LUT3x1D
+
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
 
 from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
@@ -51,7 +57,7 @@ class IDTGeneratorPreLinearizedCamera(IDTGeneratorProsumerCamera):
     GENERATOR_NAME = "IDTGeneratorPreLinearizedCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
 
     def generate_LUT(self) -> LUT3x1D:

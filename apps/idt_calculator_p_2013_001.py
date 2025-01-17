@@ -185,7 +185,7 @@ _OPTIONS_FORMATTER = [
 _CACHE_MATRIX_IDT = CACHE_REGISTRY.register_cache(f"{__name__}._CACHE_MATRIX_IDT")
 
 
-def _uid(id_):
+def _uid(id_) -> str:
     """
     Generate a unique id for given id by appending the application *UID*.
     """
@@ -748,7 +748,7 @@ def set_illuminant_datable(illuminant, CCT):
 
     if illuminant == "Custom":
         data = [
-            dict(wavelength=wavelength, **{"irradiance": None})
+            dict(wavelength=wavelength, irradiance=None)
             for wavelength in CUSTOM_WAVELENGTHS
         ]
 
@@ -764,7 +764,7 @@ def set_illuminant_datable(illuminant, CCT):
         data = [
             dict(
                 wavelength=wavelength,
-                **{"irradiance": illuminant[wavelength]},
+                irradiance=illuminant[wavelength],
             )
             for wavelength in illuminant.wavelengths
         ]
@@ -1168,7 +1168,7 @@ def compute_idt_p2013_001(
                 application=f"{APP_NAME_LONG} - {__version__}",
                 url=href,
                 group=slugify(
-                    "_".join([camera_make, camera_model, illuminant_name]).lower()
+                    f"{camera_make}_{camera_model}_{illuminant_name}".lower()
                 ),
             )
 

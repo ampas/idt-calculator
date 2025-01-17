@@ -1,6 +1,7 @@
-"""Module to hold unit tests for the IDTApplication
+"""Module to hold unit tests for the IDTApplication"""
 
-"""
+from __future__ import annotations
+
 import json
 import os
 
@@ -16,13 +17,13 @@ from tests.test_utils import TestIDTBase
 class TestIDTApplication(TestIDTBase):
     """Class holding unit tests for the IDTApplication"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Set up a new project settings object.
         """
         self.project_settings = IDTProjectSettings()
 
-    def test_string_overrides(self):
+    def test_string_overrides(self) -> None:
         """Test the __str__ methods we override"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
@@ -32,7 +33,7 @@ class TestIDTApplication(TestIDTBase):
         self.assertNotEqual(actual, "")
         self.assertNotEqual(actual2, "")
 
-    def test_prosumer_generator_sample(self):
+    def test_prosumer_generator_sample(self) -> None:
         """Test the prosumer generator"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
@@ -61,7 +62,7 @@ class TestIDTApplication(TestIDTBase):
         grey_expected = expected.get(DirectoryStructure.GREY_CARD)
         self.assertEqual(grey_result, grey_expected)
 
-    def test_prosumer_generator_sort(self):
+    def test_prosumer_generator_sort(self) -> None:
         """Test the prosumer generator sort"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
@@ -94,7 +95,7 @@ class TestIDTApplication(TestIDTBase):
             "Values differ by more than the allowed threshold.",
         )
 
-    def test_prosumer_generator_from_archive(self):
+    def test_prosumer_generator_from_archive(self) -> None:
         """
         Define :func:`aces.idt.prosumer_camera.IDTGeneratorProsumerCamera.\
         test_from_archive` definition unit tests methods.
@@ -1213,7 +1214,7 @@ class TestIDTApplication(TestIDTBase):
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-    def test_prosumer_generator_from_archive_no_json(self):
+    def test_prosumer_generator_from_archive_no_json(self) -> None:
         """Test the prosumer generator from archive without a json file, should raise
         an error due to being unable to calculate the IDT URN for the id
         """
@@ -1224,7 +1225,7 @@ class TestIDTApplication(TestIDTBase):
         with self.assertRaises(ValueError):
             idt_application.process_archive(archive)
 
-    def test_prosumer_generator_from_archive_zip(self):
+    def test_prosumer_generator_from_archive_zip(self) -> None:
         """Test the prosumer generator from archive with a json file"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
@@ -1236,7 +1237,7 @@ class TestIDTApplication(TestIDTBase):
         )
         self.assertEqual(os.path.exists(zip_file), True)
 
-    def test_prelinearized_idt_generator_from_archive_zip(self):
+    def test_prelinearized_idt_generator_from_archive_zip(self) -> None:
         """Test the prosumer generator from archive with a json file"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorPreLinearizedCamera"
@@ -1248,7 +1249,7 @@ class TestIDTApplication(TestIDTBase):
         )
         self.assertEqual(os.path.exists(zip_file), True)
 
-    def test_tonemapped_idt_generator_from_archive_zip(self):
+    def test_tonemapped_idt_generator_from_archive_zip(self) -> None:
         """Test the prosumer generator from archive with a json file"""
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorToneMappedCamera"

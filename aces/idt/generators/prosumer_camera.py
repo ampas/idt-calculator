@@ -5,9 +5,12 @@ IDT Prosumer Camera Generator
 Define the *IDT* generator class for a *Prosumer Camera*.
 """
 
+from __future__ import annotations
+
 import base64
 import io
 import logging
+import typing
 
 import colour
 import matplotlib as mpl
@@ -23,7 +26,10 @@ from colour import (
     LUT3x1D,
 )
 from colour.algebra import smoothstep_function, vector_dot
-from colour.hints import NDArrayFloat, Tuple
+
+if typing.TYPE_CHECKING:
+    from colour.hints import NDArrayFloat, Tuple
+
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.utilities import (
@@ -35,6 +41,10 @@ from scipy.optimize import minimize
 
 from aces.idt.core import DecodingMethods, DirectoryStructure, common
 from aces.idt.core.constants import CLIPPING_THRESHOLD
+
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
+
 from aces.idt.generators.base_generator import IDTBaseGenerator
 
 # TODO are the mpl.use things needed in every file?
@@ -84,7 +94,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
     GENERATOR_NAME = "IDTGeneratorProsumerCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
 
         self._lut_blending_edge_left = None
@@ -402,7 +412,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Normalised weights used to sum the exposure values. If not given, the
         # median of the exposure values is used.
-        EV_weights = self.project_settings.ev_weights
+        EV_weights = as_float_array(self.project_settings.ev_weights)
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
         # ACES* v1 190 patches but can be overridden in the project settings.
@@ -424,7 +434,6 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             optimisation_factory,
         )
 
-        EV_range = as_float_array(EV_range)
         EV_range = [EV for EV in EV_range if EV in self._samples_decoded]
         if not EV_range:
             LOGGER.warning(
@@ -446,7 +455,8 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         )
         EV_range = [value for value in EV_range if value not in clipped_exposures]
         if not EV_range:
-            raise ValueError("All exposures in EV range are clipping")
+            msg = "All exposures in EV range are clipping"
+            raise ValueError(msg)
 
         samples_normalised = as_float_array(
             [
@@ -455,7 +465,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             ]
         )
 
-        if not EV_weights:
+        if EV_weights.size == 0:
             self._samples_weighted = np.median(samples_normalised, axis=0)
         else:
             self._samples_weighted = np.sum(
@@ -525,11 +535,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         figure, axes = colour.plotting.artist()
         axes.plot(self._samples_camera, np.log(self._samples_reference))
         colour.plotting.render(
-            **{
-                "show": False,
-                "x_label": "Camera Code Value",
-                "y_label": "Log(ACES Reference)",
-            }
+            show=False, x_label="Camera Code Value", y_label="Log(ACES Reference)"
         )
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png")
@@ -573,11 +579,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             if self._lut_blending_edge_right:
                 axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
-            **{
-                "show": False,
-                "x_label": "Camera Code Value",
-                "y_label": "Log(ACES Reference)",
-            }
+            show=False, x_label="Camera Code Value", y_label="Log(ACES Reference)"
         )
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png")

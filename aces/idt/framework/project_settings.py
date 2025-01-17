@@ -2,12 +2,12 @@
 serialization, loading and saving of a project.
 
 """
+
 from __future__ import annotations
 
 import os
 
-from colour.hints import Dict, List, NDArrayFloat
-from colour.utilities import multiline_str
+from colour.utilities import as_float_array, multiline_str
 
 from aces.idt.core import (
     OPTIMISATION_FACTORIES,
@@ -35,7 +35,12 @@ __all__ = [
     "IDTProjectSettings",
 ]
 
-from aces.idt.core.trasform_id import is_valid_idt_urn
+from typing import TYPE_CHECKING
+
+from aces.idt.core.transform_id import is_valid_idt_urn
+
+if TYPE_CHECKING:
+    from colour.hints import Dict, List, NDArrayFloat
 
 
 class IDTProjectSettings(MixinSerializableProperties):
@@ -51,7 +56,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         Optional keyword arguments used to initialise the project settings.
     """
 
-    def __init__(self, **kwargs: Dict):
+    def __init__(self, **kwargs: Dict) -> None:
         super().__init__()
 
         self._schema_version = IDTProjectSettings.schema_version.metadata.default_value
@@ -124,13 +129,17 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.decoding_method.metadata.name,
             IDTProjectSettings.decoding_method.metadata.default_value,
         )
-        self._ev_range = kwargs.get(
-            IDTProjectSettings.ev_range.metadata.name,
-            IDTProjectSettings.ev_range.metadata.default_value,
+        self._ev_range = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.ev_range.metadata.name,
+                IDTProjectSettings.ev_range.metadata.default_value,
+            )
         )
-        self._grey_card_reference = kwargs.get(
-            IDTProjectSettings.grey_card_reference.metadata.name,
-            IDTProjectSettings.grey_card_reference.metadata.default_value,
+        self._grey_card_reference = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.grey_card_reference.metadata.name,
+                IDTProjectSettings.grey_card_reference.metadata.default_value,
+            )
         )
         self._lut_size = kwargs.get(
             IDTProjectSettings.lut_size.metadata.name,
@@ -165,9 +174,11 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.file_type.metadata.name,
             IDTProjectSettings.file_type.metadata.default_value,
         )
-        self._ev_weights = kwargs.get(
-            IDTProjectSettings.ev_weights.metadata.name,
-            IDTProjectSettings.ev_weights.metadata.default_value,
+        self._ev_weights = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.ev_weights.metadata.name,
+                IDTProjectSettings.ev_weights.metadata.default_value,
+            )
         )
         self._optimization_kwargs = kwargs.get(
             IDTProjectSettings.optimization_kwargs.metadata.name,
@@ -422,7 +433,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._decoding_method
 
     @metadata_property(metadata=MetadataConstants.EV_RANGE)
-    def ev_range(self) -> List:
+    def ev_range(self) -> List[float]:
         """
         Getter property for the EV range.
 
@@ -435,7 +446,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._ev_range
 
     @metadata_property(metadata=MetadataConstants.GREY_CARD_REFERENCE)
-    def grey_card_reference(self) -> List:
+    def grey_card_reference(self) -> List[float]:
         """
         Getter property for the grey card reference values.
 
@@ -461,7 +472,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._lut_size
 
     @metadata_property(metadata=MetadataConstants.LUT_SMOOTHING)
-    def lut_smoothing(self):
+    def lut_smoothing(self) -> int:
         """
         Getter property for the *LUT* smoothing.
 
@@ -552,13 +563,13 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._file_type
 
     @metadata_property(metadata=MetadataConstants.EV_WEIGHTS)
-    def ev_weights(self) -> NDArrayFloat:
+    def ev_weights(self) -> List[float]:
         """
         Getter property for the *EV* weights.
 
         Returns
         -------
-        :class:`np.ndarray`
+        :class:`list`
             *EV* weights.
         """
 
@@ -642,13 +653,12 @@ class IDTProjectSettings(MixinSerializableProperties):
         factory = OPTIMISATION_FACTORIES.get(self.optimisation_space)
 
         if factory is None:
-            raise ValueError(
-                f'Optimisation space "{self.optimisation_space}" was not found!'
-            )
+            msg = f'Optimisation space "{self.optimisation_space}" was not found!'
+            raise ValueError(msg)
 
         return factory
 
-    def update(self, value: IDTProjectSettings):
+    def update(self, value: IDTProjectSettings) -> None:
         """
         Update the project settings with the given value from another project
         settings.
@@ -660,9 +670,8 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         if not isinstance(value, IDTProjectSettings):
-            raise TypeError(
-                f'Expected an "IDTProjectSettings" type, got "{type(value)}" instead!'
-            )
+            msg = f'Expected an "IDTProjectSettings" type, got "{type(value)}" instead!'
+            raise TypeError(msg)
 
         for name, prop in value.properties:
             setattr(self, name, prop.getter(value))
@@ -697,9 +706,8 @@ class IDTProjectSettings(MixinSerializableProperties):
         if not os.path.exists(colour_checker_path) or not os.path.exists(
             grey_card_path
         ):
-            raise ValueError(
-                'Required "colour_checker" or "grey_card" folder does not exist.'
-            )
+            msg = 'Required "colour_checker" or "grey_card" folder does not exist.'
+            raise ValueError(msg)
 
         # Populate colour_checker data
         for root, _, files in os.walk(colour_checker_path):

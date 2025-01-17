@@ -5,13 +5,16 @@ Transform ID
 Defines functions to generate and validate URNs for ACES transforms.
 """
 
+from __future__ import annotations
+
 import hashlib
 import re
 import uuid
 from enum import Enum
 
-ACES_URN_PREFIX = "URN:{aces_transform_type}"
-ACES_MAJOR_VERSION = 2
+ACES_URN_PREFIX: str = "URN:{aces_transform_type}"
+
+ACES_MAJOR_VERSION: int = 2
 
 
 def generate_truncated_hash(length: int = 6) -> str:

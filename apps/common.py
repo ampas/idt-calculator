@@ -3,7 +3,7 @@ Common Apps Utilities
 =====================
 """
 
-import xml.etree.ElementTree as Et
+import xml.etree.ElementTree as ET
 
 import colour
 import colour_checker_detection  # noqa: F401
@@ -75,7 +75,7 @@ COLOUR_ENVIRONMENT : str
 """
 
 
-def _print_colour_environment(describe):
+def _print_colour_environment(describe) -> None:
     """
     Intercept colour environment description output to save it as a formatted
     strings.
@@ -743,7 +743,7 @@ def format_idt_clf(
         *CLF* file path.
     """
 
-    root = Et.Element(
+    root = ET.Element(
         "ProcessList",
         compCLFversion="3",
         id=aces_transform_id,
@@ -755,23 +755,23 @@ def format_idt_clf(
 
         return "\n".join(map(str, np.ravel(a).tolist()))
 
-    et_input_descriptor = Et.SubElement(root, "InputDescriptor")
+    et_input_descriptor = ET.SubElement(root, "InputDescriptor")
     et_input_descriptor.text = camera_model
 
-    et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
+    et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
     et_output_descriptor.text = "ACES2065-1"
 
-    et_info = Et.SubElement(root, "Info")
-    et_academy_idt_calculator = Et.SubElement(et_info, "AcademyIDTCalculator")
+    et_info = ET.SubElement(root, "Info")
+    et_academy_idt_calculator = ET.SubElement(et_info, "AcademyIDTCalculator")
     for key, value in information.items():
-        sub_element = Et.SubElement(et_academy_idt_calculator, key)
+        sub_element = ET.SubElement(et_academy_idt_calculator, key)
         sub_element.text = str(value)
 
     root = clf_processing_elements(root, matrix, multipliers, k_factor)
 
-    Et.indent(root)
+    ET.indent(root)
 
     clf_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    clf_content += Et.tostring(root, encoding="UTF-8").decode("utf8")
+    clf_content += ET.tostring(root, encoding="UTF-8").decode("utf8")
 
     return clf_content

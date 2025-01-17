@@ -15,8 +15,9 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 import unicodedata
-import xml.etree.ElementTree as Et
+import xml.etree.ElementTree as ET
 from functools import partial
 from pathlib import Path
 
@@ -34,27 +35,33 @@ from colour import (
     SpectralDistribution,
     sd_to_aces_relative_exposure_values,
 )
-from colour.algebra import euclidean_distance, vector_dot
+from colour.algebra import euclidean_distance, vecmul
 from colour.characterisation import (
     optimisation_factory_Jzazbz,
     optimisation_factory_rawtoaces_v1,
     whitepoint_preserving_matrix,
 )
-from colour.hints import (
-    Any,
-    ArrayLike,
-    Callable,
-    Dict,
-    List,
-    NDArrayBoolean,
-    NDArrayFloat,
-    Sequence,
-    Tuple,
-)
+
+if typing.TYPE_CHECKING:
+    from colour.hints import (
+        Any,
+        ArrayLike,
+        Callable,
+        Dict,
+        List,
+        LiteralChromaticAdaptationTransform,
+        NDArrayBoolean,
+        NDArrayFloat,
+        NDArrayInt,
+        Sequence,
+        Tuple,
+    )
+
 from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
-from colour.utilities import as_float_array, zeros
+from colour.utilities import as_float_array, as_int_array, zeros
 
 mpl.use("Agg")
+
 import matplotlib.pyplot as plt
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
@@ -89,7 +96,7 @@ __all__ = [
     "format_exposure_key",
     "find_close_indices",
     "calculate_clipped_exposures",
-    "create_samples_macbeth_image",
+    "create_colour_checker_image",
     "interpolate_nan_values",
     "calculate_camera_npm_and_primaries_wp",
 ]
@@ -177,7 +184,7 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
 def generate_reference_colour_checker(
     sds: Tuple[SpectralDistribution] = SDS_COLORCHECKER_CLASSIC,
     illuminant: SpectralDistribution = SD_ILLUMINANT_ACES,
-    chromatic_adaptation_transform="CAT02",
+    chromatic_adaptation_transform: LiteralChromaticAdaptationTransform | str = "CAT02",
 ) -> NDArrayFloat:
     """
     Generate the reference *ACES* *RGB* values for the *ColorChecker Classic*.
@@ -245,26 +252,26 @@ finaliser_function at 0x...>)
 
     x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
-    def objective_function(M, RGB, Jab):
+    def objective_function(
+        M: NDArrayFloat, RGB: NDArrayFloat, Jab: NDArrayFloat
+    ) -> NDArrayFloat:
         """*Oklab* colourspace based objective function."""
 
         M = whitepoint_preserving_matrix(
             np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
         )
 
-        XYZ_t = vector_dot(
-            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
-        )
+        XYZ_t = vecmul(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vecmul(M, RGB))
         Jab_t = XYZ_to_Oklab(XYZ_t)
 
         return np.sum(euclidean_distance(Jab, Jab_t))
 
-    def XYZ_to_optimization_colour_model(XYZ):
+    def XYZ_to_optimization_colour_model(XYZ: ArrayLike) -> NDArrayFloat:
         """*CIE XYZ* colourspace to *Oklab* colourspace function."""
 
         return XYZ_to_Oklab(XYZ)
 
-    def finaliser_function(M):
+    def finaliser_function(M: ArrayLike) -> NDArrayFloat:
         """Finaliser function."""
 
         return whitepoint_preserving_matrix(
@@ -308,26 +315,26 @@ finaliser_function at 0x...>)
 
     x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
-    def objective_function(M, RGB, Jab):
+    def objective_function(
+        M: NDArrayFloat, RGB: NDArrayFloat, Jab: NDArrayFloat
+    ) -> NDArrayFloat:
         """*IPT* colourspace based objective function."""
 
         M = whitepoint_preserving_matrix(
             np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
         )
 
-        XYZ_t = vector_dot(
-            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
-        )
+        XYZ_t = vecmul(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vecmul(M, RGB))
         Jab_t = XYZ_to_IPT(XYZ_t)
 
         return np.sum(euclidean_distance(Jab, Jab_t))
 
-    def XYZ_to_optimization_colour_model(XYZ):
+    def XYZ_to_optimization_colour_model(XYZ: ArrayLike) -> NDArrayFloat:
         """*CIE XYZ* colourspace to *IPT* colourspace function."""
 
         return XYZ_to_IPT(XYZ)
 
-    def finaliser_function(M):
+    def finaliser_function(M: ArrayLike) -> NDArrayFloat:
         """Finaliser function."""
 
         return whitepoint_preserving_matrix(
@@ -362,18 +369,20 @@ def error_delta_E(
         :math:`\\Delta E_{00}`.
     """
 
-    XYZ_to_RGB_kargs = {
+    XYZ_to_RGB_kwargs = {
         "illuminant_XYZ": RGB_COLOURSPACE_ACES2065_1.whitepoint,
         "illuminant_RGB": RGB_COLOURSPACE_ACES2065_1.whitepoint,
         "matrix_XYZ_to_RGB": RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
     }
 
     Lab_test = (
-        colour.convert(samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
+        colour.convert(samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kwargs)
         * 100
     )
     Lab_reference = (
-        colour.convert(samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
+        colour.convert(
+            samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kwargs
+        )
         * 100
     )
 
@@ -402,16 +411,12 @@ def png_compare_colour_checkers(
     """
 
     colour.plotting.plot_multi_colour_swatches(
-        list(zip(samples_reference, samples_test)),
+        list(zip(samples_reference, samples_test, strict=False)),
         columns=columns,
         compare_swatches="Stacked",
         direction="-y",
     )
-    colour.plotting.render(
-        **{
-            "show": False,
-        }
-    )
+    colour.plotting.render(show=False)
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png")
     data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
@@ -421,7 +426,7 @@ def png_compare_colour_checkers(
 
 
 def clf_processing_elements(
-    root: Et.Element,
+    root: ET.Element,
     matrix: ArrayLike,
     multipliers: ArrayLike,
     k_factor: float,
@@ -429,7 +434,7 @@ def clf_processing_elements(
     include_white_balance_in_clf: bool = False,
     flatten_clf: bool = True,
     include_exposure_factor_in_clf: bool = False,
-) -> Et.Element:
+) -> ET.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
     multipliers and exposure factor :math:`k` to given *XML* sub-element.
@@ -468,48 +473,46 @@ def clf_processing_elements(
         formatted_lines = [" ".join(map(str, row)) for row in reshaped_array]
 
         # Join all the lines with newline characters
-        formatted_string = "\n\t\t".join(formatted_lines)
-
-        return formatted_string
+        return "\n\t\t".join(formatted_lines)
 
     if not flatten_clf:
         if include_white_balance_in_clf:
-            et_RGB_w = Et.SubElement(
+            et_RGB_w = ET.SubElement(
                 root, "Matrix", inBitDepth="32f", outBitDepth="32f"
             )
-            et_description = Et.SubElement(et_RGB_w, "Description")
+            et_description = ET.SubElement(et_RGB_w, "Description")
             et_description.text = "White balance multipliers *b*."
-            et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+            et_array = ET.SubElement(et_RGB_w, "Array", dim="3 3")
             et_array.text = f"\n\t\t{format_array(np.diag(multipliers))}"
 
         # TODO is this even used any more? Default param is False, and the calling
         # TODO function is hard coded to False
         if use_range:
-            et_range = Et.SubElement(
+            et_range = ET.SubElement(
                 root,
                 "Range",
                 inBitDepth="32f",
                 outBitDepth="32f",
             )
-            et_max_in_value = Et.SubElement(et_range, "maxInValue")
+            et_max_in_value = ET.SubElement(et_range, "maxInValue")
             et_max_in_value.text = "1"
-            et_max_out_value = Et.SubElement(et_range, "maxOutValue")
+            et_max_out_value = ET.SubElement(et_range, "maxOutValue")
             et_max_out_value.text = "1"
 
         if include_exposure_factor_in_clf:
-            et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-            et_description = Et.SubElement(et_k, "Description")
+            et_k = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+            et_description = ET.SubElement(et_k, "Description")
             et_description.text = (
                 'Exposure factor *k* that results in a nominally "18% gray" object in '
                 "the scene producing ACES values [0.18, 0.18, 0.18]."
             )
-            et_array = Et.SubElement(et_k, "Array", dim="3 3")
+            et_array = ET.SubElement(et_k, "Array", dim="3 3")
             et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
 
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
+        et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = ET.SubElement(et_M, "Description")
         et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
+        et_array = ET.SubElement(et_M, "Array", dim="3 3")
         et_array.text = f"\n\t\t{format_array(matrix)}"
 
     else:
@@ -523,10 +526,10 @@ def clf_processing_elements(
         if include_white_balance_in_clf:
             output_matrix = np.diag(multipliers) @ np.diag([k_factor] * 3) @ matrix
 
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
+        et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+        et_description = ET.SubElement(et_M, "Description")
         et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
+        et_array = ET.SubElement(et_M, "Array", dim="3 3")
         et_array.text = f"\n\t\t{format_array(output_matrix)}"
 
     return root
@@ -618,13 +621,11 @@ def list_sub_directories(
         Sub-directories in given directory.
     """
 
-    sub_directories = [
+    return [
         path
         for path in Path(directory).iterdir()
         if all(filterer(path) for filterer in filterers)
     ]
-
-    return sub_directories
 
 
 def mask_outliers(
@@ -769,11 +770,10 @@ def format_exposure_key(key: str) -> str:
     key_float = float(re.sub(r"[^\d.-]+", "", key))
     if key_float > 0:
         return f"+{key_float:g}"
-    else:
-        return f"{key_float:g}"
+    return f"{key_float:g}"
 
 
-def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
+def find_close_indices(data: np.array, threshold: float = 0.005) -> NDArrayInt:
     """
     Find the indices of rows that have any values with differences below the threshold.
 
@@ -790,6 +790,7 @@ def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
     List[int]
         A list of indices where the rows have RGB differences below the threshold.
     """
+
     top_indices = []
     bottom_indices = []
     n_rows = data.shape[0]
@@ -809,7 +810,7 @@ def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
             break
 
     # Combine and return the indices
-    return sorted(np.array(top_indices + bottom_indices))
+    return as_int_array(sorted(top_indices + bottom_indices))
 
 
 def calculate_clipped_exposures(exposure_samples: dict, threshold: float) -> list:
@@ -875,13 +876,13 @@ def calculate_clipped_exposures(exposure_samples: dict, threshold: float) -> lis
     return result
 
 
-def create_samples_macbeth_image(
-    colours: np.array,
+def create_colour_checker_image(
+    colours: ArrayLike,
     reduction_percent: int = 30,
     colours_per_row: int = 6,
     target_width: int = 1920,
     target_height: int = 1080,
-) -> np.array:
+) -> NDArrayFloat:
     """
     Create a numpy image from a list of colours and creates a macbeth chart "like" image
     with the colours provided.
@@ -913,10 +914,12 @@ def create_samples_macbeth_image(
 
     Returns
     -------
-    np.array
+    :class:`numpy.ndarray`
         The image as a numpy array
-
     """
+
+    colours = as_float_array(colours)
+
     num_rows = (
         len(colours) + colours_per_row - 1
     ) // colours_per_row  # Calculate the number of rows needed
@@ -951,7 +954,7 @@ def create_samples_macbeth_image(
     return image
 
 
-def interpolate_nan_values(array: np.array) -> np.array:
+def interpolate_nan_values(array: ArrayLike) -> NDArrayFloat:
     """Interpolate the NaN values in a 2D array using linear interpolation.
 
     Parameters
@@ -966,18 +969,16 @@ def interpolate_nan_values(array: np.array) -> np.array:
     """
 
     # Convert the 2D array to a DataFrame for easy interpolation
-    df = pd.DataFrame(array)
+    dataframe = pd.DataFrame(array)
 
     # Interpolate the entire DataFrame
     # Forward fill and backward fill remaining NaNs (at the edges)
-    interpolated_df = df.fillna(method="ffill").fillna(method="bfill")
+    interpolated_df = dataframe.fillna(method="ffill").fillna(method="bfill")
 
     interpolated_df = interpolated_df.interpolate(method="linear", axis=0)
 
     # Replace only the NaN values in the original array with interpolated values
-    final_array = np.where(np.isnan(array), interpolated_df.to_numpy(), array)
-
-    return final_array
+    return np.where(np.isnan(array), interpolated_df.to_numpy(), array)
 
 
 def calculate_camera_npm_and_primaries_wp(

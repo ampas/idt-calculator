@@ -1,6 +1,5 @@
-"""Module for unit testing the project settings
+"""Module for unit testing the project settings"""
 
-"""
 import json
 import os
 
@@ -12,18 +11,18 @@ from tests.test_utils import TestIDTBase
 class TestIDTProjectSettings(TestIDTBase):
     """Class which holds the unit tests for the project settings"""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up a new project settings object"""
         self.project_settings = IDTProjectSettings()
 
-    def test_properties(self):
+    def test_properties(self) -> None:
         """Tests the properties on the project settings"""
         class_props = list(self.project_settings.properties)
         self.assertEqual(
             len(class_props), len(constants.ProjectSettingsMetadataConstants.ALL)
         )
 
-    def test_to_file(self):
+    def test_to_file(self) -> None:
         """Test serializing the project settings to file"""
         actual_file = os.path.join(
             self.get_test_output_folder(), "project_settings.json"
@@ -35,7 +34,7 @@ class TestIDTProjectSettings(TestIDTBase):
         self.project_settings.to_file(actual_file)
         self.assertEqual(os.path.exists(expected_file), True)
 
-    def test_from_file(self):
+    def test_from_file(self) -> None:
         """Test loading the file from disk"""
         self.project_settings.camera_make = "Cannon"
         json_string = self.project_settings.to_json()
@@ -43,7 +42,7 @@ class TestIDTProjectSettings(TestIDTBase):
         json_string_loaded = new_settings.to_json()
         self.assertEqual(json_string, json_string_loaded)
 
-    def test_from_directory(self):
+    def test_from_directory(self) -> None:
         """Test creating new project from directory"""
         expected_file = os.path.join(
             self.get_test_resources_folder(), "example_from_folder.json"
@@ -67,7 +66,7 @@ class TestIDTProjectSettings(TestIDTBase):
 
         self.assertEqual(actual, expected)
 
-    def test_property_vs_metadata_name(self):
+    def test_property_vs_metadata_name(self) -> None:
         """Test that the property name matches the metadata name"""
         for name, prop in self.project_settings.properties:
             self.assertEqual(name, prop.metadata.name)
