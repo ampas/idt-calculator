@@ -68,7 +68,16 @@ Whitepoint        : None
         )
 
         self.assertEqual(
-            re.sub(r"0x\w+>", "0x...>", str(idt_application.project_settings)).strip(),
+            "\n".join(
+                [
+                    line.strip()
+                    for line in re.sub(
+                        r"0x\w+>", "0x...>", str(idt_application.project_settings)
+                    )
+                    .strip()
+                    .splitlines()
+                ]
+            ),
             """
 <aces.idt.framework.project_settings.IDTProjectSettings object at 0x...>
 ==============================================================================

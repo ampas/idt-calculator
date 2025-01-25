@@ -3,11 +3,12 @@ Invoke - Tasks
 ==============
 """
 
+from __future__ import annotations
+
 import contextlib
 import inspect
 import platform
 
-from colour.hints import Boolean
 from colour.utilities import message_box
 
 import app
@@ -33,6 +34,7 @@ __all__ = [
     "precommit",
     "tests",
     "requirements",
+    "build",
     "docker_build",
     "docker_remove",
     "docker_run",
@@ -49,10 +51,10 @@ CONTAINER = APPLICATION_NAME.replace(" ", "").lower()
 @task
 def clean(
     ctx: Context,
-    docs: Boolean = True,
-    bytecode: Boolean = False,
-    mypy: Boolean = True,
-    pytest: Boolean = True,
+    docs: bool = True,
+    bytecode: bool = False,
+    mypy: bool = True,
+    pytest: bool = True,
 ) -> None:
     """
     Clean the project.
@@ -135,11 +137,24 @@ def requirements(ctx: Context) -> None:
     """
 
     message_box('Exporting "requirements.txt" file...')
-    ctx.run(
-        "poetry export -f requirements.txt "
-        "--without-hashes "
-        "--output requirements.txt"
-    )
+    ctx.run('uv export --no-hashes --all-extras | grep -v "-e \\." > requirements.txt')
+
+
+@task(clean, precommit, tests, requirements)
+def build(ctx: Context) -> None:
+    """
+    Build the project and runs dependency tasks, i.e., *docs*, *todo*, and
+    *preflight*.
+
+    Parameters
+    ----------
+    ctx
+        Context.
+    """
+
+    message_box("Building...")
+    ctx.run("uv build")
+    ctx.run("twine check dist/*")
 
 
 @task(precommit, tests, requirements)
