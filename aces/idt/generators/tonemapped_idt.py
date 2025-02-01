@@ -1,25 +1,33 @@
 """
-IDT ToneMapped Camera Generator
-=============================
+IDT Generator for a ToneMapped Camera
+=====================================
 
 Define the *IDT* generator class for a *ToneMapped Camera*.
 """
 
+from __future__ import annotations
+
 import logging
+import typing
 
 import cv2
-import matplotlib as mpl
 import numpy as np
 from colour import LUT3x1D
-from colour.utilities import as_float_array
+
+if typing.TYPE_CHECKING:
+    from colour.hints import List, NDArrayFloat, NDArrayInt
+
+from colour.utilities import as_float_array, as_int_array, optional
 from scipy.interpolate import CubicHermiteSpline
 
 from aces.idt import DirectoryStructure
-from aces.idt.core.common import create_samples_macbeth_image, interpolate_nan_values
-from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
+from aces.idt.core.common import create_colour_checker_image, interpolate_nan_values
+from aces.idt.core.constants import EXPOSURE_CLIPPING_THRESHOLD
 
-# TODO are the mpl.use things needed in every file?
-mpl.use("Agg")
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
+
+from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -41,64 +49,72 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
 
     Parameters
     ----------
-    project_settings : IDTProjectSettings, optional
+    project_settings
         *IDT* generator settings.
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTBaseGenerator.GENERATOR_NAME`
-    -   :attr:`~IDTGeneratorToneMappedCamera.exposure_times`
+    -   :attr:`~aces.idt.IDTGeneratorToneMappedCamera.GENERATOR_NAME`
+    -   :attr:`~aces.idt.IDTGeneratorToneMappedCamera.exposure_times`
 
     Methods
     -------
-    -   :meth:`~aces.idt.IDTBaseGenerator.sort`
-    -   :meth:`~aces.idt.IDTBaseGenerator.remove_clipping`
-    -   :meth:`~IDTGeneratorToneMappedCamera.generate_LUT`
-    -   :meth:`~IDTGeneratorToneMappedCamera.filter_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorToneMappedCamera.sort`
+    -   :meth:`~aces.idt.IDTGeneratorToneMappedCamera.remove_clipped_samples`
+    -   :meth:`~aces.idt.IDTGeneratorToneMappedCamera.generate_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorToneMappedCamera.filter_LUT`
     """
 
     GENERATOR_NAME = "IDTGeneratorToneMappedCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
         self._exposure_times = []
 
     @property
-    def exposure_times(self):
+    def exposure_times(self) -> List[float]:
         """Return the exposure times for the samples."""
+
         return self._exposure_times
 
-    def sort(self, start_index: int = 0) -> np.ndarray:
+    def sort(self, start_index: int | None = None) -> NDArrayFloat:
         """
         Sort the samples produced by the image sampling process.
 
-        We override the sort method to collect and stack the samples, but also to
-        calculate the exposure times for each sample.
-
-        We also sample all the samples from the macbeth chart not just the last 6
+        This override not only sorts, collects and stacks the samples, but also
+        computes the exposure times for each sample. All the swatches from
+        the colour checker are used for sorting not just the last 6.
 
         Parameters
         ----------
-        start_index : int, optional
-            The index to start sorting from, default is -6 so we only use the last
-                6 samples from the macbeth chart
+        start_index
+            The index to start sorting from, default to 0, so that all the
+            samples from the colour checker are used.
 
         Returns
         -------
-        :class:`ndarray`
-            Indices of the sorted samples which can be used for additional sorting
+        :class:`np.ndarray`
+            Sorting indices.
         """
+
+        start_index = optional(start_index, 0)
+
         LOGGER.info("Sorting camera and reference samples...")
-        ref_col_checker = self.project_settings.get_reference_colour_checker_samples()
+
+        reference_colour_checker_samples = (
+            self.project_settings.get_reference_colour_checker_samples()
+        )
+
         samples_camera = []
         samples_reference = []
         exposure_times = []
-
         for EV, images in self._samples_analysis[
             DirectoryStructure.COLOUR_CHECKER
         ].items():
-            samples_reference.append(ref_col_checker[start_index:, ...] * pow(2, EV))
+            samples_reference.append(
+                reference_colour_checker_samples[start_index:, ...] * pow(2, EV)
+            )
             samples_EV = as_float_array(images["samples_median"])[start_index:, ...]
             samples_camera.append(samples_EV)
 
@@ -110,40 +126,44 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
         self._samples_camera = np.vstack(samples_camera)
         self._samples_reference = np.vstack(samples_reference)
         self._exposure_times = np.vstack(exposure_times)
+
         return np.array([])
 
-    def remove_clipping(self):
-        """We override the remove_clipping method as this is handled within
-            the Debevec and hermite fitting later
+    def remove_clipped_samples(
+        self,
+        threshold: float = EXPOSURE_CLIPPING_THRESHOLD,  # noqa: ARG002
+    ) -> NDArrayInt:
+        """
+        Remove clipped camera samples and their corresponding reference samples.
+
+        This override by pass the process entirely as this is handled during
+        subsequent processing stages.
 
         Returns
         -------
-        :class:`ndarray`
-            Indices of the clipped samples, in this case an empty list as we do not
-            want to remove any samples
-
+        :class:`np.ndarray`
+            Clipped samples indices.
         """
-        return []
+
+        return as_int_array([])
 
     def generate_LUT(self) -> LUT3x1D:
         """
         Generate an unfiltered linearisation *LUT* for the camera samples.
 
-        The *LUT* generation process is worth describing, the camera samples are
+        The *LUT* generation process is as follows: The camera samples are
         unlikely to cover the [0, 1] domain and thus need to be extrapolated.
-
-        The camera samples are grouped by exposure time and a faux macbeth chart image
-        is created, with a subtle blur.
-
-        The Debevec algorithm is then used to generate a response curve for the camera
-
-        Any nans which occur are removed via interpolation
+        The camera samples are then grouped by exposure time and a faux colour
+        checker image is created, with a subtle blur. Debevec (1997) algorithm
+        is finally then used to generate the camera response curves. Any NaNs
+        are removed via linear interpolation.
 
         Returns
         -------
         :class:`LUT3x1D`
             Unfiltered linearisation *LUT* for the camera samples.
         """
+
         samples_per_exposure = {}
         for idx, sample in enumerate(self.samples_camera):
             exposure_time = self._exposure_times[idx][0]
@@ -155,7 +175,7 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
         keys = sorted(samples_per_exposure.keys())
         for exposure_time in keys:
             pixels = samples_per_exposure[exposure_time]
-            image = create_samples_macbeth_image(pixels)
+            image = create_colour_checker_image(pixels)
             kernel_size = (121, 121)
 
             # Apply Gaussian blur to the image
@@ -183,15 +203,16 @@ class IDTGeneratorToneMappedCamera(IDTGeneratorProsumerCamera):
         """
         Filter the unfiltered linearisation *LUT* for the camera samples.
 
-        A weighted average is used to weight the green channel more heavily, before a
-        hermite spline is used to interpolate the values rather than filter them.
+        A weighted average is used to bias the green channel increasingly,
+        before a hermite spline is applied to interpolate the values rather
+        than filter them.
 
         Returns
         -------
         :class:`LUT3x1D`
-            Filtered linearisation *LUT* for the camera
-
+            Filtered linearisation *LUT* for the camera samples.
         """
+
         self._LUT_filtered = self._LUT_unfiltered.copy()
         self._LUT_filtered.name = "LUT - Filtered"
 

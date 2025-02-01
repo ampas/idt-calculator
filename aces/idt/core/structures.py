@@ -11,9 +11,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
-from colour.hints import Any, Callable, Tuple
+
+if TYPE_CHECKING:
+    from colour.hints import Any, Callable, Tuple
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -34,7 +37,7 @@ __all__ = [
 
 class PathEncoder(json.JSONEncoder):
     """
-    Define a custom :class:`json.JSONEncoder` sub-class that can encode
+    Define a custom :class:`json.JSONEncoder` subclass that can encode
     :class:`Path` class instance objects.
     """
 
@@ -100,7 +103,7 @@ class MetadataProperty:
         getter: Callable,
         setter: Callable | None = None,
         metadata: Metadata | None = None,
-    ):
+    ) -> None:
         self.getter = getter
         self.setter = setter
         self.metadata = metadata
@@ -120,21 +123,23 @@ class MetadataProperty:
         if self.setter:
             self.setter(instance, value)
         else:
-            raise AttributeError("No setter defined for this property")
+            msg = "No setter defined for this property"
+            raise AttributeError(msg)
 
 
 def metadata_property(
     metadata: Metadata | None = None, validation: Callable | None = None
-) -> Any:
+) -> Callable:
     """
     Decorate a class attribute to create a property using given :class`Metadata`
     class instance, supporting both getter and setter functionality.
     """
 
-    def wrapper(getter):
-        def setter(instance, value):
+    def wrapper(getter: Callable) -> Callable:
+        def setter(instance: MixinSerializableProperties, value: str) -> Callable:
             if validation and value and not validation(value):
-                raise ValueError(f"Value {value} is not valid for this property")
+                msg = f"Value {value} is not valid for this property"
+                raise ValueError(msg)
             setattr(instance, f"_{getter.__name__}", value)
 
         return MetadataProperty(getter, setter, metadata)
@@ -212,7 +217,7 @@ class MixinSerializableProperties:
 
         return item
 
-    def to_file(self, filepath: str):
+    def to_file(self, filepath: str) -> None:
         """
         Serialize the object to a *JSON* file.
 

@@ -1,8 +1,13 @@
-"""Module to hold unit tests for the IDTApplication
-
 """
+Define the unit tests for the :class:`aces.idt.IDTGeneratorApplication`
+class and its generators.
+"""
+
+from __future__ import annotations
+
 import json
 import os
+import re
 
 import numpy as np
 from colour.constants import TOLERANCE_ABSOLUTE_TESTS
@@ -12,28 +17,110 @@ from aces.idt.core.constants import DirectoryStructure
 from aces.idt.framework.project_settings import IDTProjectSettings
 from tests.test_utils import TestIDTBase
 
+__author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
+__copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
+__license__ = "Academy of Motion Picture Arts and Sciences License Terms"
+__maintainer__ = "Academy of Motion Picture Arts and Sciences"
+__email__ = "acessupport@oscars.org"
+__status__ = "Production"
+
+__all__ = [
+    "TestIDTApplication",
+]
+
 
 class TestIDTApplication(TestIDTBase):
-    """Class holding unit tests for the IDTApplication"""
+    """
+    Define the unit tests for the :class:`aces.idt.IDTGeneratorApplication`
+    class and its generators.
+    """
 
-    def setUp(self):
-        """
-        Set up a new project settings object.
-        """
+    def setUp(self) -> None:
+        """Initialise the common tests attributes."""
+
         self.project_settings = IDTProjectSettings()
 
-    def test_string_overrides(self):
-        """Test the __str__ methods we override"""
+    def test__str__(self) -> None:
+        """
+        Test the :class:`aces.idt.IDTGeneratorProsumerCamera.__str__` and
+        :class:`aces.idt.IDTProjectSettings.__str__ methods.
+        """
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
-        actual = str(idt_application.generator)
-        actual2 = str(idt_application.project_settings)
 
-        self.assertNotEqual(actual, "")
-        self.assertNotEqual(actual2, "")
+        self.assertEqual(
+            re.sub(r"0x\w+>", "0x...>", str(idt_application.generator)).strip(),
+            """
+<aces.idt.generators.prosumer_camera.IDTGeneratorProsumerCamera object at 0x...>
+======================================================================================
 
-    def test_prosumer_generator_sample(self):
-        """Test the prosumer generator"""
+Baseline Exposure : 0
+Samples Analysis  : None
+LUT Decoding      : None
+M                 : None
+RGB_w             : None
+k                 : None
+NPM               : None
+Primaries         : None
+Whitepoint        : None
+            """.strip(),
+        )
+
+        self.assertEqual(
+            "\n".join(
+                [
+                    line.strip()
+                    for line in re.sub(
+                        r"0x\w+>", "0x...>", str(idt_application.project_settings)
+                    )
+                    .strip()
+                    .splitlines()
+                ]
+            ),
+            """
+<aces.idt.framework.project_settings.IDTProjectSettings object at 0x...>
+==============================================================================
+
+Aces_Transform_Id              :
+Aces_User_Name                 :
+Additional_Camera_Settings     :
+Camera_Make                    :
+Camera_Model                   :
+Cat                            : CAT02
+Cleanup                        : True
+Data                           : {'colour_checker': {}, 'grey_card': {}}
+Debayering_Platform            :
+Debayering_Settings            :
+Decoding_Method                : Median
+Encoding_Colourspace           :
+Encoding_Transfer_Function     :
+Ev_Range                       : [-1.  0.  1.]
+Ev_Weights                     : []
+File_Type                      :
+Flatten_Clf                    : False
+Grey_Card_Reference            : [ 0.18  0.18  0.18]
+Illuminant                     : D60
+Illuminant_Interpolator        : Linear
+Include_Exposure_Factor_In_Clf : False
+Include_White_Balance_In_Clf   : False
+Iso                            : 800
+Lighting_Setup_Description     :
+Lut_Size                       : 1024
+Lut_Smoothing                  : 16
+Optimisation_Space             : Oklab
+Optimization_Kwargs            : {}
+Reference_Colour_Checker       : ISO 17321-1
+Rgb_Display_Colourspace        : sRGB
+Schema_Version                 : 0.1.0
+Temperature                    : 6000
+Working_Directory              :
+            """.strip(),
+        )
+
+    def test_prosumer_camera_generator_sample(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.sample` method."""
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
@@ -61,8 +148,9 @@ class TestIDTApplication(TestIDTBase):
         grey_expected = expected.get(DirectoryStructure.GREY_CARD)
         self.assertEqual(grey_result, grey_expected)
 
-    def test_prosumer_generator_sort(self):
-        """Test the prosumer generator sort"""
+    def test_prosumer_camera_generator_sort(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.sort` method."""
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
@@ -94,10 +182,10 @@ class TestIDTApplication(TestIDTBase):
             "Values differ by more than the allowed threshold.",
         )
 
-    def test_prosumer_generator_from_archive(self):
+    def test_prosumer_camera_generator_process_archive(self) -> None:
         """
-        Define :func:`aces.idt.prosumer_camera.IDTGeneratorProsumerCamera.\
-        test_from_archive` definition unit tests methods.
+        Test the :class:`aces.idt.IDTGeneratorProsumerCamera.process_archive`
+        method.
         """
 
         idt_application = IDTGeneratorApplication()
@@ -1213,19 +1301,24 @@ class TestIDTApplication(TestIDTBase):
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-    def test_prosumer_generator_from_archive_no_json(self):
-        """Test the prosumer generator from archive without a json file, should raise
-        an error due to being unable to calculate the IDT URN for the id
+    def test_raise_exception_prosumer_camera_generator_process_archive(self) -> None:
         """
+        Test that the :class:`aces.idt.IDTGeneratorProsumerCamera.process_archive`
+        method raises an exception when the JSON file is missing and thus and IDT
+        URN cannot be computed.
+        """
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
+
         with self.assertRaises(ValueError):
             idt_application.process_archive(archive)
 
-    def test_prosumer_generator_from_archive_zip(self):
-        """Test the prosumer generator from archive with a json file"""
+    def test_prosumer_camera_generator_zip(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.zip` method."""
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorProsumerCamera"
 
@@ -1236,8 +1329,9 @@ class TestIDTApplication(TestIDTBase):
         )
         self.assertEqual(os.path.exists(zip_file), True)
 
-    def test_prelinearized_idt_generator_from_archive_zip(self):
-        """Test the prosumer generator from archive with a json file"""
+    def test_prelinearized_idt_generator_from_archive_zip(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorPreLinearizedCamera.zip` method."""
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorPreLinearizedCamera"
 
@@ -1248,8 +1342,9 @@ class TestIDTApplication(TestIDTBase):
         )
         self.assertEqual(os.path.exists(zip_file), True)
 
-    def test_tonemapped_idt_generator_from_archive_zip(self):
-        """Test the prosumer generator from archive with a json file"""
+    def test_tonemapped_idt_generator_from_archive_zip(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorToneMappedCamera.zip` method."""
+
         idt_application = IDTGeneratorApplication()
         idt_application.generator = "IDTGeneratorToneMappedCamera"
 

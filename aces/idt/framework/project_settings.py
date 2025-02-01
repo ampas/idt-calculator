@@ -1,13 +1,19 @@
-"""Module which contains the ProjectSettings for the IDT maker acts as the data model,
-serialization, loading and saving of a project.
-
 """
+Project Settings
+================
+
+Define the objects managing an *IDT* generator project settings.
+"""
+
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
-from colour.hints import Dict, List, NDArrayFloat
-from colour.utilities import multiline_str
+if TYPE_CHECKING:
+    from colour.hints import Dict, NDArrayFloat
+
+from colour.utilities import as_float_array, multiline_str
 
 from aces.idt.core import (
     OPTIMISATION_FACTORIES,
@@ -23,6 +29,7 @@ from aces.idt.core import (
     metadata_property,
     sort_exposure_keys,
 )
+from aces.idt.core.transform_id import is_valid_csc_urn
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -34,8 +41,6 @@ __status__ = "Production"
 __all__ = [
     "IDTProjectSettings",
 ]
-
-from aces.idt.core.trasform_id import is_valid_idt_urn
 
 
 class IDTProjectSettings(MixinSerializableProperties):
@@ -51,7 +56,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         Optional keyword arguments used to initialise the project settings.
     """
 
-    def __init__(self, **kwargs: Dict):
+    def __init__(self, **kwargs: Dict) -> None:
         super().__init__()
 
         self._schema_version = IDTProjectSettings.schema_version.metadata.default_value
@@ -124,13 +129,17 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.decoding_method.metadata.name,
             IDTProjectSettings.decoding_method.metadata.default_value,
         )
-        self._ev_range = kwargs.get(
-            IDTProjectSettings.ev_range.metadata.name,
-            IDTProjectSettings.ev_range.metadata.default_value,
+        self._ev_range = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.ev_range.metadata.name,
+                IDTProjectSettings.ev_range.metadata.default_value,
+            )
         )
-        self._grey_card_reference = kwargs.get(
-            IDTProjectSettings.grey_card_reference.metadata.name,
-            IDTProjectSettings.grey_card_reference.metadata.default_value,
+        self._grey_card_reference = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.grey_card_reference.metadata.name,
+                IDTProjectSettings.grey_card_reference.metadata.default_value,
+            )
         )
         self._lut_size = kwargs.get(
             IDTProjectSettings.lut_size.metadata.name,
@@ -165,9 +174,11 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.file_type.metadata.name,
             IDTProjectSettings.file_type.metadata.default_value,
         )
-        self._ev_weights = kwargs.get(
-            IDTProjectSettings.ev_weights.metadata.name,
-            IDTProjectSettings.ev_weights.metadata.default_value,
+        self._ev_weights = as_float_array(
+            kwargs.get(
+                IDTProjectSettings.ev_weights.metadata.name,
+                IDTProjectSettings.ev_weights.metadata.default_value,
+            )
         )
         self._optimization_kwargs = kwargs.get(
             IDTProjectSettings.optimization_kwargs.metadata.name,
@@ -200,7 +211,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._schema_version
 
     @metadata_property(
-        metadata=MetadataConstants.ACES_TRANSFORM_ID, validation=is_valid_idt_urn
+        metadata=MetadataConstants.ACES_TRANSFORM_ID, validation=is_valid_csc_urn
     )
     def aces_transform_id(self) -> str:
         """
@@ -211,6 +222,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         :class:`str`
             *ACEStransformID*.
         """
+
         return self._aces_transform_id
 
     @metadata_property(metadata=MetadataConstants.ACES_USER_NAME)
@@ -276,6 +288,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         :class:`int`
             Camera white-balance colour temperature in Kelvin degrees.
         """
+
         return self._temperature
 
     @metadata_property(metadata=MetadataConstants.ADDITIONAL_CAMERA_SETTINGS)
@@ -422,26 +435,26 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._decoding_method
 
     @metadata_property(metadata=MetadataConstants.EV_RANGE)
-    def ev_range(self) -> List:
+    def ev_range(self) -> NDArrayFloat:
         """
         Getter property for the EV range.
 
         Returns
         -------
-        :class:`list`
+        :class:`np.ndarray`
             EV range.
         """
 
         return self._ev_range
 
     @metadata_property(metadata=MetadataConstants.GREY_CARD_REFERENCE)
-    def grey_card_reference(self) -> List:
+    def grey_card_reference(self) -> NDArrayFloat:
         """
         Getter property for the grey card reference values.
 
         Returns
         -------
-        :class:`list`
+        :class:`np.ndarray`
             Grey card reference values.
         """
 
@@ -461,7 +474,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         return self._lut_size
 
     @metadata_property(metadata=MetadataConstants.LUT_SMOOTHING)
-    def lut_smoothing(self):
+    def lut_smoothing(self) -> int:
         """
         Getter property for the *LUT* smoothing.
 
@@ -612,6 +625,7 @@ class IDTProjectSettings(MixinSerializableProperties):
         :class:`bool`
             Whether to include the exposure factor (K) in the *CLF*.
         """
+
         return self._include_exposure_factor_in_clf
 
     def get_reference_colour_checker_samples(self) -> NDArrayFloat:
@@ -642,13 +656,13 @@ class IDTProjectSettings(MixinSerializableProperties):
         factory = OPTIMISATION_FACTORIES.get(self.optimisation_space)
 
         if factory is None:
-            raise ValueError(
-                f'Optimisation space "{self.optimisation_space}" was not found!'
-            )
+            exception = f'Optimisation space "{self.optimisation_space}" was not found!'
+
+            raise ValueError(exception)
 
         return factory
 
-    def update(self, value: IDTProjectSettings):
+    def update(self, value: IDTProjectSettings) -> None:
         """
         Update the project settings with the given value from another project
         settings.
@@ -660,9 +674,8 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         if not isinstance(value, IDTProjectSettings):
-            raise TypeError(
-                f'Expected an "IDTProjectSettings" type, got "{type(value)}" instead!'
-            )
+            msg = f'Expected an "IDTProjectSettings" type, got "{type(value)}" instead!'
+            raise TypeError(msg)
 
         for name, prop in value.properties:
             setattr(self, name, prop.getter(value))
@@ -675,7 +688,7 @@ class IDTProjectSettings(MixinSerializableProperties):
 
         Parameters
         ----------
-        directory : str
+        directory
             The directory to the project root containing the image sequence
             directories.
         """
@@ -697,9 +710,8 @@ class IDTProjectSettings(MixinSerializableProperties):
         if not os.path.exists(colour_checker_path) or not os.path.exists(
             grey_card_path
         ):
-            raise ValueError(
-                'Required "colour_checker" or "grey_card" folder does not exist.'
-            )
+            msg = 'Required "colour_checker" or "grey_card" folder does not exist.'
+            raise ValueError(msg)
 
         # Populate colour_checker data
         for root, _, files in os.walk(colour_checker_path):
@@ -760,7 +772,7 @@ class IDTProjectSettings(MixinSerializableProperties):
             {"line_break": True},
         ]
 
-        for name, _descriptor in self.properties:
+        for name, _descriptor in sorted(self.properties):
             attributes.append({"name": f"{name}", "label": f"{name}".title()})
 
         attributes.append({"line_break": True})

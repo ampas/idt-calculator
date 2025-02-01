@@ -15,15 +15,16 @@ import os
 import re
 import shutil
 import tempfile
+import typing
 import unicodedata
-import xml.etree.ElementTree as Et
+import xml.etree.ElementTree as ET
 from functools import partial
 from pathlib import Path
 
 import colour
 import colour_checker_detection
 import cv2
-import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -34,28 +35,32 @@ from colour import (
     SpectralDistribution,
     sd_to_aces_relative_exposure_values,
 )
-from colour.algebra import euclidean_distance, vector_dot
+from colour.algebra import euclidean_distance, vecmul
 from colour.characterisation import (
     optimisation_factory_Jzazbz,
     optimisation_factory_rawtoaces_v1,
     whitepoint_preserving_matrix,
 )
-from colour.hints import (
-    Any,
-    ArrayLike,
-    Callable,
-    Dict,
-    List,
-    NDArrayBoolean,
-    NDArrayFloat,
-    Sequence,
-    Tuple,
-)
-from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
-from colour.utilities import as_float_array, zeros
 
-mpl.use("Agg")
-import matplotlib.pyplot as plt
+if typing.TYPE_CHECKING:
+    from colour.hints import (
+        Any,
+        ArrayLike,
+        Callable,
+        Dict,
+        List,
+        LiteralChromaticAdaptationTransform,
+        NDArrayBoolean,
+        NDArrayFloat,
+        NDArrayInt,
+        Sequence,
+        Tuple,
+    )
+
+from colour.models import RGB_COLOURSPACE_ACES2065_1, XYZ_to_IPT, XYZ_to_Oklab
+from colour.utilities import as_float_array, as_int_array, zeros
+
+from aces.idt.core.constants import EXPOSURE_CLIPPING_THRESHOLD
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -87,9 +92,9 @@ __all__ = [
     "extract_archive",
     "sort_exposure_keys",
     "format_exposure_key",
-    "find_close_indices",
-    "calculate_clipped_exposures",
-    "create_samples_macbeth_image",
+    "find_similar_rows",
+    "find_clipped_exposures",
+    "create_colour_checker_image",
     "interpolate_nan_values",
     "calculate_camera_npm_and_primaries_wp",
 ]
@@ -177,19 +182,19 @@ SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC.update(
 def generate_reference_colour_checker(
     sds: Tuple[SpectralDistribution] = SDS_COLORCHECKER_CLASSIC,
     illuminant: SpectralDistribution = SD_ILLUMINANT_ACES,
-    chromatic_adaptation_transform="CAT02",
+    chromatic_adaptation_transform: LiteralChromaticAdaptationTransform | str = "CAT02",
 ) -> NDArrayFloat:
     """
     Generate the reference *ACES* *RGB* values for the *ColorChecker Classic*.
 
     Parameters
     ----------
-    sds : tuple, optional
+    sds
         *ColorChecker Classic* reflectances.
-    illuminant : SpectralDistribution, optional
+    illuminant
         Spectral distribution of the illuminant to compute the reference
         *ACES* *RGB* values.
-    chromatic_adaptation_transform : str
+    chromatic_adaptation_transform
         *Chromatic adaptation* transform.
 
     Returns
@@ -245,26 +250,26 @@ finaliser_function at 0x...>)
 
     x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
-    def objective_function(M, RGB, Jab):
+    def objective_function(
+        M: NDArrayFloat, RGB: NDArrayFloat, Jab: NDArrayFloat
+    ) -> NDArrayFloat:
         """*Oklab* colourspace based objective function."""
 
         M = whitepoint_preserving_matrix(
             np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
         )
 
-        XYZ_t = vector_dot(
-            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
-        )
+        XYZ_t = vecmul(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vecmul(M, RGB))
         Jab_t = XYZ_to_Oklab(XYZ_t)
 
         return np.sum(euclidean_distance(Jab, Jab_t))
 
-    def XYZ_to_optimization_colour_model(XYZ):
+    def XYZ_to_optimization_colour_model(XYZ: ArrayLike) -> NDArrayFloat:
         """*CIE XYZ* colourspace to *Oklab* colourspace function."""
 
         return XYZ_to_Oklab(XYZ)
 
-    def finaliser_function(M):
+    def finaliser_function(M: ArrayLike) -> NDArrayFloat:
         """Finaliser function."""
 
         return whitepoint_preserving_matrix(
@@ -308,26 +313,26 @@ finaliser_function at 0x...>)
 
     x_0 = as_float_array([1, 0, 0, 1, 0, 0])
 
-    def objective_function(M, RGB, Jab):
+    def objective_function(
+        M: NDArrayFloat, RGB: NDArrayFloat, Jab: NDArrayFloat
+    ) -> NDArrayFloat:
         """*IPT* colourspace based objective function."""
 
         M = whitepoint_preserving_matrix(
             np.hstack([np.reshape(M, (3, 2)), zeros((3, 1))])
         )
 
-        XYZ_t = vector_dot(
-            RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vector_dot(M, RGB)
-        )
+        XYZ_t = vecmul(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, vecmul(M, RGB))
         Jab_t = XYZ_to_IPT(XYZ_t)
 
         return np.sum(euclidean_distance(Jab, Jab_t))
 
-    def XYZ_to_optimization_colour_model(XYZ):
+    def XYZ_to_optimization_colour_model(XYZ: ArrayLike) -> NDArrayFloat:
         """*CIE XYZ* colourspace to *IPT* colourspace function."""
 
         return XYZ_to_IPT(XYZ)
 
-    def finaliser_function(M):
+    def finaliser_function(M: ArrayLike) -> NDArrayFloat:
         """Finaliser function."""
 
         return whitepoint_preserving_matrix(
@@ -362,18 +367,20 @@ def error_delta_E(
         :math:`\\Delta E_{00}`.
     """
 
-    XYZ_to_RGB_kargs = {
+    XYZ_to_RGB_kwargs = {
         "illuminant_XYZ": RGB_COLOURSPACE_ACES2065_1.whitepoint,
         "illuminant_RGB": RGB_COLOURSPACE_ACES2065_1.whitepoint,
         "matrix_XYZ_to_RGB": RGB_COLOURSPACE_ACES2065_1.matrix_XYZ_to_RGB,
     }
 
     Lab_test = (
-        colour.convert(samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
+        colour.convert(samples_test, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kwargs)
         * 100
     )
     Lab_reference = (
-        colour.convert(samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kargs)
+        colour.convert(
+            samples_reference, "RGB", "CIE Lab", XYZ_to_RGB=XYZ_to_RGB_kwargs
+        )
         * 100
     )
 
@@ -402,16 +409,12 @@ def png_compare_colour_checkers(
     """
 
     colour.plotting.plot_multi_colour_swatches(
-        list(zip(samples_reference, samples_test)),
+        list(zip(samples_reference, samples_test, strict=False)),
         columns=columns,
         compare_swatches="Stacked",
         direction="-y",
     )
-    colour.plotting.render(
-        **{
-            "show": False,
-        }
-    )
+    colour.plotting.render(show=False)
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png")
     data_png = base64.b64encode(buffer.getbuffer()).decode("utf8")
@@ -421,15 +424,15 @@ def png_compare_colour_checkers(
 
 
 def clf_processing_elements(
-    root: Et.Element,
+    root: ET.Element,
     matrix: ArrayLike,
     multipliers: ArrayLike,
     k_factor: float,
     use_range: bool = True,
-    include_white_balance_in_clf: bool = False,
     flatten_clf: bool = True,
-    include_exposure_factor_in_clf: bool = False,
-) -> Et.Element:
+    include_white_balance: bool = False,
+    include_exposure_factor: bool = False,
+) -> ET.Element:
     """
     Add the *Common LUT Format* (CLF) elements for given *IDT* matrix,
     multipliers and exposure factor :math:`k` to given *XML* sub-element.
@@ -446,11 +449,11 @@ def clf_processing_elements(
     use_range
         Whether to use the range node to clamp the graph before the exposure
         factor :math:`k`.
-    include_white_balance_in_clf
-        Whether to include the white balance multipliers in the *CLF*.
     flatten_clf
         Whether to flatten the *CLF*. into a single 1D Lut & 1 3x3 Matrix
-    include_exposure_factor_in_clf
+    include_white_balance
+        Whether to include the white balance multipliers in the *CLF*.
+    include_exposure_factor
         Whether to include the exposure factor :math:`k` in the *CLF*.
 
     Returns
@@ -461,73 +464,63 @@ def clf_processing_elements(
 
     def format_array(a: NDArrayFloat) -> str:
         """Format given array :math:`a` into 3 lines of 3 numbers."""
-        # Reshape the array into a 3x3 matrix
+
         reshaped_array = a.reshape(3, 3)
 
-        # Convert each row to a string and join them with newlines
         formatted_lines = [" ".join(map(str, row)) for row in reshaped_array]
 
-        # Join all the lines with newline characters
-        formatted_string = "\n\t\t".join(formatted_lines)
-
-        return formatted_string
+        return "\n\t\t".join(formatted_lines)
 
     if not flatten_clf:
-        if include_white_balance_in_clf:
-            et_RGB_w = Et.SubElement(
+        if include_white_balance:
+            et_RGB_w = ET.SubElement(
                 root, "Matrix", inBitDepth="32f", outBitDepth="32f"
             )
-            et_description = Et.SubElement(et_RGB_w, "Description")
+            et_description = ET.SubElement(et_RGB_w, "Description")
             et_description.text = "White balance multipliers *b*."
-            et_array = Et.SubElement(et_RGB_w, "Array", dim="3 3")
+            et_array = ET.SubElement(et_RGB_w, "Array", dim="3 3")
             et_array.text = f"\n\t\t{format_array(np.diag(multipliers))}"
 
-        # TODO is this even used any more? Default param is False, and the calling
-        # TODO function is hard coded to False
+        # NOTE: Reproduces the intent of *P-2013-001* procedure to keep sensor
+        # saturated values achromatic after white balancing.
         if use_range:
-            et_range = Et.SubElement(
+            et_range = ET.SubElement(
                 root,
                 "Range",
                 inBitDepth="32f",
                 outBitDepth="32f",
             )
-            et_max_in_value = Et.SubElement(et_range, "maxInValue")
+            et_max_in_value = ET.SubElement(et_range, "maxInValue")
             et_max_in_value.text = "1"
-            et_max_out_value = Et.SubElement(et_range, "maxOutValue")
+            et_max_out_value = ET.SubElement(et_range, "maxOutValue")
             et_max_out_value.text = "1"
 
-        if include_exposure_factor_in_clf:
-            et_k = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-            et_description = Et.SubElement(et_k, "Description")
+        if include_exposure_factor:
+            et_k = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+            et_description = ET.SubElement(et_k, "Description")
             et_description.text = (
                 'Exposure factor *k* that results in a nominally "18% gray" object in '
                 "the scene producing ACES values [0.18, 0.18, 0.18]."
             )
-            et_array = Et.SubElement(et_k, "Array", dim="3 3")
+            et_array = ET.SubElement(et_k, "Array", dim="3 3")
             et_array.text = f"\n\t\t{format_array(np.ravel(np.diag([k_factor] * 3)))}"
 
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
-        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
-        et_array.text = f"\n\t\t{format_array(matrix)}"
+        clf_matrix = matrix
 
     else:
-        # If we are flattening the clf we output just a single matrix into the clf
-
-        # If we do not include the k factor, we set it to 1.0 so it becomes and identity
-        # matrix and has no affect
-        if not include_exposure_factor_in_clf:
+        if not include_exposure_factor:
             k_factor = 1.0
-        output_matrix = np.diag([k_factor] * 3) @ matrix
-        if include_white_balance_in_clf:
-            output_matrix = np.diag(multipliers) @ np.diag([k_factor] * 3) @ matrix
 
-        et_M = Et.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
-        et_description = Et.SubElement(et_M, "Description")
-        et_description.text = "*Input Device Transform* (IDT) matrix *B*."
-        et_array = Et.SubElement(et_M, "Array", dim="3 3")
-        et_array.text = f"\n\t\t{format_array(output_matrix)}"
+        clf_matrix = np.matmul(np.diag([k_factor] * 3), matrix)
+
+        if include_white_balance:
+            clf_matrix = np.matmul(np.diag(multipliers), clf_matrix)
+
+    et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
+    et_description = ET.SubElement(et_M, "Description")
+    et_description.text = "*Input Device Transform* (IDT) matrix *B*."
+    et_array = ET.SubElement(et_M, "Array", dim="3 3")
+    et_array.text = f"\n\t\t{format_array(clf_matrix)}"
 
     return root
 
@@ -618,13 +611,11 @@ def list_sub_directories(
         Sub-directories in given directory.
     """
 
-    sub_directories = [
+    return [
         path
         for path in Path(directory).iterdir()
         if all(filterer(path) for filterer in filterers)
     ]
-
-    return sub_directories
 
 
 def mask_outliers(
@@ -767,165 +758,145 @@ def format_exposure_key(key: str) -> str:
 
     # Format keys to add '+' prefix for positive keys
     key_float = float(re.sub(r"[^\d.-]+", "", key))
+
     if key_float > 0:
         return f"+{key_float:g}"
-    else:
-        return f"{key_float:g}"
+
+    return f"{key_float:g}"
 
 
-def find_close_indices(data: np.array, threshold: float = 0.005) -> list:
+def find_similar_rows(
+    rows: ArrayLike, threshold: float = EXPOSURE_CLIPPING_THRESHOLD
+) -> NDArrayInt:
     """
-    Find the indices of rows that have any values with differences below the threshold.
+    Find the indices of the rows that have similar values, i.e., rows whose
+    absolute values are below given threshold.
 
     Parameters
     ----------
-    data : np.array
-        A numpy array of shape (n, 3, 3) where each row contains RGB values.
-    threshold : float, optional
-        The tolerance threshold for determining if the RGB values between consecutive
-        rows are similar. Default is 0.005.
+    rows
+        An array of shape (n, 3, 3) where each row contains RGB values.
+    threshold
+        The tolerance threshold for determining if the RGB values between
+        consecutive rows are similar.
 
     Returns
     -------
-    List[int]
-        A list of indices where the rows have RGB differences below the threshold.
+    :class:`np.ndarray`
+        Indices where the rows have RGB differences below given threshold.
     """
+
+    rows = as_float_array(rows)
+
     top_indices = []
     bottom_indices = []
-    n_rows = data.shape[0]
+    n_rows = rows.shape[0]
 
     # Search from the top
     for i in range(n_rows - 1):
-        if np.any(np.abs(data[i] - data[i + 1]) < threshold):
+        if np.any(np.abs(rows[i] - rows[i + 1]) < threshold):
             top_indices.append(i)
         else:
             break
 
     # Search from the bottom
     for i in range(n_rows - 1, 0, -1):
-        if np.any(np.abs(data[i] - data[i - 1]) < threshold):
+        if np.any(np.abs(rows[i] - rows[i - 1]) < threshold):
             bottom_indices.append(i)
         else:
             break
 
-    # Combine and return the indices
-    return sorted(np.array(top_indices + bottom_indices))
+    return as_int_array(sorted(top_indices + bottom_indices))
 
 
-def calculate_clipped_exposures(exposure_samples: dict, threshold: float) -> list:
+def find_clipped_exposures(
+    exposure_samples: dict[float, NDArrayFloat],
+    threshold: float = EXPOSURE_CLIPPING_THRESHOLD,
+) -> list[float]:
     """
-    March through exposure values from lowest to highest and from highest to lowest,
-    comparing the samples. If any of the comparisons fail, stores the exposure
-    value. Stops when an exposure passes the test, and returns all failed exposure
-    values.
+    Find the clipped exposure values.
+
+    The process is as follows: Exposures are traversed from lowest to highest
+    and from highest to lowest, comparing their samples. If any of the
+    comparisons is below given threshold, the current exposure is considered
+    as clipped.
 
     Parameters
     ----------
-    exposure_samples : dict
-        A dictionary of exposure values mapped to numpy arrays of RGB samples
-
-    threshold : float
-        The threshold for determining if two samples are similar enough to determine if
-        they are clipped
+    exposure_samples
+        A dictionary of exposure values mapped to RGB samples.
+    threshold
+        The tolerance threshold for determining if the RGB values between
+        consecutive exposures are similar.
 
     Returns
     -------
-    list
-        A list of exposure values that failed the threshold test and should be
-        removed or ignored
+    :class:`list`
+        A list of exposure values that a below given threshold test and
+        considered clipped.
     """
-    exposure_values = sorted(exposure_samples.keys())
-    failed_exposures = []
 
-    # March from the bottom (smallest exposure to largest)
-    for i in range(len(exposure_values) - 1):
-        current_exposure = exposure_values[i]
-        next_exposure = exposure_values[i + 1]
+    exposure_keys, exposure_values = zip(
+        *sorted(exposure_samples.items()), strict=False
+    )
 
-        if np.any(
-            np.abs(exposure_samples[current_exposure] - exposure_samples[next_exposure])
-            < threshold
-        ):
-            failed_exposures.append(current_exposure)
-        else:
-            break
+    clipped_exposures = np.array(exposure_keys)[
+        find_similar_rows(exposure_values, threshold)
+    ]
 
-    # March from the top (largest exposure to smallest)
-    for i in range(len(exposure_values) - 1, 0, -1):
-        current_exposure = exposure_values[i]
-        previous_exposure = exposure_values[i - 1]
+    sorted_clipped_exposures = sorted(set(clipped_exposures.tolist()))
 
-        if np.any(
-            np.abs(
-                exposure_samples[current_exposure] - exposure_samples[previous_exposure]
-            )
-            < threshold
-        ):
-            failed_exposures.append(current_exposure)
-        else:
-            break
+    if 0 in sorted_clipped_exposures:
+        sorted_clipped_exposures.remove(0)
 
-    # TODO we should update the algo above so that we march from the bottom to 0.0
-    # TODO and from the top down to 0.0, vs just doing all of them as we want
-    #  0.0 to always remain. This hack can go
-    result = sorted(set(failed_exposures))
-    if 0.0 in result:
-        result.remove(0.0)
-
-    return result
+    return sorted_clipped_exposures
 
 
-def create_samples_macbeth_image(
-    colours: np.array,
-    reduction_percent: int = 30,
-    colours_per_row: int = 6,
+def create_colour_checker_image(
+    swatches: ArrayLike,
+    reduction_percent: float = 30,
+    swatches_per_row: int = 6,
     target_width: int = 1920,
     target_height: int = 1080,
-) -> np.array:
+) -> NDArrayFloat:
     """
-    Create a numpy image from a list of colours and creates a macbeth chart "like" image
-    with the colours provided.
+    Create a colour checker image, e.g., *ColorChecker Classic 24* from given
+    swatches.
 
-    A boarder is left around the edge of the image to allow for the reduction in size,
-    and set to be the same colour as the -3 index of the colours array. aka the grey of
-    the macbeth chart.
-
-    The image is not a macbeth chart, as the colours are as read from the camera samples
-    vs those of an actual macbeth chart.
+    A border is added around the image and set to be the same colour as the
+    -3 indexed swatch, i.e., the neutral 5 (.70 D) swatch.
 
     Parameters
     ----------
-    colours: np.array
-        An array of colours in [R, G, B] format
-
-    reduction_percent: int
-        The percentage to reduce the target width and height by to leave a boarder
-        around the edge
-
-    colours_per_row: int
-        The number of colours to put in each row
-
-    target_width: int
-        The target width of the image
-
-    target_height: int
-        The target height of the image
+    swatches
+        An array of RGB colours.
+    reduction_percent
+        The percentage to reduce the target width and height by to leave a border
+        around the image.
+    swatches_per_row
+        The number of swatch to put per row.
+    target_width
+        The target width of the image.
+    target_height
+        The target height of the image.
 
     Returns
     -------
-    np.array
-        The image as a numpy array
-
+    :class:`numpy.ndarray`
+        Colour checker image.
     """
+
+    swatches = as_float_array(swatches)
+
     num_rows = (
-        len(colours) + colours_per_row - 1
-    ) // colours_per_row  # Calculate the number of rows needed
+        len(swatches) + swatches_per_row - 1
+    ) // swatches_per_row  # Calculate the number of rows needed
 
     # Calculate the new dimensions with reduction percentage
     reduced_width = int(target_width * (1 - reduction_percent / 100))
     reduced_height = int(target_height * (1 - reduction_percent / 100))
 
-    strip_width = int(reduced_width / colours_per_row)
+    strip_width = int(reduced_width / swatches_per_row)
     strip_height = int(reduced_height / num_rows)
 
     # Calculate the starting point to center the strips in the original target
@@ -935,23 +906,25 @@ def create_samples_macbeth_image(
 
     # Create an empty image with the background color from the -3 index of the colour
     # array
-    background_color = colours[-3]  # Assuming colours[-3] is in [R, G, B] format
+    background_color = swatches[-3]
     image = np.full(
         (target_height, target_width, 3), background_color, dtype=np.float32
     )
 
-    # Fill the image with the color strips
-    for i, color in enumerate(colours):
-        row = i // colours_per_row
-        col = i % colours_per_row
+    # Fill the image with the swatches
+    for i, swatch in enumerate(swatches):
+        row = i // swatches_per_row
+        col = i % swatches_per_row
         x = start_x + col * strip_width
         y = start_y + row * strip_height
-        image[y : y + strip_height, x : x + strip_width] = color
+        image[y : y + strip_height, x : x + strip_width] = swatch
 
     return image
 
 
-def interpolate_nan_values(array: np.array) -> np.array:
+# TODO: Drop in favour of a `np.interp` based implementation to remove Pandas
+# dependency.
+def interpolate_nan_values(array: ArrayLike) -> NDArrayFloat:
     """Interpolate the NaN values in a 2D array using linear interpolation.
 
     Parameters
@@ -966,70 +939,63 @@ def interpolate_nan_values(array: np.array) -> np.array:
     """
 
     # Convert the 2D array to a DataFrame for easy interpolation
-    df = pd.DataFrame(array)
+    dataframe = pd.DataFrame(array)
 
     # Interpolate the entire DataFrame
     # Forward fill and backward fill remaining NaNs (at the edges)
-    interpolated_df = df.fillna(method="ffill").fillna(method="bfill")
+    interpolated_df = dataframe.fillna(method="ffill").fillna(method="bfill")
 
     interpolated_df = interpolated_df.interpolate(method="linear", axis=0)
 
     # Replace only the NaN values in the original array with interpolated values
-    final_array = np.where(np.isnan(array), interpolated_df.to_numpy(), array)
-
-    return final_array
+    return np.where(np.isnan(array), interpolated_df.to_numpy(), array)
 
 
 def calculate_camera_npm_and_primaries_wp(
     input_matrix: np.array,
     target_white_point: str = "D65",
-    cat: str = "Bradford",
-    observer: str = "CIE 1931 2 Degree Standard Observer",
+    chromatic_adaptation_transform: LiteralChromaticAdaptationTransform
+    | str = "Bradford",
 ) -> Tuple[np.array, np.array, np.array]:
     """
-    Calculate the camera's npm matrix (RGB to XYZ), it also returns the cameras
-    primaries, and whitepoint.
+    Calculate the camera's normalised primary (NPM) matrix, i.e., RGB to
+    CIE XYZ, and also return the derived primaries, and whitepoint.
 
     Parameters
     ----------
-    input_matrix: np.array
-        The camera's calculated or known RGB to ACES2065-1 matrix
-
-    target_white_point: str
-        The target whitepoint to calculate the camera's npm matrix for
-    cat: str
-        The chromatic adaptation transform to use
-
-    observer: str
-        The observer to use for the chromatic adaptation
+    input_matrix
+        Camera's calculated or known RGB to ACES2065-1 matrix.
+    target_white_point
+        Target whitepoint to calculate the camera's NPM matrix for.
+    chromatic_adaptation_transform
+        *Chromatic adaptation* transform.
 
     Returns
     -------
-    Tuple[np.array, np.array, np.array]
-        The camera's npm matrix, the camera's primaries, and the camera's whitepoint
-
+    :class:`tuple`
+        Camera's NPM matrix, derived primaries, and whitepoint.
     """
 
-    camera_rgb_to_xyz = RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ @ np.array(
-        input_matrix
+    camera_rgb_to_xyz_matrix = np.matmul(
+        RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, input_matrix
     )
 
-    # Get the xy chromaticity coordinates of the source and target whitepoints
+    observer = "CIE 1931 2 Degree Standard Observer"
     source_whitepoint_xy = colour.CCS_ILLUMINANTS[observer]["D60"]
     target_whitepoint_xy = colour.CCS_ILLUMINANTS[observer][target_white_point]
 
-    # Convert chromaticity coordinates to XYZ tristimulus values
-    source_whitepoint = colour.xy_to_XYZ(source_whitepoint_xy)
-    target_whitepoint = colour.xy_to_XYZ(target_whitepoint_xy)
+    source_whitepoint_XYZ = colour.xy_to_XYZ(source_whitepoint_xy)
+    target_whitepoint_XYZ = colour.xy_to_XYZ(target_whitepoint_xy)
 
-    # Compute the chromatic adaptation matrix using the given CAT
     cat_matrix = colour.adaptation.matrix_chromatic_adaptation_VonKries(
-        source_whitepoint, target_whitepoint, transform=cat
+        source_whitepoint_XYZ,
+        target_whitepoint_XYZ,
+        transform=chromatic_adaptation_transform,
     )
 
     # Apply the chromatic adaptation matrix to the camera's RGB to XYZ matrix
-    computed_camera_npm = cat_matrix @ camera_rgb_to_xyz
+    computed_camera_npm = np.matmul(cat_matrix, camera_rgb_to_xyz_matrix)
 
-    # Compute the camera's whitepoint and primaries
     primaries, whitepoint = colour.primaries_whitepoint(computed_camera_npm)
+
     return computed_camera_npm, primaries, whitepoint

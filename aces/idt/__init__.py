@@ -83,7 +83,6 @@ __all__ = [
     "sort_exposure_keys",
     "working_directory",
 ]
-
 __all__ += ["IDTProjectSettings"]
 __all__ += [
     "GENERATORS",

@@ -78,7 +78,7 @@ from aces.idt import (
     hash_file,
     png_compare_colour_checkers,
 )
-from aces.idt.core.trasform_id import generate_idt_urn, is_valid_idt_urn
+from aces.idt.core.transform_id import generate_idt_urn, is_valid_csc_urn
 from app import APP, SERVER_URL, __version__
 from apps.common import (
     COLOUR_ENVIRONMENT,
@@ -180,7 +180,7 @@ _OPTIONS_DECODING_METHOD = [
 GENERATOR_OPTIONS = [{"label": name, "value": name} for name in list(GENERATORS.keys())]
 
 
-def _uid(id_):
+def _uid(id_) -> str:
     """
     Generate a unique id for given id by appending the application *UID*.
     """
@@ -828,6 +828,7 @@ def update_aces_transform_id(
     str
         The generated ACEStransformID.
     """
+
     return [
         generate_idt_urn(
             aces_user_name or "",
@@ -928,7 +929,7 @@ def set_illuminant_datable(illuminant, CCT):
 
     if illuminant == "Custom":
         data = [
-            dict(wavelength=wavelength, **{"irradiance": None})
+            dict(wavelength=wavelength, irradiance=None)
             for wavelength in CUSTOM_WAVELENGTHS
         ]
 
@@ -944,7 +945,7 @@ def set_illuminant_datable(illuminant, CCT):
         data = [
             dict(
                 wavelength=wavelength,
-                **{"irradiance": illuminant[wavelength]},
+                irradiance=illuminant[wavelength],
             )
             for wavelength in illuminant.wavelengths
         ]
@@ -1285,7 +1286,7 @@ def compute_idt_prosumer_camera(
     encoding_transfer_function = str(encoding_transfer_function or "")
 
     # Validation: Check if the ACES transform ID is valid
-    if not is_valid_idt_urn(aces_transform_id):
+    if not is_valid_csc_urn(aces_transform_id):
         error_message = "Invalid ACES Transform ID!"
         return (
             "",  # loading-div children
@@ -1370,18 +1371,18 @@ def compute_idt_prosumer_camera(
     else:
         (
             _IDT_GENERATOR_APPLICATION.project_settings.data,
-            _IDT_GENERATOR_APPLICATION.generator._samples_analysis,
-            _IDT_GENERATOR_APPLICATION.generator._baseline_exposure,
+            _IDT_GENERATOR_APPLICATION.generator._samples_analysis,  # noqa: SLF001
+            _IDT_GENERATOR_APPLICATION.generator._baseline_exposure,  # noqa: SLF001
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE]
 
     generator = _IDT_GENERATOR_APPLICATION.generator
     project_settings = _IDT_GENERATOR_APPLICATION.project_settings
 
-    # TODO should really use the application.process to run this, that way we dont
-    # TODO have to duplicate the execution logic everywhere however technically
-    # TODO nothing wrong with this just means more maintenance
+    # TODO: Should really use the application.process to run this, that way we
+    # dont have to duplicate the execution logic everywhere however technically
+    # nothing wrong with this just means more maintenance.
     generator.sort()
-    generator.remove_clipping()
+    generator.remove_clipped_samples()
     generator.generate_LUT()
     generator.filter_LUT()
     generator.decode()

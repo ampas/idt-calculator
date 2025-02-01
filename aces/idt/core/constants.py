@@ -7,13 +7,14 @@ Define the constants for the package.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import colour
-import numpy as np
-from colour.hints import Tuple
 
 from aces.idt.core.structures import Metadata
+
+if TYPE_CHECKING:
+    from colour.hints import Tuple
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -23,7 +24,7 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "CLIPPING_THRESHOLD",
+    "EXPOSURE_CLIPPING_THRESHOLD",
     "DirectoryStructure",
     "UITypes",
     "UICategories",
@@ -36,7 +37,7 @@ __all__ = [
     "ProjectSettingsMetadataConstants",
 ]
 
-CLIPPING_THRESHOLD: int = 2 / (2**10 - 1)
+EXPOSURE_CLIPPING_THRESHOLD: int = 2 / (2**10 - 1)
 """
 The threshold for determining if RGB values are clipped. The threshold is
 2 code values in a 10 bit system
@@ -115,7 +116,8 @@ class CATMeta(type):
         :class:`tuple`
             Available chromatic adaptation transforms.
         """
-        return (*sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS), "None")
+
+        return *sorted(colour.CHROMATIC_ADAPTATION_TRANSFORMS), "None"
 
 
 class CAT(metaclass=CATMeta):
@@ -242,7 +244,7 @@ class ProjectSettingsMetadataConstants:
         default_value=[-1.0, 0.0, 1.0],
         description="The EV range",
         display_name="EV Range",
-        ui_type=UITypes.VECTOR3_FIELD,
+        ui_type=UITypes.ARRAY_FIELD,
         ui_category=UICategories.ADVANCED,
     )
 
@@ -425,7 +427,7 @@ class ProjectSettingsMetadataConstants:
 
     EV_WEIGHTS = Metadata(
         name="ev_weights",
-        default_value=np.array([]),
+        default_value=[],
         description="Normalised weights used to sum the exposure values. If not given,"
         "the median of the exposure values is used.",
         display_name="EV Weights",

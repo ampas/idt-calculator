@@ -5,13 +5,16 @@ IDT Base Generator
 Define the *IDT* base generator class.
 """
 
+from __future__ import annotations
+
 import base64
 import io
 import logging
 import os
 import re
 import shutil
-import xml.etree.ElementTree as Et
+import typing
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from pathlib import Path
@@ -22,8 +25,11 @@ import cv2
 import jsonpickle
 import numpy as np
 from colour import LUT1D, LUT3x1D, read_image
-from colour.hints import NDArrayFloat
-from colour.utilities import Structure, as_float_array, zeros
+
+if typing.TYPE_CHECKING:
+    from colour.hints import ArrayLike, NDArray, NDArrayFloat, NDArrayInt
+
+from colour.utilities import Structure, as_float_array, optional, zeros
 from colour_checker_detection.detection import (
     as_int32_array,
     reformat_image,
@@ -32,14 +38,18 @@ from colour_checker_detection.detection import (
 )
 from matplotlib import pyplot as plt
 
-from aces.idt import IDTProjectSettings, ProjectSettingsMetadataConstants
+from aces.idt import ProjectSettingsMetadataConstants
+
+if typing.TYPE_CHECKING:
+    from aces.idt import IDTProjectSettings
+
 from aces.idt.core import (
-    CLIPPING_THRESHOLD,
+    EXPOSURE_CLIPPING_THRESHOLD,
     SAMPLES_COUNT_DEFAULT,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
     DirectoryStructure,
     clf_processing_elements,
-    find_close_indices,
+    find_similar_rows,
     mask_outliers,
     working_directory,
 )
@@ -61,11 +71,11 @@ LOGGER = logging.getLogger(__name__)
 
 class IDTBaseGenerator(ABC):
     """
-    Define the base class that any *IDT* generator must be inherit from.
+    Define the base class that any *IDT* generator must inherit from.
 
     Parameters
     ----------
-    project_settings : IDTProjectSettings, optional
+    project_settings
         *IDT* generator settings.
 
     Attributes
@@ -92,17 +102,16 @@ class IDTBaseGenerator(ABC):
     -   :meth:`~aces.idt.IDTBaseGenerator.filter_LUT`
     -   :meth:`~aces.idt.IDTBaseGenerator.decode`
     -   :meth:`~aces.idt.IDTBaseGenerator.optimise`
-    -   :meth:`~aces.idt.IDTBaseGenerator.zip`
     -   :meth:`~aces.idt.IDTBaseGenerator.to_clf`
+    -   :meth:`~aces.idt.IDTBaseGenerator.zip`
     -   :meth:`~aces.idt.IDTBaseGenerator.png_colour_checker_segmentation`
     -   :meth:`~aces.idt.IDTBaseGenerator.png_grey_card_sampling`
-    -   :meth:`~aces.idt.IDTBaseGenerator.png_extrapolated_camera_samples`
     """
 
     GENERATOR_NAME = "IDTBaseGenerator"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         self._project_settings = project_settings
         self._samples_analysis = None
 
@@ -145,7 +154,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Image of the colour checker with segmentation contours.
         """
 
@@ -172,7 +181,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Image of the grey card with sampling contours.
         """
 
@@ -186,7 +195,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Samples of the camera produced by the sorting process.
         """
 
@@ -200,7 +209,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Reference samples produced by the sorting process.
         """
 
@@ -213,7 +222,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`LUT3x1D` or None
+        :class:`LUT3x1D` or :py:data:`None`
             Unfiltered *LUT*.
         """
 
@@ -226,7 +235,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`LUT3x1D` or None
+        :class:`LUT3x1D` or :py:data:`None`
             Filtered *LUT*.
         """
 
@@ -239,7 +248,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`LUT1D` or :class:`LUT3x1D` or None
+        :class:`LUT1D` or :class:`LUT3x1D` or :py:data:`None`
             Decoding *LUT*.
         """
 
@@ -252,7 +261,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
            *IDT* matrix :math:`M`.
         """
 
@@ -265,7 +274,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             White balance multipliers :math:`RGB_w`.
         """
 
@@ -280,7 +289,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Exposure factor :math:`k`
         """
 
@@ -293,7 +302,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Camera's RGB to XYZ matrix.
         """
 
@@ -306,7 +315,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Camera's primaries.
         """
 
@@ -319,7 +328,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Camera's whitepoint.
         """
 
@@ -333,7 +342,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Samples produced by the colour checker sampling process.
         """
 
@@ -350,7 +359,7 @@ class IDTBaseGenerator(ABC):
         working_width = settings.working_width
         working_height = settings.working_height
 
-        def _reformat_image(image):
+        def _reformat_image(image: ArrayLike) -> NDArrayInt | NDArrayFloat:
             """Reformat given image."""
 
             return reformat_image(
@@ -425,7 +434,7 @@ class IDTBaseGenerator(ABC):
             for path in self.project_settings.data.get(
                 DirectoryStructure.FLATFIELD, []
             ):
-                with working_directory(self.working_directory):
+                with working_directory(self.project_settings.working_directory):
                     LOGGER.info('Reading flatfield image from "%s"...', path)
                     image = _reformat_image(read_image(path))
 
@@ -451,16 +460,16 @@ class IDTBaseGenerator(ABC):
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis[DirectoryStructure.FLATFIELD][
-                "samples_median"
-            ] = np.median(
-                as_float_array(
-                    self._samples_analysis[DirectoryStructure.FLATFIELD][
-                        "samples_sequence"
-                    ]
-                )[mask],
-                (0, 1),
-            ).tolist()
+            self._samples_analysis[DirectoryStructure.FLATFIELD]["samples_median"] = (
+                np.median(
+                    as_float_array(
+                        self._samples_analysis[DirectoryStructure.FLATFIELD][
+                            "samples_sequence"
+                        ]
+                    )[mask],
+                    (0, 1),
+                ).tolist()
+            )
 
         # Grey Card
         if self.project_settings.data.get(DirectoryStructure.GREY_CARD, []):
@@ -503,16 +512,16 @@ class IDTBaseGenerator(ABC):
             )
             mask = np.all(~mask_outliers(samples_sequence), axis=-1)
 
-            self._samples_analysis[DirectoryStructure.GREY_CARD][
-                "samples_median"
-            ] = np.median(
-                as_float_array(
-                    self._samples_analysis[DirectoryStructure.GREY_CARD][
-                        "samples_sequence"
-                    ]
-                )[mask],
-                (0, 1),
-            ).tolist()
+            self._samples_analysis[DirectoryStructure.GREY_CARD]["samples_median"] = (
+                np.median(
+                    as_float_array(
+                        self._samples_analysis[DirectoryStructure.GREY_CARD][
+                            "samples_sequence"
+                        ]
+                    )[mask],
+                    (0, 1),
+                ).tolist()
+            )
 
             self._image_grey_card_sampling = np.copy(image)
             image_grey_card_contour = zeros(
@@ -593,7 +602,7 @@ class IDTBaseGenerator(ABC):
         if self.project_settings.cleanup:
             shutil.rmtree(self.project_settings.working_directory)
 
-    def sort(self, start_index: int = -6) -> np.ndarray:
+    def sort(self, start_index: int | None = None) -> NDArrayInt:
         """
         Sort the samples produced by the image sampling process.
 
@@ -603,25 +612,32 @@ class IDTBaseGenerator(ABC):
 
         Parameters
         ----------
-        start_index : int, optional
-            The index to start sorting from, default is -6 so we only use the last
-                6 samples from the macbeth chart
+        start_index
+            The index to start sorting from, default to -6, so that only the
+            last 6 samples from the colour checker are used.
 
         Returns
         -------
         :class:`np.ndarray`
-            Indices of the sorted samples which can be used for additional sorting
+            Sorting indices.
         """
 
+        start_index = optional(start_index, -6)
+
         LOGGER.info("Sorting camera and reference samples...")
-        ref_col_checker = self.project_settings.get_reference_colour_checker_samples()
+
+        reference_colour_checker_samples = (
+            self.project_settings.get_reference_colour_checker_samples()
+        )
+
         samples_camera = []
         samples_reference = []
-
         for EV, images in self._samples_analysis[
             DirectoryStructure.COLOUR_CHECKER
         ].items():
-            samples_reference.append(ref_col_checker[start_index:, ...] * pow(2, EV))
+            samples_reference.append(
+                reference_colour_checker_samples[start_index:, ...] * pow(2, EV)
+            )
             samples_EV = as_float_array(images["samples_median"])[start_index:, ...]
             samples_camera.append(samples_EV)
 
@@ -632,33 +648,33 @@ class IDTBaseGenerator(ABC):
 
         self._samples_camera = self._samples_camera[indices]
         self._samples_reference = self._samples_reference[indices]
+
         return indices
 
-    def remove_clipping(self):
+    def remove_clipped_samples(
+        self, threshold: float = EXPOSURE_CLIPPING_THRESHOLD
+    ) -> NDArrayInt:
         """
-        Remove any clipping from the samples and references, if we detect any clipping
-        at the floor or the ceiling of the samples we remove them from both the samples
-        and the references.
+        Remove clipped camera samples and their corresponding reference samples.
 
-        This is done by taking 2 code values at 10-bit as a threshold, and checking if
-        any of the r, g, b values between samples are less than the threshold.
-
-        If they are we remove these indices from both the samples and the references.
+        This is done by taking 2 code values at 10-bit as a threshold, and
+        checking if any of the R, G, and B values between samples are below
+        the threshold and removing those specific samples from both the camera
+        and reference samples.
 
         Returns
         -------
         :class:`np.ndarray`
-            Indices of the clipped samples.
-
+            Clipped samples indices.
         """
-        clipped_indices = find_close_indices(
-            self._samples_camera, threshold=CLIPPING_THRESHOLD
-        )
+
+        clipped_indices = find_similar_rows(self._samples_camera, threshold)
 
         self._samples_camera = np.delete(self._samples_camera, clipped_indices, axis=0)
         self._samples_reference = np.delete(
             self._samples_reference, clipped_indices, axis=0
         )
+
         return clipped_indices
 
     @abstractmethod
@@ -677,75 +693,7 @@ class IDTBaseGenerator(ABC):
     def optimise(self) -> None:
         """Implement any optimisation of the lut that is required"""
 
-    def zip(
-        self,
-        output_directory: Path | str,
-        archive_serialised_generator: bool = False,
-        cleanup: bool = True,
-    ) -> str:
-        """
-        Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
-        process.
-
-        Parameters
-        ----------
-        output_directory
-            Output directory for the *zip* file.
-        archive_serialised_generator : bool
-            Whether to serialise and archive the *IDT* generator.
-        cleanup
-            Whether to remove the clf and json file after the zip is completed
-
-        Returns
-        -------
-        :class:`str`
-            *Zip* file path.
-        """
-
-        # TODO There is a whole bunch of computation which happens within the ui to
-        #  calculate things like the delta_e. All of that logic should be moved to the
-        #  application or generator so we do not need to go out to the UI, to do
-        #  calculations which then come back into application / generator in order
-        #  for us to write it out
-
-        output_directory = Path(output_directory)
-
-        LOGGER.info(
-            'Zipping the "CLF" resulting from the "IDT" generation '
-            'process in "%s" output directory.',
-            output_directory,
-        )
-
-        output_directory.mkdir(parents=True, exist_ok=True)
-
-        aces_transform_id = self.project_settings.aces_transform_id
-        aces_transform_id_clean = aces_transform_id.replace(":", "_")
-        clf_path = self.to_clf(output_directory)
-
-        json_path = f"{output_directory}/IDT_{aces_transform_id_clean}.json"
-        with open(json_path, "w") as json_file:
-            json_file.write(jsonpickle.encode(self, indent=2))
-
-        zip_file = Path(output_directory) / f"IDT_{aces_transform_id_clean}.zip"
-        current_working_directory = os.getcwd()
-
-        output_directory = str(output_directory)
-        try:
-            os.chdir(output_directory)
-            with ZipFile(zip_file, "w") as zip_archive:
-                zip_archive.write(clf_path.replace(output_directory, "")[1:])
-                if archive_serialised_generator:
-                    zip_archive.write(json_path.replace(output_directory, "")[1:])
-        finally:
-            os.chdir(current_working_directory)
-
-        if cleanup:
-            os.remove(clf_path)
-            os.remove(json_path)
-
-        return zip_file
-
-    def to_clf(self, output_directory: Path | str) -> str:
+    def to_clf(self, output_directory: Path | str) -> Path:
         """
         Convert the *IDT* generation process data to *Common LUT Format* (CLF).
 
@@ -773,28 +721,28 @@ class IDTBaseGenerator(ABC):
         camera_make = project_settings.camera_make
         camera_model = project_settings.camera_model
 
-        root = Et.Element(
+        root = ET.Element(
             "ProcessList",
             compCLFversion="3",
             id=aces_transform_id,
             name=aces_user_name,
         )
 
-        def format_array(a):
+        def format_array(a: NDArray) -> str:
             """Format given array :math:`a`."""
 
             return re.sub(r"\[|\]|,", "", "\n\t\t".join(map(str, a.tolist())))
 
-        et_input_descriptor = Et.SubElement(root, "InputDescriptor")
+        et_input_descriptor = ET.SubElement(root, "InputDescriptor")
         et_input_descriptor.text = f"{camera_make} {camera_model}"
 
-        et_output_descriptor = Et.SubElement(root, "OutputDescriptor")
+        et_output_descriptor = ET.SubElement(root, "OutputDescriptor")
         et_output_descriptor.text = "ACES2065-1"
 
-        et_info = Et.SubElement(root, "Info")
-        et_metadata = Et.SubElement(et_info, "AcademyIDTCalculator")
+        et_info = ET.SubElement(root, "Info")
+        et_metadata = ET.SubElement(et_info, "AcademyIDTCalculator")
 
-        et_generator_name = Et.SubElement(et_metadata, "GeneratorName")
+        et_generator_name = ET.SubElement(et_metadata, "GeneratorName")
         et_generator_name.text = self.GENERATOR_NAME
 
         exclusions = [
@@ -806,14 +754,14 @@ class IDTBaseGenerator(ABC):
             if key in exclusions:
                 continue
 
-            sub_element = Et.SubElement(
+            sub_element = ET.SubElement(
                 et_metadata, key.replace("_", " ").title().replace(" ", "")
             )
             sub_element.text = str(value)
 
         LUT_decoding = self._LUT_decoding
         if LUT_decoding:
-            et_lut = Et.SubElement(
+            et_lut = ET.SubElement(
                 root,
                 "LUT1D",
                 inBitDepth="32f",
@@ -822,9 +770,9 @@ class IDTBaseGenerator(ABC):
             )
 
             channels = 1 if isinstance(LUT_decoding, LUT1D) else 3
-            et_description = Et.SubElement(et_lut, "Description")
+            et_description = ET.SubElement(et_lut, "Description")
             et_description.text = f"Linearisation *{LUT_decoding.__class__.__name__}*."
-            et_array = Et.SubElement(
+            et_array = ET.SubElement(
                 et_lut, "Array", dim=f"{LUT_decoding.size} {channels}"
             )
             et_array.text = f"\n\t\t{format_array(LUT_decoding.table)}"
@@ -835,22 +783,86 @@ class IDTBaseGenerator(ABC):
             self._RGB_w,
             self._k,
             False,
-            self.project_settings.include_white_balance_in_clf,
             self.project_settings.flatten_clf,
+            self.project_settings.include_white_balance_in_clf,
             self.project_settings.include_exposure_factor_in_clf,
         )
 
         clf_path = (
-            f"{output_directory}/"
-            f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
+            Path(output_directory)
+            / f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
         )
-        Et.indent(root)
+
+        ET.indent(root)
 
         with open(clf_path, "w") as clf_file:
             clf_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-            clf_file.write(Et.tostring(root, encoding="UTF-8").decode("utf8"))
+            clf_file.write(ET.tostring(root, encoding="UTF-8").decode("utf8"))
 
         return clf_path
+
+    def zip(
+        self,
+        output_directory: Path | str,
+        archive_serialised_generator: bool = False,
+        cleanup: bool = True,
+    ) -> Path:
+        """
+        Zip the *Common LUT Format* (CLF) resulting from the *IDT* generation
+        process.
+
+        Parameters
+        ----------
+        output_directory
+            Output directory for the *zip* file.
+        archive_serialised_generator : bool
+            Whether to serialise and archive the *IDT* generator.
+        cleanup
+            Whether to remove the clf and json file after the zip is completed
+
+        Returns
+        -------
+        :class:`str`
+            *Zip* file path.
+        """
+
+        # TODO : Move remaining UI computation to *IDT* generator.
+        output_directory = Path(output_directory)
+
+        LOGGER.info(
+            'Zipping the "CLF" resulting from the "IDT" generation '
+            'process in "%s" output directory.',
+            output_directory,
+        )
+
+        output_directory.mkdir(parents=True, exist_ok=True)
+
+        aces_transform_id = self.project_settings.aces_transform_id
+        aces_transform_id_clean = aces_transform_id.replace(":", "_")
+        clf_path = self.to_clf(output_directory)
+
+        json_path = f"{output_directory}/IDT_{aces_transform_id_clean}.json"
+        with open(json_path, "w") as json_file:
+            json_file.write(jsonpickle.encode(self, indent=2))
+
+        zip_file = Path(output_directory) / f"IDT_{aces_transform_id_clean}.zip"
+        current_working_directory = os.getcwd()
+
+        output_directory = str(output_directory)
+        try:
+            os.chdir(output_directory)
+            with ZipFile(zip_file, "w") as zip_archive:
+                zip_archive.write(str(clf_path).replace(output_directory, "")[1:])
+                if archive_serialised_generator:
+                    zip_archive.write(json_path.replace(output_directory, "")[1:])
+        finally:
+            os.chdir(current_working_directory)
+
+        if cleanup:
+            os.remove(clf_path)
+            os.remove(json_path)
+
+        return zip_file
 
     def png_colour_checker_segmentation(self) -> str | None:
         """
@@ -858,7 +870,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`str` or None
+        :class:`str` or :py:data:`None`
             *PNG* data.
         """
 
@@ -883,7 +895,7 @@ class IDTBaseGenerator(ABC):
 
         Returns
         -------
-        :class:`str` or None
+        :class:`str` or :py:data:`None`
             *PNG* data.
         """
 
@@ -900,16 +912,3 @@ class IDTBaseGenerator(ABC):
         plt.close()
 
         return data_png
-
-    def png_extrapolated_camera_samples(self) -> str | None:
-        """
-        Return the extrapolated camera samples as *PNG* data.
-
-        Returns
-        -------
-        :class:`str` or None
-            *PNG* data.
-        """
-        raise NotImplementedError(
-            "png_extrapolated_camera_samples method not implemented"
-        )

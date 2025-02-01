@@ -5,11 +5,11 @@ from .common import (
     SD_ILLUMINANT_ACES,
     SDS_COLORCHECKER_CLASSIC,
     SETTINGS_SEGMENTATION_COLORCHECKER_CLASSIC,
-    calculate_clipped_exposures,
     clf_processing_elements,
     error_delta_E,
     extract_archive,
-    find_close_indices,
+    find_clipped_exposures,
+    find_similar_rows,
     format_exposure_key,
     generate_reference_colour_checker,
     get_sds_colour_checker,
@@ -26,7 +26,7 @@ from .common import (
 )
 from .constants import (
     CAT,
-    CLIPPING_THRESHOLD,
+    EXPOSURE_CLIPPING_THRESHOLD,
     DecodingMethods,
     DirectoryStructure,
     Interpolators,
@@ -69,12 +69,12 @@ __all__ = [
     "slugify",
     "sort_exposure_keys",
     "working_directory",
-    "find_close_indices",
-    "calculate_clipped_exposures",
+    "find_similar_rows",
+    "find_clipped_exposures",
 ]
 
 __all__ += [
-    "CLIPPING_THRESHOLD",
+    "EXPOSURE_CLIPPING_THRESHOLD",
     "CAT",
     "DirectoryStructure",
     "DecodingMethods",

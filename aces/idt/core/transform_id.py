@@ -5,13 +5,16 @@ Transform ID
 Defines functions to generate and validate URNs for ACES transforms.
 """
 
+from __future__ import annotations
+
 import hashlib
 import re
 import uuid
 from enum import Enum
 
-ACES_URN_PREFIX = "URN:{aces_transform_type}"
-ACES_MAJOR_VERSION = 2
+ACES_URN_PREFIX: str = "URN:{aces_transform_type}"
+
+ACES_MAJOR_VERSION: int = 2
 
 
 def generate_truncated_hash(length: int = 6) -> str:
@@ -20,24 +23,21 @@ def generate_truncated_hash(length: int = 6) -> str:
 
     Parameters
     ----------
-    length : int, optional
-        The length of the truncated hash, by default 4.
+    length
+        The length of the truncated hash, default to 6.
 
     Returns
     -------
-    str
-        The truncated hexadecimal hash.
+    :class:`str`
+        Truncated hexadecimal hash.
     """
-    # Generate a UUID
+
     unique_id = uuid.uuid4()
 
-    # Hash the UUID using SHA-256
     hash_object = hashlib.sha256(str(unique_id).encode())
 
-    # Convert the hash to a hexadecimal string
     hash_hex = hash_object.hexdigest()
 
-    # Truncate the hash to the desired length
     return hash_hex[:length]
 
 
@@ -47,29 +47,29 @@ class AcesTransformType(Enum):
 
     Attributes
     ----------
-    CSC : str
+    CSC
         Color space conversion.
-    OUTPUT : str
+    OUTPUT
         Output transform.
-    INV_OUTPUT : str
+    INV_OUTPUT
         Inverse output transform.
-    LOOK : str
+    LOOK
         Look transform.
-    INV_LOOK : str
+    INV_LOOK
         Inverse look transform.
-    LIB : str
+    LIB
         Library transform.
-    UTIL : str
+    UTIL
         Utility transform.
     """
 
-    CSC = "CSC"
-    OUTPUT = "Output"
-    INV_OUTPUT = "InvOutput"
-    LOOK = "Look"
-    INV_LOOK = "InvLook"
-    LIB = "Lib"
-    UTIL = "Util"
+    CSC: str = "CSC"
+    OUTPUT: str = "Output"
+    INV_OUTPUT: str = "InvOutput"
+    LOOK: str = "Look"
+    INV_LOOK: str = "InvLook"
+    LIB: str = "Lib"
+    UTIL: str = "Util"
 
 
 def generate_idt_urn(
@@ -88,20 +88,21 @@ def generate_idt_urn(
 
     Parameters
     ----------
-    colorspace_vendor : str
+    colorspace_vendor
         The vendor for the colorspace, e.g., the device or software provider.
-    encoding_colourspace : str
+    encoding_colourspace
         The name of the encoding color space.
-    encoding_transfer_function : str
+    encoding_transfer_function
         The transfer function used to encode the colorspace.
-    version_number : int
+    version_number
         The version number of the transform.
 
     Returns
     -------
-    str
+    :class:`str`
         The generated URN in the format described.
     """
+
     urn_prefix = ACES_URN_PREFIX.format(aces_transform_type=AcesTransformType.CSC.value)
     hash_id = generate_truncated_hash()
     colorspace_name = f"{encoding_colourspace}_{encoding_transfer_function}_{hash_id}"
@@ -111,21 +112,22 @@ def generate_idt_urn(
     )
 
 
-def is_valid_idt_urn(urn: str) -> bool:
+def is_valid_csc_urn(urn: str) -> bool:
     """
     Check if the given URN string is valid according to the expected format,
     specifically for the CSC (Color Space Conversion) transform type.
 
     Parameters
     ----------
-    urn : str
+    urn
         The URN string to validate.
 
     Returns
     -------
-    bool
-        True if the URN is valid and the transform type is CSC, False otherwise.
+    :class:`bool`
+        Whether the URN is valid and its transform type is CSC.
     """
+
     urn_regex = (
         rf"^URN:{AcesTransformType.CSC.value}\.[a-zA-Z0-9_-]+"
         rf"\.[a-zA-Z0-9_]+_[a-zA-Z0-9_]+_[a-f0-9]{{6}}\.a{ACES_MAJOR_VERSION}\.v\d+$"

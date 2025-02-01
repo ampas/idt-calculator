@@ -1,16 +1,19 @@
 """
-IDT Prosumer Camera Generator
-=============================
+IDT Generator for Prosumer Camera
+=================================
 
 Define the *IDT* generator class for a *Prosumer Camera*.
 """
 
+from __future__ import annotations
+
 import base64
 import io
 import logging
+import typing
 
 import colour
-import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.misc
 import scipy.ndimage
@@ -22,8 +25,11 @@ from colour import (
     LinearInterpolator,
     LUT3x1D,
 )
-from colour.algebra import smoothstep_function, vector_dot
-from colour.hints import NDArrayFloat, Tuple
+from colour.algebra import smoothstep_function, vecmul
+
+if typing.TYPE_CHECKING:
+    from colour.hints import NDArrayFloat, Tuple
+
 from colour.io import LUT_to_LUT
 from colour.models import RGB_COLOURSPACE_ACES2065_1, RGB_luminance
 from colour.utilities import (
@@ -34,12 +40,12 @@ from colour.utilities import (
 from scipy.optimize import minimize
 
 from aces.idt.core import DecodingMethods, DirectoryStructure, common
-from aces.idt.core.constants import CLIPPING_THRESHOLD
-from aces.idt.generators.base_generator import IDTBaseGenerator
+from aces.idt.core.constants import EXPOSURE_CLIPPING_THRESHOLD
 
-# TODO are the mpl.use things needed in every file?
-mpl.use("Agg")
-import matplotlib.pyplot as plt
+if typing.TYPE_CHECKING:
+    from aces.idt.framework import IDTProjectSettings
+
+from aces.idt.generators.base_generator import IDTBaseGenerator
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -61,30 +67,30 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
     Parameters
     ----------
-    project_settings : IDTProjectSettings, optional
+    project_settings
         *IDT* generator settings.
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTBaseGenerator.GENERATOR_NAME`
-    -   :attr:`~aces.idt.IDTBaseGenerator.samples_decoded`
-    -   :attr:`~aces.idt.IDTBaseGenerator.samples_weighted`
+    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.GENERATOR_NAME`
+    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_decoded`
+    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_weighted`
 
     Methods
     -------
-    -   :meth:`~aces.idt.IDTBaseGenerator.__str__`
-    -   :meth:`~aces.idt.IDTBaseGenerator.generate_LUT`
-    -   :meth:`~aces.idt.IDTBaseGenerator.filter_LUT`
-    -   :meth:`~aces.idt.IDTBaseGenerator.decode`
-    -   :meth:`~aces.idt.IDTBaseGenerator.optimise`
-    -   :meth:`~aces.idt.IDTBaseGenerator.png_measured_camera_samples`
-    -   :meth:`~aces.idt.IDTBaseGenerator.png_extrapolated_camera_samples`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.generate_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.filter_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.decode`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.optimise`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_measured_camera_samples`
+    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_extrapolated_camera_samples`
     """
 
     GENERATOR_NAME = "IDTGeneratorProsumerCamera"
     """*IDT* generator name."""
 
-    def __init__(self, project_settings):
+    def __init__(self, project_settings: IDTProjectSettings) -> None:
         super().__init__(project_settings)
 
         self._lut_blending_edge_left = None
@@ -101,7 +107,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Samples of the camera decoded by applying the filtered *LUT*.
         """
 
@@ -115,7 +121,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         Returns
         -------
-        :class:`NDArray` or None
+        :class:`NDArray` or :py:data:`None`
             Samples of the decoded samples of the camera weighted across
             multiple exposures.
         """
@@ -163,6 +169,9 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                 {"name": "_M", "label": "M"},
                 {"name": "_RGB_w", "label": "RGB_w"},
                 {"name": "_k", "label": "k"},
+                {"name": "_npm", "label": "NPM"},
+                {"name": "_primaries", "label": "Primaries"},
+                {"name": "_whitepoint", "label": "Whitepoint"},
             ],
         )
 
@@ -170,7 +179,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         """
         Generate an unfiltered linearisation *LUT* for the camera samples.
 
-        The *LUT* generation process is worth describing, the camera samples are
+        The *LUT* generation process is as follows: The camera samples are
         unlikely to cover the [0, 1] domain and thus need to be extrapolated.
 
         Two extrapolated datasets are generated:
@@ -365,6 +374,11 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
                     RGB_COLOURSPACE_ACES2065_1.whitepoint,
                 )
 
+            # NOTE: We apply the scaling factor / linear gain obtained from the
+            # grey card measurement. A secondary scaling factor is computed
+            # during the IDT matrix optimization using the neutral 5 (.70 D)
+            # patch as per *P-2013-001* procedure, but it has been decided to
+            # by the working group to not include it in the generated *CLF* file.
             self._LUT_decoding.table *= linear_gain
 
         self._samples_decoded = {}
@@ -390,22 +404,18 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             [0.18, 0.18, 0.18].
         """
 
-        # Exposure values to use when computing the *IDT* matrix.
         EV_range = tuple(self.project_settings.ev_range)
 
         # Normalised weights used to sum the exposure values. If not given, the
         # median of the exposure values is used.
-        EV_weights = self.project_settings.ev_weights
+        EV_weights = as_float_array(self.project_settings.ev_weights)
 
         # Training data multi-spectral distributions, defaults to using the *RAW to
         # ACES* v1 190 patches but can be overridden in the project settings.
         training_data = self.project_settings.get_reference_colour_checker_samples()
 
-        # Callable producing the objective function and the *CIE XYZ* to optimisation
-        # colour model function.
         optimisation_factory = self.project_settings.get_optimization_factory()
 
-        # Parameters for :func:`scipy.optimize.minimize` definition.
         optimisation_kwargs = self.project_settings.optimization_kwargs
 
         LOGGER.info(
@@ -417,7 +427,6 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             optimisation_factory,
         )
 
-        EV_range = as_float_array(EV_range)
         EV_range = [EV for EV in EV_range if EV in self._samples_decoded]
         if not EV_range:
             LOGGER.warning(
@@ -430,16 +439,17 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         LOGGER.info('"EV range": %s"', EV_range)
 
-        # We need to check for clipping here still within the selected EV_RANGE
-        # Even here on a single stop -1, 0 1, there could be clipping
-        # If any of the EV exposures from the decoded samples are clipping, make sure
-        # none of these are used in the EV_Range
-        clipped_exposures = common.calculate_clipped_exposures(
-            self._samples_decoded, CLIPPING_THRESHOLD
+        # NOTE: We need to check for clipping as even within the selected EV
+        # range clipping might occur, thus, any of the clipped exposures from
+        # the decoded samples present in the EV range is ignored,
+        clipped_exposures = common.find_clipped_exposures(
+            self._samples_decoded, EXPOSURE_CLIPPING_THRESHOLD
         )
         EV_range = [value for value in EV_range if value not in clipped_exposures]
         if not EV_range:
-            raise ValueError("All exposures in EV range are clipping")
+            exception = "All exposures in EV range are clipped!"
+
+            raise ValueError(exception)
 
         samples_normalised = as_float_array(
             [
@@ -448,7 +458,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             ]
         )
 
-        if not EV_weights:
+        if EV_weights.size == 0:
             self._samples_weighted = np.median(samples_normalised, axis=0)
         else:
             self._samples_weighted = np.sum(
@@ -464,7 +474,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         self._k = np.mean(training_data[21]) / np.mean(self._samples_weighted[21])
         self._samples_weighted *= self._k
 
-        XYZ = vector_dot(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
+        XYZ = vecmul(RGB_COLOURSPACE_ACES2065_1.matrix_RGB_to_XYZ, training_data)
 
         (
             x_0,
@@ -491,13 +501,15 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         # Calculate and store the camera npm, the primaries and the whitepoint
         (
+            # TODO: Investigate for better attribute names or maybe a dedicated
+            # struct.
             self._npm,
             self._primaries,
             self._whitepoint,
         ) = common.calculate_camera_npm_and_primaries_wp(
             self._M,
             target_white_point=self.project_settings.illuminant,
-            cat=self.project_settings.cat,
+            chromatic_adaptation_transform=self.project_settings.cat,
         )
 
         return self._M, self._RGB_w, self._k
@@ -508,7 +520,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         Returns
         -------
-        :class:`str` or None
+        :class:`str` or :py:data:`None`
             *PNG* data.
         """
 
@@ -518,11 +530,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
         figure, axes = colour.plotting.artist()
         axes.plot(self._samples_camera, np.log(self._samples_reference))
         colour.plotting.render(
-            **{
-                "show": False,
-                "x_label": "Camera Code Value",
-                "y_label": "Log(ACES Reference)",
-            }
+            show=False, x_label="Camera Code Value", y_label="Log(ACES Reference)"
         )
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png")
@@ -537,12 +545,10 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
         Returns
         -------
-        :class:`str` or None
+        :class:`str` or :py:data:`None`
             *PNG* data.
         """
 
-        # TODO This looks specific to the prosumer camera as its using the blending
-        #  edges, so will keep this as an override of the base class
         if (
             self._samples_camera is None
             or self._samples_reference is None
@@ -566,11 +572,7 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
             if self._lut_blending_edge_right:
                 axes.axvline(self._lut_blending_edge_right, color="r", alpha=0.25)
         colour.plotting.render(
-            **{
-                "show": False,
-                "x_label": "Camera Code Value",
-                "y_label": "Log(ACES Reference)",
-            }
+            show=False, x_label="Camera Code Value", y_label="Log(ACES Reference)"
         )
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png")

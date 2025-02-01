@@ -3,11 +3,12 @@ Invoke - Tasks
 ==============
 """
 
+from __future__ import annotations
+
 import contextlib
 import inspect
 import platform
 
-from colour.hints import Boolean
 from colour.utilities import message_box
 
 import app
@@ -31,7 +32,9 @@ __all__ = [
     "CONTAINER",
     "clean",
     "precommit",
+    "tests",
     "requirements",
+    "build",
     "docker_build",
     "docker_remove",
     "docker_run",
@@ -48,11 +51,11 @@ CONTAINER = APPLICATION_NAME.replace(" ", "").lower()
 @task
 def clean(
     ctx: Context,
-    docs: Boolean = True,
-    bytecode: Boolean = False,
-    mypy: Boolean = True,
-    pytest: Boolean = True,
-):
+    docs: bool = True,
+    bytecode: bool = False,
+    mypy: bool = True,
+    pytest: bool = True,
+) -> None:
     """
     Clean the project.
 
@@ -93,7 +96,7 @@ def clean(
 
 
 @task
-def precommit(ctx: Context):
+def precommit(ctx: Context) -> None:
     """
     Run the "pre-commit" hooks on the codebase.
 
@@ -108,32 +111,60 @@ def precommit(ctx: Context):
 
 
 @task
-def requirements(ctx):
+def tests(ctx: Context) -> None:
+    """
+    Run the unit tests with *Pytest*.
+
+    Parameters
+    ----------
+    ctx
+        Context.
+    """
+
+    message_box('Running "Pytest"...')
+    ctx.run("pytest --doctest-modules tests")
+
+
+@task
+def requirements(ctx: Context) -> None:
     """
     Export the *requirements.txt* file.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
     message_box('Exporting "requirements.txt" file...')
-    ctx.run(
-        "poetry export -f requirements.txt "
-        "--without-hashes "
-        "--output requirements.txt"
-    )
+    ctx.run('uv export --no-hashes --all-extras | grep -v "-e \\." > requirements.txt')
 
 
-@task(precommit, requirements)
-def docker_build(ctx: Context):
+@task(clean, precommit, tests, requirements)
+def build(ctx: Context) -> None:
+    """
+    Build the project and runs dependency tasks, i.e., *docs*, *todo*, and
+    *preflight*.
+
+    Parameters
+    ----------
+    ctx
+        Context.
+    """
+
+    message_box("Building...")
+    ctx.run("uv build")
+    ctx.run("twine check dist/*")
+
+
+@task(precommit, tests, requirements)
+def docker_build(ctx: Context) -> None:
     """
     Build the *docker* image.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -149,13 +180,13 @@ def docker_build(ctx: Context):
 
 
 @task
-def docker_remove(ctx: Context):
+def docker_remove(ctx: Context) -> None:
     """
     Stop and remove the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -169,13 +200,13 @@ def docker_remove(ctx: Context):
 
 
 @task(docker_remove, docker_build)
-def docker_run(ctx):
+def docker_run(ctx: Context) -> None:
     """
     Run the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
@@ -188,13 +219,13 @@ def docker_run(ctx):
 
 
 @task(clean, precommit, docker_run)
-def docker_push(ctx: Context):
+def docker_push(ctx: Context) -> None:
     """
     Push the *docker* container.
 
     Parameters
     ----------
-    ctx : invoke.context.Context
+    ctx
         Context.
     """
 
