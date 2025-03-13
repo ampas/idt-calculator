@@ -1350,6 +1350,7 @@ def compute_idt_prosumer_camera(
         debayering_settings=debayering_settings,
         encoding_colourspace=encoding_colourspace,
         encoding_transfer_function=encoding_transfer_function,
+        illuminant=illuminant_name,
     )
     _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
         generator_name, project_settings
