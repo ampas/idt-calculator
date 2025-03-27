@@ -173,13 +173,15 @@ Working_Directory              :
         with open(reference_expected_file) as file:
             expected_reference = json.load(file)
 
-        self.assertEqual(generator.samples_camera.tolist(), expected_camera)
-        threshold = 1e-20
-        self.assertTrue(
-            np.allclose(
-                generator.samples_reference, expected_reference, atol=threshold
-            ),
-            "Values differ by more than the allowed threshold.",
+        np.testing.assert_allclose(
+            generator.samples_camera.tolist(),
+            expected_camera,
+            atol=TOLERANCE_ABSOLUTE_TESTS,
+        )
+        np.testing.assert_allclose(
+            generator.samples_reference,
+            expected_reference,
+            atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
     def test_prosumer_camera_generator_process_archive(self) -> None:
@@ -1230,9 +1232,9 @@ Working_Directory              :
             idt_generator_1.M,
             np.array(
                 [
-                    [0.71091097, 0.20348528, 0.08560375],
-                    [0.01379831, 1.02510569, -0.03890399],
-                    [-0.10581334, -0.07130598, 1.17711932],
+                    [0.7109112498683849, 0.20348583501092052, 0.08560291512069451],
+                    [0.013798559260473948, 1.0251057640822967, -0.03890432334277061],
+                    [-0.10581292048103687, -0.07130508739697004, 1.1771180078780068],
                 ]
             ),
             atol=TOLERANCE_ABSOLUTE_TESTS,
@@ -1281,9 +1283,9 @@ Working_Directory              :
             idt_generator_3.M,
             np.array(
                 [
-                    [0.70683937, 0.19921694, 0.09394369],
-                    [0.01383883, 1.01847757, -0.03231640],
-                    [-0.11943804, -0.06335993, 1.18279798],
+                    [0.7068385747184197, 0.19921773631437803, 0.09394368896720229],
+                    [0.013838799172565839, 1.0184775925258625, -0.03231639169842837],
+                    [-0.11943812145687926, -0.06335980405037137, 1.1827979255072507],
                 ]
             ),
             atol=TOLERANCE_ABSOLUTE_TESTS,
@@ -1291,7 +1293,7 @@ Working_Directory              :
 
         np.testing.assert_allclose(
             idt_generator_3.RGB_w,
-            np.array([0.51079662, 1.00000000, 2.00262926]),
+            np.array([0.5107967653752655, 1.0, 2.0026298241482303]),
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 

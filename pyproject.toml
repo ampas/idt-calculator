@@ -62,6 +62,7 @@ dependencies = [
     "matplotlib>=3.7",
     "networkx>=3,<4",
     "numpy>=1.24,<3",
+    "OpenImageIO==3.0.4.0",
     "packaging<= 21.3",  # Later versions currently break with Dash Uploader.
     "scipy>=1.10,<2",
     "plotly",
