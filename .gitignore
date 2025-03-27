@@ -25,3 +25,5 @@ __pycache__
 
 # Project Directories
 tests/output/
+/tests/resources/FULL_STOPS_EXR.zip
+/tests/resources/PTZ_160.zip
