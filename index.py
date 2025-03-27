@@ -153,4 +153,4 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger().setLevel(logging.INFO)
 
-    APP.run_server(debug=True)
+    APP.run(debug=True)
