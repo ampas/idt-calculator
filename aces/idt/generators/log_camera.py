@@ -1,8 +1,8 @@
 """
-IDT Generator for LogCamera
+IDT Generator for Log Camera
 =================================
 
-Define the *IDT* generator class for a *LogCamera*.
+Define the *IDT* generator class for a *Log Camera*.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ LOGGER = logging.getLogger(__name__)
 
 class IDTGeneratorLogCamera(IDTBaseGenerator):
     """
-    Define an *IDT* generator for a *LogCamera*.
+    Define an *IDT* generator for a *Log Camera*.
 
     Parameters
     ----------
