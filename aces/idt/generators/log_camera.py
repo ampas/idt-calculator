@@ -1,8 +1,8 @@
 """
-IDT Generator for Prosumer Camera
+IDT Generator for Log Camera
 =================================
 
-Define the *IDT* generator class for a *Prosumer Camera*.
+Define the *IDT* generator class for a *Log Camera*.
 """
 
 from __future__ import annotations
@@ -55,15 +55,15 @@ __email__ = "acessupport@oscars.org"
 __status__ = "Production"
 
 __all__ = [
-    "IDTGeneratorProsumerCamera",
+    "IDTGeneratorLogCamera",
 ]
 
 LOGGER = logging.getLogger(__name__)
 
 
-class IDTGeneratorProsumerCamera(IDTBaseGenerator):
+class IDTGeneratorLogCamera(IDTBaseGenerator):
     """
-    Define an *IDT* generator for a *Prosumer Camera*.
+    Define an *IDT* generator for a *Log Camera*.
 
     Parameters
     ----------
@@ -72,22 +72,22 @@ class IDTGeneratorProsumerCamera(IDTBaseGenerator):
 
     Attributes
     ----------
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.GENERATOR_NAME`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_decoded`
-    -   :attr:`~aces.idt.IDTGeneratorProsumerCamera.samples_weighted`
+    -   :attr:`~aces.idt.IDTGeneratorLogCamera.GENERATOR_NAME`
+    -   :attr:`~aces.idt.IDTGeneratorLogCamera.samples_decoded`
+    -   :attr:`~aces.idt.IDTGeneratorLogCamera.samples_weighted`
 
     Methods
     -------
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.__str__`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.generate_LUT`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.filter_LUT`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.decode`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.optimise`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_measured_camera_samples`
-    -   :meth:`~aces.idt.IDTGeneratorProsumerCamera.png_extrapolated_camera_samples`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.__str__`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.generate_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.filter_LUT`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.decode`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.optimise`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.png_measured_camera_samples`
+    -   :meth:`~aces.idt.IDTGeneratorLogCamera.png_extrapolated_camera_samples`
     """
 
-    GENERATOR_NAME = "IDTGeneratorProsumerCamera"
+    GENERATOR_NAME = "IDTGeneratorLogCamera"
     """*IDT* generator name."""
 
     def __init__(self, project_settings: IDTProjectSettings) -> None:

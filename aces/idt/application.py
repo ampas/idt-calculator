@@ -57,7 +57,7 @@ class IDTGeneratorApplication:
 
     def __init__(
         self,
-        generator: str = "IDTGeneratorProsumerCamera",
+        generator: str = "IDTGeneratorLogCamera",
         project_settings: IDTProjectSettings | None = None,
     ) -> None:
         self._project_settings = optional(project_settings, IDTProjectSettings())

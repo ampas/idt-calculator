@@ -17,8 +17,8 @@ from dash_bootstrap_components import (
     Row,
 )
 
+import apps.idt_calculator_camera as app_2
 import apps.idt_calculator_p_2013_001 as app_1
-import apps.idt_calculator_prosumer_camera as app_2
 from app import APP, SERVER  # noqa: F401
 
 __author__ = "Alex Forsythe, Gayle McAdams, Thomas Mansencal, Nick Shaw"
@@ -153,4 +153,4 @@ if __name__ == "__main__":
     logging.basicConfig()
     logging.getLogger().setLevel(logging.INFO)
 
-    APP.run_server(debug=True)
+    APP.run(debug=True)

@@ -15,7 +15,7 @@ from colour import LUT3x1D
 if typing.TYPE_CHECKING:
     from aces.idt.framework import IDTProjectSettings
 
-from aces.idt.generators.prosumer_camera import IDTGeneratorProsumerCamera
+from aces.idt.generators.log_camera import IDTGeneratorLogCamera
 
 __author__ = "Alex Forsythe, Joshua Pines, Thomas Mansencal, Nick Shaw, Adam Davis"
 __copyright__ = "Copyright 2022 Academy of Motion Picture Arts and Sciences"
@@ -31,7 +31,7 @@ __all__ = [
 LOGGER = logging.getLogger(__name__)
 
 
-class IDTGeneratorPreLinearizedCamera(IDTGeneratorProsumerCamera):
+class IDTGeneratorPreLinearizedCamera(IDTGeneratorLogCamera):
     """
     Define an *IDT* generator for a *Pre-Linearized Camera*.
 

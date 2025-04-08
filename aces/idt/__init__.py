@@ -39,7 +39,13 @@ from .core import (
     working_directory,
 )
 from .framework import IDTProjectSettings
-from .generators import GENERATORS, IDTBaseGenerator, IDTGeneratorProsumerCamera
+from .generators import (
+    GENERATORS,
+    IDTBaseGenerator,
+    IDTGeneratorLogCamera,
+    IDTGeneratorPreLinearizedCamera,
+    IDTGeneratorToneMappedCamera,
+)
 
 from .application import IDTGeneratorApplication  # isort: skip
 
@@ -87,6 +93,8 @@ __all__ += ["IDTProjectSettings"]
 __all__ += [
     "GENERATORS",
     "IDTBaseGenerator",
-    "IDTGeneratorProsumerCamera",
+    "IDTGeneratorLogCamera",
+    "IDTGeneratorPreLinearizedCamera",
+    "IDTGeneratorToneMappedCamera",
 ]
 __all__ += ["IDTGeneratorApplication"]

@@ -1,6 +1,6 @@
 """
-Input Device Transform (IDT) Calculator - Prosumer Camera
-=========================================================
+Input Device Transform (IDT) Calculator - Camera
+================================================
 """
 
 import logging
@@ -71,7 +71,7 @@ from aces.idt import (
     GENERATORS,
     DirectoryStructure,
     IDTGeneratorApplication,
-    IDTGeneratorProsumerCamera,
+    IDTGeneratorLogCamera,
     IDTProjectSettings,
     error_delta_E,
     generate_reference_colour_checker,
@@ -112,21 +112,21 @@ __all__ = [
     "toggle_advanced_options",
     "set_illuminant_datable",
     "toggle_options_illuminant",
-    "compute_idt_prosumer_camera",
+    "compute_idt_camera",
 ]
 
 LOGGER = logging.getLogger(__name__)
 
 colour.plotting.colour_style()
 
-APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - Prosumer Camera"
+APP_NAME_LONG = "Academy Input Device Transform (IDT) Calculator - Camera"
 """
 App long name.
 
 APP_NAME_LONG : str
 """
 
-APP_NAME_SHORT = "IDT Calculator - Prosumer Camera"
+APP_NAME_SHORT = "IDT Calculator - Camera"
 """
 App short name.
 
@@ -142,8 +142,7 @@ APP_PATH : str
 
 APP_DESCRIPTION = (
     "This app computes the *Input Device Transform* (IDT) "
-    "for a series of *ColorChecker Classic* images captured by a prosumer "
-    "camera."
+    "for a series of *ColorChecker Classic* images captured by a camera."
 )
 """
 App description.
@@ -266,7 +265,7 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                             Select(
                                 id=_uid("generator-select"),
                                 options=GENERATOR_OPTIONS,
-                                value=IDTGeneratorProsumerCamera.GENERATOR_NAME,
+                                value=IDTGeneratorLogCamera.GENERATOR_NAME,
                             ),
                         ],
                         className="mb-1",
@@ -1154,7 +1153,7 @@ def toggle_modal(n_clicks, is_open):
     ],
     prevent_initial_call=True,
 )
-def compute_idt_prosumer_camera(
+def compute_idt_camera(
     n_clicks,  # noqa: ARG001
     generator_name,
     aces_transform_id,
@@ -1182,7 +1181,7 @@ def compute_idt_prosumer_camera(
     LUT_smoothing,
 ):
     """
-    Compute the *Input Device Transform* (IDT) for a prosumer camera.
+    Compute the *Input Device Transform* (IDT) for a camera.
 
     Parameters
     ----------
@@ -1247,7 +1246,7 @@ def compute_idt_prosumer_camera(
     """
 
     logging.info(
-        'Computing "IDT" for "Prosumer Camera" with parameters:\n'
+        'Computing "IDT" with "%s" using parameters:\n'
         '\tRGB Display Colourspace : "%s"\n'
         '\tIlluminant Name : "%s"\n'
         '\tIlluminant Data : "%s"\n'
@@ -1259,6 +1258,7 @@ def compute_idt_prosumer_camera(
         '\tGrey Card Reflectance : "%s"\n'
         '\tLUT Size : "%s"\n'
         '\tLUT Smoothing : "%s"\n',
+        generator_name,
         RGB_display_colourspace,
         illuminant_name,
         illuminant_data,

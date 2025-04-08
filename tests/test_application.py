@@ -38,22 +38,23 @@ class TestIDTApplication(TestIDTBase):
     def setUp(self) -> None:
         """Initialise the common tests attributes."""
 
+        self.maxDiff = None
         self.project_settings = IDTProjectSettings()
 
     def test__str__(self) -> None:
         """
-        Test the :class:`aces.idt.IDTGeneratorProsumerCamera.__str__` and
+        Test the :class:`aces.idt.IDTGeneratorLogCamera.__str__` and
         :class:`aces.idt.IDTProjectSettings.__str__ methods.
         """
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
 
         self.assertEqual(
             re.sub(r"0x\w+>", "0x...>", str(idt_application.generator)).strip(),
             """
-<aces.idt.generators.prosumer_camera.IDTGeneratorProsumerCamera object at 0x...>
-======================================================================================
+<aces.idt.generators.log_camera.IDTGeneratorLogCamera object at 0x...>
+============================================================================
 
 Baseline Exposure : 0
 Samples Analysis  : None
@@ -118,11 +119,11 @@ Working_Directory              :
             """.strip(),
         )
 
-    def test_prosumer_camera_generator_sample(self) -> None:
-        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.sample` method."""
+    def test_log_camera_generator_sample(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorLogCamera.sample` method."""
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_directory = idt_application.extract(archive)
         idt_application.project_settings.working_directory = working_directory
@@ -148,11 +149,11 @@ Working_Directory              :
         grey_expected = expected.get(DirectoryStructure.GREY_CARD)
         self.assertEqual(grey_result, grey_expected)
 
-    def test_prosumer_camera_generator_sort(self) -> None:
-        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.sort` method."""
+    def test_log_camera_generator_sort(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorLogCamera.sort` method."""
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_dir = idt_application.extract(archive)
         idt_application.project_settings.working_directory = working_dir
@@ -173,23 +174,25 @@ Working_Directory              :
         with open(reference_expected_file) as file:
             expected_reference = json.load(file)
 
-        self.assertEqual(generator.samples_camera.tolist(), expected_camera)
-        threshold = 1e-20
-        self.assertTrue(
-            np.allclose(
-                generator.samples_reference, expected_reference, atol=threshold
-            ),
-            "Values differ by more than the allowed threshold.",
+        np.testing.assert_allclose(
+            generator.samples_camera.tolist(),
+            expected_camera,
+            atol=TOLERANCE_ABSOLUTE_TESTS,
+        )
+        np.testing.assert_allclose(
+            generator.samples_reference,
+            expected_reference,
+            atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-    def test_prosumer_camera_generator_process_archive(self) -> None:
+    def test_log_camera_generator_process_archive(self) -> None:
         """
-        Test the :class:`aces.idt.IDTGeneratorProsumerCamera.process_archive`
+        Test the :class:`aces.idt.IDTGeneratorLogCamera.process_archive`
         method.
         """
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
 
         idt_generator_1 = idt_application.process_archive(archive)
@@ -1230,9 +1233,9 @@ Working_Directory              :
             idt_generator_1.M,
             np.array(
                 [
-                    [0.71091097, 0.20348528, 0.08560375],
-                    [0.01379831, 1.02510569, -0.03890399],
-                    [-0.10581334, -0.07130598, 1.17711932],
+                    [0.7109112498683849, 0.20348583501092052, 0.08560291512069451],
+                    [0.013798559260473948, 1.0251057640822967, -0.03890432334277061],
+                    [-0.10581292048103687, -0.07130508739697004, 1.1771180078780068],
                 ]
             ),
             atol=TOLERANCE_ABSOLUTE_TESTS,
@@ -1249,7 +1252,7 @@ Working_Directory              :
         )
 
         idt_application2 = IDTGeneratorApplication()
-        idt_application2.generator = "IDTGeneratorProsumerCamera"
+        idt_application2.generator = "IDTGeneratorLogCamera"
         archive2 = os.path.join(self.get_test_resources_folder(), "synthetic_002.zip")
         idt_generator_2 = idt_application2.process_archive(archive2)
 
@@ -1272,7 +1275,7 @@ Working_Directory              :
         )
 
         idt_application3 = IDTGeneratorApplication()
-        idt_application3.generator = "IDTGeneratorProsumerCamera"
+        idt_application3.generator = "IDTGeneratorLogCamera"
 
         archive3 = os.path.join(self.get_test_resources_folder(), "synthetic_003.zip")
         idt_generator_3 = idt_application3.process_archive(archive3)
@@ -1281,9 +1284,9 @@ Working_Directory              :
             idt_generator_3.M,
             np.array(
                 [
-                    [0.70683937, 0.19921694, 0.09394369],
-                    [0.01383883, 1.01847757, -0.03231640],
-                    [-0.11943804, -0.06335993, 1.18279798],
+                    [0.7068385747184197, 0.19921773631437803, 0.09394368896720229],
+                    [0.013838799172565839, 1.0184775925258625, -0.03231639169842837],
+                    [-0.11943812145687926, -0.06335980405037137, 1.1827979255072507],
                 ]
             ),
             atol=TOLERANCE_ABSOLUTE_TESTS,
@@ -1291,7 +1294,7 @@ Working_Directory              :
 
         np.testing.assert_allclose(
             idt_generator_3.RGB_w,
-            np.array([0.51079662, 1.00000000, 2.00262926]),
+            np.array([0.5107967653752655, 1.0, 2.0026298241482303]),
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
@@ -1301,26 +1304,26 @@ Working_Directory              :
             atol=TOLERANCE_ABSOLUTE_TESTS,
         )
 
-    def test_raise_exception_prosumer_camera_generator_process_archive(self) -> None:
+    def test_raise_exception_log_camera_generator_process_archive(self) -> None:
         """
-        Test that the :class:`aces.idt.IDTGeneratorProsumerCamera.process_archive`
+        Test that the :class:`aces.idt.IDTGeneratorLogCamera.process_archive`
         method raises an exception when the JSON file is missing and thus and IDT
         URN cannot be computed.
         """
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_004.zip")
 
         with self.assertRaises(ValueError):
             idt_application.process_archive(archive)
 
-    def test_prosumer_camera_generator_zip(self) -> None:
-        """Test the :class:`aces.idt.IDTGeneratorProsumerCamera.zip` method."""
+    def test_log_camera_generator_zip(self) -> None:
+        """Test the :class:`aces.idt.IDTGeneratorLogCamera.zip` method."""
 
         idt_application = IDTGeneratorApplication()
-        idt_application.generator = "IDTGeneratorProsumerCamera"
+        idt_application.generator = "IDTGeneratorLogCamera"
 
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         idt_application.process_archive(archive)
