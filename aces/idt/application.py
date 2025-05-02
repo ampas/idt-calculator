@@ -406,7 +406,7 @@ class IDTGeneratorApplication:
             If any of the validations fail
         """
 
-        # Check the aces_transform_id is a valid idt_urn
+        # Check the aces_transform_id is a valid idt_urn and try and auto populate it
         if not is_valid_csc_urn(self.project_settings.aces_transform_id):
             # If the aces_transform_id is not valid, generate a new one
             new_name = generate_idt_urn(
@@ -418,3 +418,8 @@ class IDTGeneratorApplication:
             # Update the project settings with the new name, if this is still invalid
             # it will raise an error from the setter
             self.project_settings.aces_transform_id = new_name
+
+        valid, errors = self.project_settings.validate()
+        if not valid:
+            msg = f"Invalid project settings\n: {'\n'.join(errors)}"
+            raise ValueError(msg)

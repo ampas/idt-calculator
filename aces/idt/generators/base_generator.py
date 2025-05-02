@@ -720,6 +720,8 @@ class IDTBaseGenerator(ABC):
         aces_user_name = project_settings.aces_user_name
         camera_make = project_settings.camera_make
         camera_model = project_settings.camera_model
+        encoding_colourspace = project_settings.encoding_colourspace
+        encoding_transfer_function = project_settings.encoding_transfer_function
 
         root = ET.Element(
             "ProcessList",
@@ -788,10 +790,11 @@ class IDTBaseGenerator(ABC):
             self.project_settings.include_exposure_factor_in_clf,
         )
 
-        clf_path = (
-            Path(output_directory)
-            / f"{camera_make}.Input.{camera_model}_to_ACES2065-1.clf"
+        file_name = (
+            f"idt.{aces_user_name}.{camera_model}.{encoding_colourspace}_"
+            f"{encoding_transfer_function}_to_ACES2065-1.clf"
         )
+        clf_path = Path(output_directory) / file_name
 
         ET.indent(root)
 

@@ -778,3 +778,86 @@ class IDTProjectSettings(MixinSerializableProperties):
         attributes.append({"line_break": True})
 
         return multiline_str(self, attributes)
+
+    def validate(self) -> tuple[bool, list[str]]:
+        """Validate the project settings to ensure that all the minimally required
+        inputs are set
+
+        Returns
+        -------
+        :class:`tuple`
+            Whether the minimum required settings are valid or not from the ui and what
+            the errors are
+
+        """
+        valid, errors = self.validate_core_requirements(
+            self.aces_user_name,
+            self.encoding_colourspace,
+            self.encoding_transfer_function,
+            self.camera_make,
+            self.camera_model,
+            self.aces_transform_id,
+        )
+        return valid, errors
+
+    @staticmethod
+    def validate_core_requirements(
+        aces_user_name: str,
+        encoding_colourspace: str,
+        encoding_transfer_function: str,
+        camera_make: str,
+        camera_model: str,
+        aces_transform_id: str,
+    ) -> tuple[bool, list[str]]:
+        """
+        Validate the key values needed to have a valid project
+
+        Parameters
+        ----------
+        aces_user_name: str
+            the ACES username
+        encoding_colourspace: str
+            the encoding colourspace
+        encoding_transfer_function: str
+            the encoding transfer function
+        camera_make: str
+            the camera make
+        camera_model : str
+            the camera model
+        aces_transform_id: str
+            the ACES transform id
+
+        Returns
+        -------
+        :class:`tuple`
+            Whether the minimum required settings are valid or not from the ui and
+            what the errors are
+
+        """
+        valid = True
+        errors = []
+        if not camera_make:
+            valid = False
+            errors.append("No Camera Make Specified")
+
+        if not camera_model:
+            valid = False
+            errors.append("No Camera Model Specified")
+
+        if not aces_user_name:
+            valid = False
+            errors.append("No ACES User Name Specified")
+
+        if not encoding_colourspace:
+            valid = False
+            errors.append("No Encoding Colourspace Specified")
+
+        if not encoding_transfer_function:
+            valid = False
+            errors.append("No Encoding Transfer Function Specified")
+
+        if not is_valid_csc_urn(aces_transform_id):
+            valid = False
+            errors.append("Invalid ACES Transform ID")
+
+        return valid, errors
