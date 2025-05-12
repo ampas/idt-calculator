@@ -697,6 +697,8 @@ class IDTProjectSettings(MixinSerializableProperties):
         data = {
             DirectoryStructure.COLOUR_CHECKER: {},
             DirectoryStructure.GREY_CARD: [],
+            DirectoryStructure.WHITE: [],
+            DirectoryStructure.BLACK: [],
         }
 
         # Validate folder paths for colour_checker and grey_card exist
@@ -707,6 +709,15 @@ class IDTProjectSettings(MixinSerializableProperties):
             directory, DirectoryStructure.DATA, DirectoryStructure.GREY_CARD
         )
 
+        white_path = os.path.join(
+            directory, DirectoryStructure.DATA, DirectoryStructure.WHITE
+        )
+
+        black_path = os.path.join(
+            directory, DirectoryStructure.DATA, DirectoryStructure.BLACK
+        )
+
+        # Check for non optional paths
         if not os.path.exists(colour_checker_path) or not os.path.exists(
             grey_card_path
         ):
@@ -740,19 +751,45 @@ class IDTProjectSettings(MixinSerializableProperties):
 
         data[DirectoryStructure.COLOUR_CHECKER] = sorted_colour_checker
 
-        # Populate grey_card data
-        for root, _, files in os.walk(grey_card_path):
-            files.sort()
-            for file in files:
-                if os.path.basename(file).startswith("."):
-                    continue
-                absolute_file_path = os.path.join(root, file)
-                data[DirectoryStructure.GREY_CARD].append(
-                    os.path.relpath(absolute_file_path, start=directory)
-                )
+        # Populate grey_card data along with white and black data if we have them
+        cls.populate_data_from_path(
+            grey_card_path, data, directory, DirectoryStructure.GREY_CARD
+        )
+        cls.populate_data_from_path(
+            white_path, data, directory, DirectoryStructure.WHITE
+        )
+        cls.populate_data_from_path(
+            black_path, data, directory, DirectoryStructure.BLACK
+        )
 
         instance.data = data
         return instance
+
+    @classmethod
+    def populate_data_from_path(
+        cls, folder_path: str, data: dict, directory: str, data_key: DirectoryStructure
+    ) -> None:
+        """
+
+        Parameters
+        ----------
+        folder_path: The folder path to the sub folder for the given sequence
+        data: The data dict that holds the paths to the image sequences
+        directory
+            The directory to the project root containing the image sequence
+            directories.
+        data_key: the key we want to store the data under in the data dict
+        """
+        if os.path.exists(folder_path):
+            for root, _, files in os.walk(folder_path):
+                files.sort()
+                for file in files:
+                    if os.path.basename(file).startswith("."):
+                        continue
+                    absolute_file_path = os.path.join(root, file)
+                    data[data_key].append(
+                        os.path.relpath(absolute_file_path, start=directory)
+                    )
 
     def __str__(self) -> str:
         """
