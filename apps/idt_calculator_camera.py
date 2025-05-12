@@ -78,7 +78,7 @@ from aces.idt import (
     hash_file,
     png_compare_colour_checkers,
 )
-from aces.idt.core.transform_id import generate_idt_urn, is_valid_csc_urn
+from aces.idt.core.transform_id import generate_idt_urn
 from app import APP, SERVER_URL, __version__
 from apps.common import (
     COLOUR_ENVIRONMENT,
@@ -1274,8 +1274,8 @@ def compute_idt_camera(
 
     aces_transform_id = str(aces_transform_id)
     aces_user_name = str(aces_user_name or "")
-    camera_make = str(camera_make)
-    camera_model = str(camera_model)
+    camera_make = str(camera_make or "")
+    camera_model = str(camera_model or "")
     iso = float(iso)
     temperature = float(temperature)
     additional_camera_settings = str(additional_camera_settings)
@@ -1285,9 +1285,17 @@ def compute_idt_camera(
     encoding_colourspace = str(encoding_colourspace or "")
     encoding_transfer_function = str(encoding_transfer_function or "")
 
-    # Validation: Check if the ACES transform ID is valid
-    if not is_valid_csc_urn(aces_transform_id):
-        error_message = "Invalid ACES Transform ID!"
+    # Validation: Check if the inputs are valid
+    is_valid, errors = IDTProjectSettings.validate_core_requirements(
+        aces_user_name,
+        encoding_colourspace,
+        encoding_transfer_function,
+        camera_make,
+        camera_model,
+        aces_transform_id,
+    )
+    if not is_valid:
+        error_components = [P(e) for e in errors]
         return (
             "",  # loading-div children
             [],  # output-data-div children
@@ -1304,7 +1312,7 @@ def compute_idt_camera(
             debayering_settings,  # debayering-settings-field value
             encoding_colourspace,  # encoding-colourspace-field value
             encoding_transfer_function,  # encoding-transfer-function-field value
-            error_message,  # Modal body content (error message)
+            error_components,  # Modal body content (error message)
             True,  # Show the modal
         )
 
