@@ -206,7 +206,13 @@ class IDTGeneratorLogCamera(IDTBaseGenerator):
         LOGGER.info('Generating unfiltered "LUT3x1D" with "%s" size...', size)
 
         self._LUT_unfiltered = LUT3x1D(size=size, name="LUT - Unfiltered")
-
+        if self.samples_black:
+            self._samples_camera = np.insert(
+                self._samples_camera, 0, self.samples_black, axis=0
+            )
+            self._samples_reference = np.insert(
+                self._samples_reference, 0, np.zeros(3), axis=0
+            )
         for i in range(3):
             x = self._samples_camera[..., i] * (size - 1)
             y = self._samples_reference[..., i]
@@ -218,12 +224,14 @@ class IDTGeneratorLogCamera(IDTBaseGenerator):
                 LinearInterpolator(x, y), method="Constant"
             )(samples)
 
+            max_value = np.max(self._samples_camera)
+            if self.samples_white:
+                max_value = self.samples_white[i]
+
             # Searching for the index of ~middle camera code value * 125%
             # We are trying to find the logarithmic slope of the camera middle
             # range.
-            index_middle = np.searchsorted(
-                samples / size, np.max(self._samples_camera) / 2 * 1.25
-            )
+            index_middle = np.searchsorted(samples / size, max_value / 2 * 1.25)
             padding = index_middle // 2
             samples_middle = np.log(np.copy(samples_linear))
             samples_middle[: index_middle - padding] = samples_middle[
@@ -242,7 +250,7 @@ class IDTGeneratorLogCamera(IDTBaseGenerator):
             # Preparing the mask to blend the logarithmic slope with the
             # extrapolated data.
             edge_left = index_middle - padding
-            edge_right = np.searchsorted(samples / size, np.max(self._samples_camera))
+            edge_right = np.searchsorted(samples / size, max_value)
             mask_samples = smoothstep_function(
                 samples, edge_left, edge_right, clip=True
             )
