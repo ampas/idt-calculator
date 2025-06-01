@@ -449,5 +449,6 @@ class IDTGeneratorApplication:
 
         valid, errors = self.project_settings.validate()
         if not valid:
-            msg = f"Invalid project settings\n: {'\n'.join(errors)}"
+            error_string = "\n".join(errors)
+            msg = f"Invalid project settings\n: {error_string}"
             raise ValueError(msg)
