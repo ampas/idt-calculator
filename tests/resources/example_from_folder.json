@@ -75,6 +75,8 @@
       "data/grey_card/grey_card_0001.tif",
       "data/grey_card/grey_card_0002.tif",
       "data/grey_card/grey_card_0003.tif"
-    ]
+    ],
+    "white": [],
+    "black": []
   }
 }

@@ -330,7 +330,7 @@ class IDTGeneratorApplication:
 
         self.project_settings.working_directory = root_directory
 
-        return directory
+        return root_directory
 
     def process_archive(self, archive: str | None) -> IDTBaseGenerator:
         """

@@ -127,6 +127,7 @@ Working_Directory              :
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_directory = idt_application.extract(archive)
         idt_application.project_settings.working_directory = working_directory
+        idt_application.validate_project_settings()
 
         generator = idt_application.generator
         generator.sample()
@@ -157,6 +158,7 @@ Working_Directory              :
         archive = os.path.join(self.get_test_resources_folder(), "synthetic_001.zip")
         working_dir = idt_application.extract(archive)
         idt_application.project_settings.working_directory = working_dir
+        idt_application.validate_project_settings()
 
         generator = idt_application.generator
         generator.sample()
