@@ -185,7 +185,7 @@ class IDTGeneratorApplication:
                 if not file.name.startswith(".")
             ]
 
-    def _verify_archive(self, root_directory: Path | str) -> None:
+    def _verify_directory(self, root_directory: Path | str) -> None:
         """
         Verify the *IDT* archive at given root directory.
 
@@ -241,6 +241,34 @@ class IDTGeneratorApplication:
         else:
             self.project_settings.data[DirectoryStructure.GREY_CARD] = []
 
+        if self.project_settings.data.get(DirectoryStructure.BLACK, []):
+            images = [
+                Path(root_directory) / image
+                for image in self.project_settings.data.get(
+                    DirectoryStructure.BLACK, []
+                )
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self.project_settings.data[DirectoryStructure.BLACK] = images
+        else:
+            self.project_settings.data[DirectoryStructure.BLACK] = []
+
+        if self.project_settings.data.get(DirectoryStructure.WHITE, []):
+            images = [
+                Path(root_directory) / image
+                for image in self.project_settings.data.get(
+                    DirectoryStructure.WHITE, []
+                )
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self.project_settings.data[DirectoryStructure.WHITE] = images
+        else:
+            self.project_settings.data[DirectoryStructure.WHITE] = []
+
     def _verify_file_type(self) -> None:
         """
         Verify that the *IDT* archive contains a unique file type and set the
@@ -261,7 +289,8 @@ class IDTGeneratorApplication:
             msg = f'Multiple file types found in the project settings: "{file_types}"'
             raise ValueError(msg)
 
-        self.project_settings.file_type = next(iter(file_types))
+        if file_types:
+            self.project_settings.file_type = next(iter(file_types))
 
     def extract(self, archive: str, directory: str | None = None) -> str:
         """
@@ -302,10 +331,7 @@ class IDTGeneratorApplication:
 
         self.project_settings.working_directory = root_directory
 
-        self._verify_archive(root_directory)
-        self._verify_file_type()
-
-        return directory
+        return root_directory
 
     def process_archive(self, archive: str | None) -> IDTBaseGenerator:
         """
@@ -424,3 +450,7 @@ class IDTGeneratorApplication:
             error_string = "\n".join(errors)
             msg = f"Invalid project settings\n: {error_string}"
             raise ValueError(msg)
+
+        # Verify the directory structure and file types
+        self._verify_directory(self.project_settings.working_directory)
+        self._verify_file_type()

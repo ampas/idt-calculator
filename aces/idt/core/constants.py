@@ -51,6 +51,8 @@ class DirectoryStructure:
     COLOUR_CHECKER: ClassVar[str] = "colour_checker"
     GREY_CARD: ClassVar[str] = "grey_card"
     FLATFIELD: ClassVar[str] = "flatfield"
+    WHITE: ClassVar[str] = "white"
+    BLACK: ClassVar[str] = "black"
 
 
 class UITypes:
