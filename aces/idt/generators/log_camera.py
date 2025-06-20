@@ -510,6 +510,7 @@ class IDTGeneratorLogCamera(IDTBaseGenerator):
             self._M,
             target_white_point=self.project_settings.illuminant,
             chromatic_adaptation_transform=self.project_settings.cat,
+            **({"custom_illuminant_sd": self.project_settings.custom_illuminant} if self.project_settings.illuminant == "Custom" else {}),
         )
 
         return self._M, self._RGB_w, self._k
