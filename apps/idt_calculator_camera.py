@@ -1371,6 +1371,7 @@ def compute_idt_camera(
     if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
         _IDT_GENERATOR_APPLICATION.extract(_PATH_UPLOADED_IDT_ARCHIVE)
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
+        _IDT_GENERATOR_APPLICATION.validate_project_settings()
         _IDT_GENERATOR_APPLICATION.generator.sample()
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE] = (
             _IDT_GENERATOR_APPLICATION.project_settings.data,
