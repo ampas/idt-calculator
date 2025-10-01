@@ -185,7 +185,7 @@ class IDTGeneratorApplication:
                 if not file.name.startswith(".")
             ]
 
-    def _verify_archive(self, root_directory: Path | str) -> None:
+    def _verify_directory(self, root_directory: Path | str) -> None:
         """
         Verify the *IDT* archive at given root directory.
 
@@ -303,10 +303,7 @@ class IDTGeneratorApplication:
 
         self.project_settings.working_directory = root_directory
 
-        self._verify_archive(root_directory)
-        self._verify_file_type()
-
-        return directory
+        return root_directory
 
     def process_archive(self, archive: str | None) -> IDTBaseGenerator:
         """
@@ -425,3 +422,7 @@ class IDTGeneratorApplication:
             error_string = "\n".join(errors)
             msg = f"Invalid project settings\n: {error_string}"
             raise ValueError(msg)
+
+        # Verify the directory structure and file types
+        self._verify_directory(self.project_settings.working_directory)
+        self._verify_file_type()
