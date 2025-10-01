@@ -261,7 +261,8 @@ class IDTGeneratorApplication:
             msg = f'Multiple file types found in the project settings: "{file_types}"'
             raise ValueError(msg)
 
-        self.project_settings.file_type = next(iter(file_types))
+        if file_types:
+            self.project_settings.file_type = next(iter(file_types))
 
     def extract(self, archive: str, directory: str | None = None) -> str:
         """
