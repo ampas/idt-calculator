@@ -1,0 +1,86 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*" # Only run when a version tag is pushed
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies for build and publish
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine toml
+
+      - name: Extract version number from tag
+        id: get_version
+        run: echo "version=$(echo ${{ github.ref_name }} | sed 's/^v//')" >> $GITHUB_OUTPUT
+
+      - name: Verify all version numbers match
+        run: |
+          TAG_VERSION="${{ steps.get_version.outputs.version }}"
+
+          PYPROJECT_VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+
+          APP_VERSION=$(python -c """
+          import re
+
+          with open('app.py', 'r') as f:
+              content = f.read()
+
+          version_block = '\n'.join(
+              line for line in content.splitlines()
+              if re.match(r'^__\w+__\s*=', line)
+          )
+
+          version_namespace = {}
+          exec(version_block, version_namespace)
+          print(version_namespace['__version__'])
+          """)
+
+          echo "Tag version: $TAG_VERSION"
+          echo "pyproject.toml version: $PYPROJECT_VERSION"
+          echo "app.py version: $APP_VERSION"
+
+          if [ "$PYPROJECT_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: pyproject.toml version ($PYPROJECT_VERSION) does not match tag version ($TAG_VERSION)."
+            exit 1
+          fi
+
+          if [ "$APP_VERSION" != "$TAG_VERSION" ]; then
+            echo "Error: app.py version ($APP_VERSION) does not match tag version ($TAG_VERSION)."
+            exit 1
+          fi
+
+          echo "All versions match: $TAG_VERSION"
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/* --verbose
+
+      - name: Create Github release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
