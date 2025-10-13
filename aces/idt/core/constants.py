@@ -312,6 +312,15 @@ class ProjectSettingsMetadataConstants:
         ui_category=UICategories.STANDARD,
     )
 
+    ILLUMINANT_CUSTOM_TEMPERATURE = Metadata(
+        name="illuminant_custom_temperature",
+        default_value=6500,
+        description="The temperature in Kelvin for Blackbody or Daylight illuminants",
+        display_name="Illuminant Temperature (K)",
+        ui_type=UITypes.INT_FIELD,
+        ui_category=UICategories.ADVANCED,
+    )
+
     ADDITIONAL_CAMERA_SETTINGS = Metadata(
         name="additional_camera_settings",
         default_value="",
@@ -488,6 +497,7 @@ class ProjectSettingsMetadataConstants:
         ACES_USER_NAME,
         ISO,
         TEMPERATURE,
+        ILLUMINANT_CUSTOM_TEMPERATURE,
         ADDITIONAL_CAMERA_SETTINGS,
         LIGHTING_SETUP_DESCRIPTION,
         DEBAYERING_PLATFORM,

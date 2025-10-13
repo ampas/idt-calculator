@@ -102,6 +102,7 @@ File_Type                      :
 Flatten_Clf                    : False
 Grey_Card_Reference            : [ 0.18  0.18  0.18]
 Illuminant                     : D60
+Illuminant_Custom_Temperature  : 6500
 Illuminant_Interpolator        : Linear
 Include_Exposure_Factor_In_Clf : False
 Include_White_Balance_In_Clf   : False

@@ -13,6 +13,7 @@ from aces.idt.core.common import (
     find_clipped_exposures,
     find_similar_rows,
     generate_reference_colour_checker,
+    get_sds_illuminant,
 )
 from tests.test_utils import TestIDTBase
 
@@ -28,6 +29,7 @@ __all__ = [
     "TestCalculateCameraNpmAndPrimariesWp",
     "TestFindSimilarRows",
     "TestFindClippedExposures",
+    "TestGetSdsIlluminant",
 ]
 
 
@@ -360,3 +362,87 @@ class TestFindClippedExposures(TestIDTBase):
         )
         expected_ev_keys = [-6.0, -5.0, -4.0, 4.0, 5.0, 6.0]
         self.assertEqual(removed_evs, expected_ev_keys)
+
+
+class TestGetSdsIlluminant:
+    """
+    Define :func:`aces.idt.core.common.get_sds_illuminant` definition unit tests
+    methods.
+    """
+
+    def test_get_sds_illuminant_valid_name(self) -> None:
+        """
+        Test :func:`aces.idt.core.common.get_sds_illuminant` with a valid
+        illuminant name.
+        """
+
+        # Test with D60, the default ACES illuminant
+        illuminant = get_sds_illuminant("D60")
+        assert illuminant is not None
+        assert hasattr(illuminant, "wavelengths")
+        assert hasattr(illuminant, "values")
+
+    def test_get_sds_illuminant_blackbody_without_temperature(self) -> None:
+        """
+        Test :func:`aces.idt.core.common.get_sds_illuminant` with 'Blackbody'
+        illuminant name without providing a temperature parameter.
+
+        This should raise a ValueError since temperature is required for
+        Blackbody illuminants.
+        """
+
+        import pytest
+
+        with pytest.raises(ValueError, match="Temperature parameter is required"):
+            get_sds_illuminant("Blackbody")
+
+    def test_get_sds_illuminant_blackbody_with_temperature(self) -> None:
+        """
+        Test :func:`aces.idt.core.common.get_sds_illuminant` with 'Blackbody'
+        illuminant name and a valid temperature parameter.
+
+        This test verifies that the Blackbody illuminant functionality works
+        correctly when a temperature is provided.
+        """
+
+        # Test with common blackbody temperatures
+        for temperature in [5500, 6500, 3200]:
+            illuminant = get_sds_illuminant("Blackbody", temperature=temperature)
+            assert illuminant is not None
+            assert hasattr(illuminant, "wavelengths")
+            assert hasattr(illuminant, "values")
+            # Verify the illuminant name includes the temperature
+            assert str(temperature) in illuminant.name
+
+    def test_get_sds_illuminant_daylight_without_temperature(self) -> None:
+        """
+        Test :func:`aces.idt.core.common.get_sds_illuminant` with 'Daylight'
+        illuminant name without providing a temperature parameter.
+
+        This should raise a ValueError since temperature is required for
+        Daylight illuminants.
+        """
+
+        import pytest
+
+        with pytest.raises(ValueError, match="Temperature parameter is required"):
+            get_sds_illuminant("Daylight")
+
+    def test_get_sds_illuminant_daylight_with_temperature(self) -> None:
+        """
+        Test :func:`aces.idt.core.common.get_sds_illuminant` with 'Daylight'
+        illuminant name and a valid temperature parameter.
+
+        This test verifies that the Daylight (CIE D Series) illuminant
+        functionality works correctly when a temperature is provided.
+        """
+
+        # Test with common daylight temperatures
+        for temperature in [5500, 6500, 7500]:
+            illuminant = get_sds_illuminant("Daylight", temperature=temperature)
+            assert illuminant is not None
+            assert hasattr(illuminant, "wavelengths")
+            assert hasattr(illuminant, "values")
+            # Daylight illuminants should have spectral data
+            assert len(illuminant.wavelengths) > 0
+            assert len(illuminant.values) > 0
