@@ -73,7 +73,7 @@ class AcesTransformType(Enum):
 
 
 def generate_idt_urn(
-    colorspace_vendor: str,
+    colourspace_vendor: str,
     encoding_colourspace: str,
     encoding_transfer_function: str,
     version_number: int,
@@ -88,7 +88,7 @@ def generate_idt_urn(
 
     Parameters
     ----------
-    colorspace_vendor
+    colourspace_vendor
         The vendor for the colorspace, e.g., the device or software provider.
     encoding_colourspace
         The name of the encoding color space.
@@ -110,7 +110,7 @@ def generate_idt_urn(
     """
 
     # Sanitize input strings by replacing dots with underscores
-    colorspace_vendor_clean = colorspace_vendor.replace(".", "_")
+    colorspace_vendor_clean = colourspace_vendor.replace(".", "_")
     encoding_colourspace_clean = encoding_colourspace.replace(".", "_")
     encoding_transfer_function_clean = encoding_transfer_function.replace(".", "_")
 
