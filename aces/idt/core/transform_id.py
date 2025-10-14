@@ -73,7 +73,7 @@ class AcesTransformType(Enum):
 
 
 def generate_idt_urn(
-    colorspace_vendor: str,
+    colourspace_vendor: str,
     encoding_colourspace: str,
     encoding_transfer_function: str,
     version_number: int,
@@ -88,7 +88,7 @@ def generate_idt_urn(
 
     Parameters
     ----------
-    colorspace_vendor
+    colourspace_vendor
         The vendor for the colorspace, e.g., the device or software provider.
     encoding_colourspace
         The name of the encoding color space.
@@ -101,13 +101,26 @@ def generate_idt_urn(
     -------
     :class:`str`
         The generated URN in the format described.
+
+    Notes
+    -----
+    -   Dots in the colorspace_vendor, encoding_colourspace, and
+        encoding_transfer_function strings are replaced with underscores to
+        ensure valid URN format, as dots are used as delimiters in the URN.
     """
+
+    # Sanitize input strings by replacing dots with underscores
+    colorspace_vendor_clean = colourspace_vendor.replace(".", "_")
+    encoding_colourspace_clean = encoding_colourspace.replace(".", "_")
+    encoding_transfer_function_clean = encoding_transfer_function.replace(".", "_")
 
     urn_prefix = ACES_URN_PREFIX.format(aces_transform_type=AcesTransformType.CSC.value)
     hash_id = generate_truncated_hash()
-    colorspace_name = f"{encoding_colourspace}_{encoding_transfer_function}_{hash_id}"
+    colorspace_name = (
+        f"{encoding_colourspace_clean}_{encoding_transfer_function_clean}_{hash_id}"
+    )
     return (
-        f"{urn_prefix}.{colorspace_vendor}.{colorspace_name}.a{ACES_MAJOR_VERSION}"
+        f"{urn_prefix}.{colorspace_vendor_clean}.{colorspace_name}.a{ACES_MAJOR_VERSION}"
         f".v{version_number}"
     )
 
