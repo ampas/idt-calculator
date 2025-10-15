@@ -33,6 +33,7 @@ from colour import (
     SDS_COLOURCHECKERS,
     SDS_ILLUMINANTS,
     SpectralDistribution,
+    sd_blackbody,
     sd_to_aces_relative_exposure_values,
 )
 from colour.algebra import euclidean_distance, vecmul
@@ -41,6 +42,8 @@ from colour.characterisation import (
     optimisation_factory_rawtoaces_v1,
     whitepoint_preserving_matrix,
 )
+from colour.colorimetry import sd_CIE_illuminant_D_series
+from colour.temperature import CCT_to_xy_CIE_D
 
 if typing.TYPE_CHECKING:
     from colour.hints import (
@@ -120,7 +123,9 @@ def get_sds_colour_checker(colour_checker_name: str) -> Tuple[SpectralDistributi
     return tuple(SDS_COLOURCHECKERS[colour_checker_name].values())
 
 
-def get_sds_illuminant(illuminant_name: str) -> SpectralDistribution:
+def get_sds_illuminant(
+    illuminant_name: str, temperature: float | None = None
+) -> SpectralDistribution:
     """
     Return the *ACES* reference illuminant spectral distribution, for the given
     illuminant name.
@@ -128,13 +133,58 @@ def get_sds_illuminant(illuminant_name: str) -> SpectralDistribution:
     Parameters
     ----------
     illuminant_name
-        Name of the illuminant.
+        Name of the illuminant. Can be a standard illuminant name from
+        SDS_ILLUMINANTS or a special type like "Blackbody", "Custom", or "Daylight".
+    temperature
+        Temperature in Kelvin for Blackbody or Daylight illuminants. Required when
+        illuminant_name is "Blackbody" or "Daylight". Default is *None*.
 
     Returns
     -------
     :class:`SpectralDistribution`
+        Illuminant spectral distribution.
+
+    Raises
+    ------
+    ValueError
+        If illuminant_name is "Blackbody" or "Daylight" and temperature is not provided.
+        If illuminant_name is "Custom" (not yet implemented).
+
+    Notes
+    -----
+    -   For "Blackbody" illuminants, the `sd_blackbody` function is used to
+        generate a spectral distribution at the specified temperature using
+        Planck's law.
+    -   For "Daylight" illuminants, the CIE D Series illuminant is generated
+        using the specified correlated colour temperature (CCT). A correction
+        factor of 1.4388/1.4380 is applied to the CCT as per CIE 015:2004
+        recommendation to account for the difference between historical and
+        modern Planck's constant values. This ensures generated illuminants
+        match internationally agreed CIE D Series xy chromaticity coordinates.
+    -   "Custom" illuminants are not yet implemented and will raise a ValueError.
+
+    References
+    ----------
+    :cite:`CIETC1-482004` - CIE 015:2004: Colorimetry, 3rd Edition
     """
 
+    if illuminant_name == "Blackbody":
+        if temperature is None:
+            msg = 'Temperature parameter is required for "Blackbody" illuminant.'
+            raise ValueError(msg)
+        return sd_blackbody(temperature)
+
+    if illuminant_name == "Daylight":
+        if temperature is None:
+            msg = 'Temperature parameter is required for "Daylight" illuminant.'
+            raise ValueError(msg)
+        # Apply the correction factor as per CIE 015:2004 recommendation
+        CCT_corrected = temperature * 1.4388 / 1.4380
+        xy = CCT_to_xy_CIE_D(CCT_corrected)
+        return sd_CIE_illuminant_D_series(xy)
+    if illuminant_name == "Custom":
+        msg = '"Custom" illuminant type is not yet implemented.'
+        raise ValueError(msg)
     return SDS_ILLUMINANTS[illuminant_name]
 
 

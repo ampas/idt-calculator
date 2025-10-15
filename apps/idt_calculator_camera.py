@@ -1141,6 +1141,7 @@ def toggle_modal(n_clicks, is_open):
         State(_uid("encoding-transfer-function-field"), "value"),
         State(_uid("rgb-display-colourspace-select"), "value"),
         State(_uid("illuminant-select"), "value"),
+        State(_uid("cct-field"), "value"),
         State(_uid("illuminant-datatable"), "data"),
         State(_uid("chromatic-adaptation-transform-select"), "value"),
         State(_uid("optimisation-space-select"), "value"),
@@ -1170,6 +1171,7 @@ def compute_idt_camera(
     encoding_transfer_function,
     RGB_display_colourspace,
     illuminant_name,
+    illuminant_custom_temperature,
     illuminant_data,
     chromatic_adaptation_transform,
     optimisation_space,
@@ -1217,6 +1219,9 @@ def compute_idt_camera(
         *RGB* display colourspace.
     illuminant_name : str
         Name of the illuminant.
+    illuminant_custom_temperature : float
+        Custom correlated colour temperature (CCT) in Kelvin for Blackbody
+        or Daylight illuminants.
     illuminant_data : list
         List of wavelength dicts of illuminant data.
     chromatic_adaptation_transform : str
@@ -1249,6 +1254,7 @@ def compute_idt_camera(
         'Computing "IDT" with "%s" using parameters:\n'
         '\tRGB Display Colourspace : "%s"\n'
         '\tIlluminant Name : "%s"\n'
+        '\tIlluminant Custom Temperature : "%s"\n'
         '\tIlluminant Data : "%s"\n'
         '\tChromatic Adaptation Transform : "%s"\n'
         '\tOptimisation Space : "%s"\n'
@@ -1261,6 +1267,7 @@ def compute_idt_camera(
         generator_name,
         RGB_display_colourspace,
         illuminant_name,
+        illuminant_custom_temperature,
         illuminant_data,
         chromatic_adaptation_transform,
         optimisation_space,
@@ -1359,6 +1366,7 @@ def compute_idt_camera(
         encoding_colourspace=encoding_colourspace,
         encoding_transfer_function=encoding_transfer_function,
         illuminant=illuminant_name,
+        illuminant_custom_temperature=float(illuminant_custom_temperature),
     )
     _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
         generator_name, project_settings
@@ -1368,12 +1376,16 @@ def compute_idt_camera(
         _HASH_IDT_ARCHIVE = hash_file(_PATH_UPLOADED_IDT_ARCHIVE)
         LOGGER.debug('"Archive hash: "%s"', _HASH_IDT_ARCHIVE)
 
-    if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(_HASH_IDT_ARCHIVE) is None:
+    # Include illuminant and temperature in cache key since they affect
+    # reference samples
+    cache_key = f"{_HASH_IDT_ARCHIVE}_{illuminant_name}_{illuminant_custom_temperature}"
+
+    if _CACHE_DATA_ARCHIVE_TO_SAMPLES.get(cache_key) is None:
         _IDT_GENERATOR_APPLICATION.extract(_PATH_UPLOADED_IDT_ARCHIVE)
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
         _IDT_GENERATOR_APPLICATION.validate_project_settings()
         _IDT_GENERATOR_APPLICATION.generator.sample()
-        _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE] = (
+        _CACHE_DATA_ARCHIVE_TO_SAMPLES[cache_key] = (
             _IDT_GENERATOR_APPLICATION.project_settings.data,
             _IDT_GENERATOR_APPLICATION.generator.samples_analysis,
             _IDT_GENERATOR_APPLICATION.generator.baseline_exposure,
@@ -1383,7 +1395,7 @@ def compute_idt_camera(
             _IDT_GENERATOR_APPLICATION.project_settings.data,
             _IDT_GENERATOR_APPLICATION.generator._samples_analysis,  # noqa: SLF001
             _IDT_GENERATOR_APPLICATION.generator._baseline_exposure,  # noqa: SLF001
-        ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE]
+        ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[cache_key]
 
     generator = _IDT_GENERATOR_APPLICATION.generator
     project_settings = _IDT_GENERATOR_APPLICATION.project_settings
