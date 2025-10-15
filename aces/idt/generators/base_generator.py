@@ -86,6 +86,8 @@ class IDTBaseGenerator(ABC):
     -   :attr:`~aces.idt.IDTBaseGenerator.image_grey_card_sampling`
     -   :attr:`~aces.idt.IDTBaseGenerator.samples_camera`
     -   :attr:`~aces.idt.IDTBaseGenerator.samples_reference`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_white`
+    -   :attr:`~aces.idt.IDTBaseGenerator.samples_black`
     -   :attr:`~aces.idt.IDTBaseGenerator.LUT_unfiltered`
     -   :attr:`~aces.idt.IDTBaseGenerator.LUT_filtered`
     -   :attr:`~aces.idt.IDTBaseGenerator.LUT_decoding`
@@ -117,6 +119,10 @@ class IDTBaseGenerator(ABC):
 
         self._samples_camera = None
         self._samples_reference = None
+
+        self._samples_black = None
+        self._samples_white = None
+
         self._baseline_exposure = 0
 
         self._LUT_unfiltered = None
@@ -200,6 +206,32 @@ class IDTBaseGenerator(ABC):
         """
 
         return self._samples_camera
+
+    @property
+    def samples_black(self) -> NDArrayFloat | None:
+        """
+        Getter property for the samples of the camera for the measured black which
+        is optional
+
+        Returns
+        -------
+        :class:`NDArray` or :py:data:`None`
+            Samples of the camera for the measured black level.
+        """
+        return self._samples_black
+
+    @property
+    def samples_white(self) -> NDArrayFloat | None:
+        """
+        Getter property for the samples of the camera for the measured white which
+        is optional
+
+        Returns
+        -------
+        :class:`NDArray` or :py:data:`None`
+            Samples of the camera for the measured white level.
+        """
+        return self._samples_white
 
     @property
     def samples_reference(self) -> NDArrayFloat | None:
@@ -598,6 +630,62 @@ class IDTBaseGenerator(ABC):
                 )[mask],
                 0,
             ).tolist()
+
+        if self.project_settings.data.get(DirectoryStructure.BLACK, []):
+            self._samples_analysis[DirectoryStructure.BLACK] = {}
+            self._samples_analysis[DirectoryStructure.BLACK]["samples_median"] = []
+            for path in self.project_settings.data[DirectoryStructure.BLACK]:
+                with working_directory(self.project_settings.working_directory):
+                    LOGGER.info(
+                        'Reading "Black" from "%s"...',
+                        path,
+                    )
+
+                    image = _reformat_image(read_image(path))
+                    self._samples_analysis[DirectoryStructure.BLACK][
+                        "samples_median"
+                    ].append(
+                        np.median(
+                            as_float_array(image),
+                            (0, 1),
+                        ).tolist()
+                    )
+                    self._samples_black = np.median(
+                        as_float_array(
+                            self._samples_analysis[DirectoryStructure.BLACK][
+                                "samples_median"
+                            ]
+                        ),
+                        axis=0,
+                    ).tolist()
+
+        if self.project_settings.data.get(DirectoryStructure.WHITE, []):
+            self._samples_analysis[DirectoryStructure.WHITE] = {}
+            self._samples_analysis[DirectoryStructure.WHITE]["samples_median"] = []
+            for path in self.project_settings.data[DirectoryStructure.WHITE]:
+                with working_directory(self.project_settings.working_directory):
+                    LOGGER.info(
+                        'Reading "WHITE" from "%s"...',
+                        path,
+                    )
+
+                    image = _reformat_image(read_image(path))
+                    self._samples_analysis[DirectoryStructure.WHITE][
+                        "samples_median"
+                    ].append(
+                        np.median(
+                            as_float_array(image),
+                            (0, 1),
+                        ).tolist()
+                    )
+                    self._samples_white = np.median(
+                        as_float_array(
+                            self._samples_analysis[DirectoryStructure.WHITE][
+                                "samples_median"
+                            ]
+                        ),
+                        axis=0,
+                    ).tolist()
 
         if self.project_settings.cleanup:
             shutil.rmtree(self.project_settings.working_directory)

@@ -241,6 +241,34 @@ class IDTGeneratorApplication:
         else:
             self.project_settings.data[DirectoryStructure.GREY_CARD] = []
 
+        if self.project_settings.data.get(DirectoryStructure.BLACK, []):
+            images = [
+                Path(root_directory) / image
+                for image in self.project_settings.data.get(
+                    DirectoryStructure.BLACK, []
+                )
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self.project_settings.data[DirectoryStructure.BLACK] = images
+        else:
+            self.project_settings.data[DirectoryStructure.BLACK] = []
+
+        if self.project_settings.data.get(DirectoryStructure.WHITE, []):
+            images = [
+                Path(root_directory) / image
+                for image in self.project_settings.data.get(
+                    DirectoryStructure.WHITE, []
+                )
+            ]
+            for image in images:
+                attest(image.exists())
+
+            self.project_settings.data[DirectoryStructure.WHITE] = images
+        else:
+            self.project_settings.data[DirectoryStructure.WHITE] = []
+
     def _verify_file_type(self) -> None:
         """
         Verify that the *IDT* archive contains a unique file type and set the
