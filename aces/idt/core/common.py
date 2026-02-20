@@ -471,6 +471,10 @@ def clf_processing_elements(
 
         return "\n\t\t".join(formatted_lines)
 
+    LOGGER.info(f"flatten_clf: {flatten_clf}")
+    LOGGER.info(f"include_white_balance: {include_white_balance}")
+    LOGGER.info(f"include_exposure_factor: {include_exposure_factor}")
+
     if not flatten_clf:
         if include_white_balance:
             et_RGB_w = ET.SubElement(
@@ -507,6 +511,8 @@ def clf_processing_elements(
 
         clf_matrix = matrix
 
+        LOGGER.debug(f"not_flatten_clf_matrix: {clf_matrix}")
+
     else:
         if not include_exposure_factor:
             k_factor = 1.0
@@ -515,6 +521,8 @@ def clf_processing_elements(
 
         if include_white_balance:
             clf_matrix = np.matmul(np.diag(multipliers), clf_matrix)
+
+        LOGGER.debug(f"flatten_clf_matrix: {clf_matrix}")
 
     et_M = ET.SubElement(root, "Matrix", inBitDepth="32f", outBitDepth="32f")
     et_description = ET.SubElement(et_M, "Description")
@@ -956,6 +964,7 @@ def calculate_camera_npm_and_primaries_wp(
     target_white_point: str = "D65",
     chromatic_adaptation_transform: LiteralChromaticAdaptationTransform
     | str = "Bradford",
+    custom_illuminant_sd: SpectralDistribution | None = None,
 ) -> Tuple[np.array, np.array, np.array]:
     """
     Calculate the camera's normalised primary (NPM) matrix, i.e., RGB to
@@ -969,6 +978,9 @@ def calculate_camera_npm_and_primaries_wp(
         Target whitepoint to calculate the camera's NPM matrix for.
     chromatic_adaptation_transform
         *Chromatic adaptation* transform.
+    custom_illuminant_sd
+        Custom illuminant spectral distribution. This is required if
+        `target_white_point` is *Custom*.
 
     Returns
     -------
@@ -982,10 +994,27 @@ def calculate_camera_npm_and_primaries_wp(
 
     observer = "CIE 1931 2 Degree Standard Observer"
     source_whitepoint_xy = colour.CCS_ILLUMINANTS[observer]["D60"]
-    target_whitepoint_xy = colour.CCS_ILLUMINANTS[observer][target_white_point]
-
     source_whitepoint_XYZ = colour.xy_to_XYZ(source_whitepoint_xy)
-    target_whitepoint_XYZ = colour.xy_to_XYZ(target_whitepoint_xy)
+
+    LOGGER.debug(f"target_white_point: {target_white_point}")
+    if target_white_point == "Custom":
+        if custom_illuminant_sd is None:
+            raise ValueError(
+                "A custom illuminant spectral distribution must be provided "
+                "when 'target_white_point' is 'Custom'."
+            )
+        # Convert from XYZ to xy and back to XYZ to normalize the Y component. Although directly dividing by Y would suffice,
+        # the native function from the colour library is used to minimize potential additional errors.
+        # Using sd_to_XYZ_integration instead of the default ASTM E308 method of sd_to_XYZ yields more scientifically accurate source XYZ values.
+        target_whitepoint_XYZ = colour.xy_to_XYZ(
+            colour.XYZ_to_xy(colour.colorimetry.sd_to_XYZ_integration(custom_illuminant_sd)))
+        target_whitepoint_xy_debug = colour.XYZ_to_xy(target_whitepoint_XYZ)
+        LOGGER.debug(f"Custom target_whitepoint_xy_debug: {target_whitepoint_xy_debug}")
+        LOGGER.debug(f"Custom target_whitepoint_XYZ: {target_whitepoint_XYZ}")
+    else:
+        target_whitepoint_xy = colour.CCS_ILLUMINANTS[observer][target_white_point]
+        LOGGER.debug(f"target_whitepoint_xy: {target_whitepoint_xy}")
+        target_whitepoint_XYZ = colour.xy_to_XYZ(target_whitepoint_xy)
 
     cat_matrix = colour.adaptation.matrix_chromatic_adaptation_VonKries(
         source_whitepoint_XYZ,

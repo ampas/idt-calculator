@@ -11,6 +11,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from colour import SpectralDistribution
     from colour.hints import Dict, NDArrayFloat
 
 from colour.utilities import as_float_array, multiline_str
@@ -149,6 +150,7 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.lut_smoothing.metadata.name,
             IDTProjectSettings.lut_smoothing.metadata.default_value,
         )
+        self._custom_illuminant = None
 
         self._data = IDTProjectSettings.data.metadata.default_value
 
@@ -628,6 +630,32 @@ class IDTProjectSettings(MixinSerializableProperties):
 
         return self._include_exposure_factor_in_clf
 
+    @property
+    def custom_illuminant(self) -> SpectralDistribution | None:
+        """
+        Getter property for the custom illuminant spectral distribution.
+
+        Returns
+        -------
+        :class:`colour.SpectralDistribution` or :py:data:`None`
+            Custom illuminant spectral distribution.
+        """
+
+        return self._custom_illuminant
+
+    @custom_illuminant.setter
+    def custom_illuminant(self, value: SpectralDistribution):
+        """
+        Setter property for the custom illuminant spectral distribution.
+
+        Parameters
+        ----------
+        value : colour.SpectralDistribution
+            Custom illuminant spectral distribution.
+        """
+
+        self._custom_illuminant = value
+
     def get_reference_colour_checker_samples(self) -> NDArrayFloat:
         """
         Return the reference colour checker samples.
@@ -638,9 +666,19 @@ class IDTProjectSettings(MixinSerializableProperties):
             Reference colour checker samples.
         """
 
+        if self.illuminant == "Custom":
+            if self.custom_illuminant is None:
+                raise ValueError(
+                    "Custom illuminant data not provided for 'Custom' "
+                    "illuminant name."
+                )
+            illuminant_sd = self.custom_illuminant
+        else:
+            illuminant_sd = get_sds_illuminant(self.illuminant)
+
         return generate_reference_colour_checker(
             get_sds_colour_checker(self.reference_colour_checker),
-            get_sds_illuminant(self.illuminant),
+            illuminant_sd,
         )
 
     def get_optimization_factory(self) -> callable:

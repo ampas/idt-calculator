@@ -418,6 +418,66 @@ _LAYOUT_COLUMN_SETTINGS_CHILDREN = [
                                 delay=DELAY_TOOLTIP_DEFAULT,
                                 target=_uid("ev-range-input"),
                             ),
+                            InputGroup(
+                                [
+                                    InputGroupText("Flatten CLF"),
+                                    Select(
+                                        id=_uid("flatten-clf-select"),
+                                        options=[
+                                            {"label": "Yes", "value": "True"},
+                                            {"label": "No", "value": "False"},
+                                        ],
+                                        value="False",
+                                    ),
+                                ],
+                                className="mb-1",
+                            ),
+                            Tooltip(
+                                "Whether to flatten the CLF into a single "
+                                "1D Lut & 1 3x3 Matrix.",
+                                delay=DELAY_TOOLTIP_DEFAULT,
+                                target=_uid("flatten-clf-select"),
+                            ),
+                            InputGroup(
+                                [
+                                    InputGroupText("Include White Balance in CLF"),
+                                    Select(
+                                        id=_uid("include-white-balance-in-clf-select"),
+                                        options=[
+                                            {"label": "Yes", "value": "True"},
+                                            {"label": "No", "value": "False"},
+                                        ],
+                                        value="True",
+                                    ),
+                                ],
+                                className="mb-1",
+                            ),
+                            Tooltip(
+                                "Whether to include the white balance "
+                                "multipliers in the CLF.",
+                                delay=DELAY_TOOLTIP_DEFAULT,
+                                target=_uid("include-white-balance-in-clf-select"),
+                            ),
+                            InputGroup(
+                                [
+                                    InputGroupText("Include Exposure Factor in CLF"),
+                                    Select(
+                                        id=_uid("include-exposure-factor-in-clf-select"),
+                                        options=[
+                                            {"label": "Yes", "value": "True"},
+                                            {"label": "No", "value": "False"},
+                                        ],
+                                        value="True",
+                                    ),
+                                ],
+                                className="mb-1",
+                            ),
+                            Tooltip(
+                                'Whether to include the exposure factor "k" '
+                                "in the CLF.",
+                                delay=DELAY_TOOLTIP_DEFAULT,
+                                target=_uid("include-exposure-factor-in-clf-select"),
+                            ),
                         ],
                         id=_uid("advanced-options-collapse"),
                         className="mb-1",
@@ -1150,6 +1210,9 @@ def toggle_modal(n_clicks, is_open):
         State(_uid("grey-card-reflectance"), "value"),
         State(_uid("lut-size-select"), "value"),
         State(_uid("lut-smoothing-input-number"), "value"),
+        State(_uid("flatten-clf-select"), "value"),
+        State(_uid("include-white-balance-in-clf-select"), "value"),
+        State(_uid("include-exposure-factor-in-clf-select"), "value"),
     ],
     prevent_initial_call=True,
 )
@@ -1179,6 +1242,9 @@ def compute_idt_camera(
     grey_card_reflectance,
     LUT_size,
     LUT_smoothing,
+    flatten_clf,
+    include_white_balance_in_clf,
+    include_exposure_factor_in_clf,
 ):
     """
     Compute the *Input Device Transform* (IDT) for a camera.
@@ -1238,6 +1304,12 @@ def compute_idt_camera(
     LUT_smoothing : integer
         Standard deviation of the gaussian convolution kernel used for
         smoothing.
+    flatten_clf : str
+        Whether to flatten the CLF into a single 1D Lut & 1 3x3 Matrix.
+    include_white_balance_in_clf : str
+        Whether to include the white balance multipliers in the CLF.
+    include_exposure_factor_in_clf : str
+        Whether to include the exposure factor "k" in the CLF.
 
     Returns
     -------
@@ -1257,7 +1329,10 @@ def compute_idt_camera(
         '\tEV Range : "%s"\n'
         '\tGrey Card Reflectance : "%s"\n'
         '\tLUT Size : "%s"\n'
-        '\tLUT Smoothing : "%s"\n',
+        '\tLUT Smoothing : "%s"\n'
+        '\tFlatten CLF : "%s"\n'
+        '\tInclude White Balance in CLF : "%s"\n'
+        '\tInclude Exposure Factor in CLF : "%s"\n',
         generator_name,
         RGB_display_colourspace,
         illuminant_name,
@@ -1270,6 +1345,9 @@ def compute_idt_camera(
         grey_card_reflectance,
         LUT_size,
         LUT_smoothing,
+        flatten_clf,
+        include_white_balance_in_clf,
+        include_exposure_factor_in_clf,
     )
 
     aces_transform_id = str(aces_transform_id)
@@ -1284,6 +1362,8 @@ def compute_idt_camera(
     debayering_settings = str(debayering_settings)
     encoding_colourspace = str(encoding_colourspace or "")
     encoding_transfer_function = str(encoding_transfer_function or "")
+    LUT_size = int(LUT_size)
+    LUT_smoothing = int(LUT_smoothing)
 
     # Validation: Check if the inputs are valid
     is_valid, errors = IDTProjectSettings.validate_core_requirements(
@@ -1359,7 +1439,27 @@ def compute_idt_camera(
         encoding_colourspace=encoding_colourspace,
         encoding_transfer_function=encoding_transfer_function,
         illuminant=illuminant_name,
+        rgb_display_colourspace=RGB_display_colourspace,
+        cat=chromatic_adaptation_transform,
+        optimisation_space=optimisation_space,
+        illuminant_interpolator=illuminant_interpolator,
+        decoding_method=decoding_method,
+        ev_range=[float(value) for value in EV_range.split(" ") if value],
+        grey_card_reference=[
+            float(value) for value in grey_card_reflectance.split(" ") if value
+        ],
+        lut_size=LUT_size,
+        lut_smoothing=LUT_smoothing,
+        flatten_clf=(lambda v: True if v == "True" else False)(flatten_clf),
+        include_white_balance_in_clf=(lambda v: True if v == "True" else False)(
+            include_white_balance_in_clf),
+        include_exposure_factor_in_clf=(lambda v: True if v == "True" else False)(
+            include_exposure_factor_in_clf),
     )
+
+    if illuminant_name == "Custom":
+        project_settings.custom_illuminant = illuminant
+
     _IDT_GENERATOR_APPLICATION = IDTGeneratorApplication(
         generator_name, project_settings
     )
@@ -1373,16 +1473,27 @@ def compute_idt_camera(
         os.remove(_PATH_UPLOADED_IDT_ARCHIVE)
         _IDT_GENERATOR_APPLICATION.validate_project_settings()
         _IDT_GENERATOR_APPLICATION.generator.sample()
+        colour_checker_segmentation = (
+            _IDT_GENERATOR_APPLICATION.generator.png_colour_checker_segmentation()
+        )
+        grey_card_sampling = (
+            _IDT_GENERATOR_APPLICATION.generator.png_grey_card_sampling()
+        )
+
         _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE] = (
             _IDT_GENERATOR_APPLICATION.project_settings.data,
             _IDT_GENERATOR_APPLICATION.generator.samples_analysis,
             _IDT_GENERATOR_APPLICATION.generator.baseline_exposure,
+            colour_checker_segmentation,
+            grey_card_sampling,
         )
     else:
         (
             _IDT_GENERATOR_APPLICATION.project_settings.data,
             _IDT_GENERATOR_APPLICATION.generator._samples_analysis,  # noqa: SLF001
             _IDT_GENERATOR_APPLICATION.generator._baseline_exposure,  # noqa: SLF001
+            colour_checker_segmentation,
+            grey_card_sampling,
         ) = _CACHE_DATA_ARCHIVE_TO_SAMPLES[_HASH_IDT_ARCHIVE]
 
     generator = _IDT_GENERATOR_APPLICATION.generator
@@ -1482,7 +1593,6 @@ def compute_idt_camera(
     ]
 
     # Segmentation
-    colour_checker_segmentation = generator.png_colour_checker_segmentation()
     if colour_checker_segmentation is not None:
         components += [
             H3("Segmentation", style={"textAlign": "center"}),
@@ -1491,7 +1601,6 @@ def compute_idt_camera(
                 style={"width": "100%"},
             ),
         ]
-    grey_card_sampling = generator.png_grey_card_sampling()
     if grey_card_sampling is not None:
         components += [
             Img(
