@@ -29,6 +29,7 @@
     "cleanup": true,
     "reference_colour_checker": "ISO 17321-1",
     "illuminant": "D60",
+    "illuminant_custom_temperature": 6500,
     "file_type": "",
     "ev_weights": [],
     "optimization_kwargs": {}

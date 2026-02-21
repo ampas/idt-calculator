@@ -7,6 +7,7 @@
     "camera_model": "",
     "iso": 800,
     "temperature": 6000,
+    "illuminant_custom_temperature": 6500,
     "additional_camera_settings": "",
     "lighting_setup_description": "",
     "debayering_platform": "",

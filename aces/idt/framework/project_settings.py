@@ -85,6 +85,10 @@ class IDTProjectSettings(MixinSerializableProperties):
             IDTProjectSettings.temperature.metadata.name,
             IDTProjectSettings.temperature.metadata.default_value,
         )
+        self._illuminant_custom_temperature = kwargs.get(
+            IDTProjectSettings.illuminant_custom_temperature.metadata.name,
+            IDTProjectSettings.illuminant_custom_temperature.metadata.default_value,
+        )
         self._additional_camera_settings = kwargs.get(
             IDTProjectSettings.additional_camera_settings.metadata.name,
             IDTProjectSettings.additional_camera_settings.metadata.default_value,
@@ -290,6 +294,30 @@ class IDTProjectSettings(MixinSerializableProperties):
         """
 
         return self._temperature
+
+    @metadata_property(metadata=MetadataConstants.ILLUMINANT_CUSTOM_TEMPERATURE)
+    def illuminant_custom_temperature(self) -> int:
+        """
+        Getter property for the illuminant custom temperature in Kelvin degrees.
+
+        This property is used when the illuminant is set to "Blackbody" or
+        "Daylight". It specifies the correlated colour temperature (CCT) in
+        Kelvin for generating the spectral distribution.
+
+        Returns
+        -------
+        :class:`int`
+            Illuminant custom temperature in Kelvin degrees.
+
+        Notes
+        -----
+        -   For Blackbody illuminants, this temperature is used directly with
+            Planck's law to generate the spectral power distribution.
+        -   For Daylight illuminants, this temperature is used to generate a
+            CIE D Series illuminant at the specified CCT.
+        """
+
+        return self._illuminant_custom_temperature
 
     @metadata_property(metadata=MetadataConstants.ADDITIONAL_CAMERA_SETTINGS)
     def additional_camera_settings(self) -> str:
@@ -638,9 +666,16 @@ class IDTProjectSettings(MixinSerializableProperties):
             Reference colour checker samples.
         """
 
+        # Pass illuminant_custom_temperature if illuminant is "Blackbody" or "Daylight"
+        temperature = (
+            self.illuminant_custom_temperature
+            if self.illuminant in ("Blackbody", "Daylight")
+            else None
+        )
+
         return generate_reference_colour_checker(
             get_sds_colour_checker(self.reference_colour_checker),
-            get_sds_illuminant(self.illuminant),
+            get_sds_illuminant(self.illuminant, temperature=temperature),
         )
 
     def get_optimization_factory(self) -> callable:
